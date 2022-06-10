@@ -21,11 +21,12 @@
 
   <script type="module">
     import init from './cosmic_spaceball_tactical_action_arena.js'
-    init()
 
-    for (let loader of document.getElementsByClassName("loader")) {
-      loader.remove()
-    }
+    init().finally(() => {
+      for (let loader of document.getElementsByClassName("loader")) {
+        loader.remove()
+      }
+    });
   </script>
 </html>
 
