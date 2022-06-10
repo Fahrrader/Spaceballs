@@ -2,7 +2,22 @@ use bevy::prelude::*;
 
 
 #[derive(Component)]
-struct Player;
+struct Player {
+    speed: f32,
+    rotation_speed: f32,
+}
+
+impl Player {
+    fn new(speed: f32, rotation_speed: f32) -> Self {
+        Self {
+            speed,
+            rotation_speed,
+        }
+    }
+}
+
+#[derive(Component)]
+struct Bullet;
 
 
 fn setup(mut commands: Commands) {
@@ -15,7 +30,7 @@ fn setup(mut commands: Commands) {
         },
         transform: Transform::from_xyz(0.0, -300.0, 0.0),
         ..default()
-    }).insert(Player);
+    }).insert(Player::new(4.0, 3.0));
 }
 
 fn handle_input(keys: Res<Input<KeyCode>>, mut input: ResMut<PlayerInput>) {
@@ -23,16 +38,36 @@ fn handle_input(keys: Res<Input<KeyCode>>, mut input: ResMut<PlayerInput>) {
     input.down  = keys.pressed(KeyCode::S) || keys.pressed(KeyCode::Down);
     input.left  = keys.pressed(KeyCode::A) || keys.pressed(KeyCode::Left);
     input.right = keys.pressed(KeyCode::D) || keys.pressed(KeyCode::Right);
+    input.fire   = keys.pressed(KeyCode::Space);
 }
 
 fn handle_movement(
     time: Res<Time>,
     input: Res<PlayerInput>,
-    mut query: Query<&mut Transform, With<Player>>
+    mut query: Query<(&Player, &mut Transform)>
 ) {
-    let d_x = input.into_direction() * time.delta_seconds() * 300.0;
+    let (player, mut transform) = query.single_mut();
+    let dt = time.delta_seconds();
 
-    query.single_mut().translation += d_x.extend(0.0);
+    transform.rotate(Quat::from_axis_angle(-Vec3::Z, input.angular_speed() * dt * player.rotation_speed));
+    let d_x = transform.up() * input.speed() * player.speed;
+    transform.translation += d_x;
+}
+
+fn handle_fire(mut commands: Commands, input: Res<PlayerInput>, player: Query<(&mut Player, &Transform)>) {
+    let (mut _player, player_transform) = player.single();
+
+    if input.fire {
+        commands.spawn_bundle(SpriteBundle {
+            sprite: Sprite {
+                color: Color::ALICE_BLUE,
+                custom_size: Some(Vec2::new(5.0, 5.0)),
+                ..default()
+            },
+            transform: player_transform.clone(),
+            ..default()
+        }).insert(Bullet);
+    }
 }
 
 
@@ -42,24 +77,22 @@ struct PlayerInput {
     down: bool,
     left: bool,
     right: bool,
+    fire: bool,
 }
 
 impl PlayerInput {
-    fn into_direction(&self) -> Vec2 {
-        let mut dir = Vec2::ZERO;
-        if self.up {
-            dir.y += 1.0;
-        }
-        if self.down {
-            dir.y -= 1.0;
-        }
-        if self.left {
-            dir.x -= 1.0;
-        }
-        if self.right {
-            dir.x += 1.0;
-        }
-        dir.normalize_or_zero()
+    fn speed(&self) -> f32 {
+        let mut speed = 0.0;
+        if self.up { speed += 1.0; }
+        if self.down { speed -= 1.0; }
+        speed
+    }
+
+    fn angular_speed(&self) -> f32 {
+        let mut angle = 0.0;
+        if self.left  { angle -= 1.0 }
+        if self.right { angle += 1.0 }
+        angle
     }
 }
 
@@ -72,6 +105,7 @@ fn main() {
         .add_startup_system(setup)
         .add_system(handle_input)
         .add_system(handle_movement)
+        .add_system(handle_fire)
         .run();
 }
 
