@@ -9,7 +9,7 @@ fn setup(mut commands: Commands) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
     commands.spawn_bundle(SpriteBundle {
         sprite: Sprite {
-            color: Color::RED,
+            color: Color::CYAN,
             custom_size: Some(Vec2::new(50.0, 50.0)),
             ..default()
         },
