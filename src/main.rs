@@ -5,19 +5,33 @@ use bevy::prelude::*;
 struct Player {
     speed: f32,
     rotation_speed: f32,
+    projectile_speed: f32,
 }
 
 impl Player {
-    fn new(speed: f32, rotation_speed: f32) -> Self {
+    fn new(speed: f32, rotation_speed: f32, projectile_speed: f32) -> Self {
         Self {
             speed,
             rotation_speed,
+            projectile_speed,
         }
     }
 }
 
 #[derive(Component)]
-struct Bullet;
+struct Bullet {
+    velocity: Vec2,
+}
+
+
+impl Bullet {
+    fn new(velocity: Vec2) -> Self {
+        Self {
+            velocity
+        }
+    }
+}
+
 
 
 fn setup(mut commands: Commands) {
@@ -28,9 +42,8 @@ fn setup(mut commands: Commands) {
             custom_size: Some(Vec2::new(50.0, 50.0)),
             ..default()
         },
-        transform: Transform::from_xyz(0.0, -300.0, 0.0),
         ..default()
-    }).insert(Player::new(4.0, 3.0));
+    }).insert(Player::new(200.0, 3.0, 300.0));
 }
 
 fn handle_input(keys: Res<Input<KeyCode>>, mut input: ResMut<PlayerInput>) {
@@ -49,13 +62,13 @@ fn handle_movement(
     let (player, mut transform) = query.single_mut();
     let dt = time.delta_seconds();
 
-    transform.rotate(Quat::from_axis_angle(-Vec3::Z, input.angular_speed() * dt * player.rotation_speed));
-    let d_x = transform.up() * input.speed() * player.speed;
+    transform.rotate(Quat::from_axis_angle(-Vec3::Z, input.angular_speed() * player.rotation_speed * dt));
+    let d_x = transform.up() * input.speed() * player.speed * dt;
     transform.translation += d_x;
 }
 
-fn handle_fire(mut commands: Commands, input: Res<PlayerInput>, player: Query<(&mut Player, &Transform)>) {
-    let (mut _player, player_transform) = player.single();
+fn handle_fire(mut commands: Commands, input: Res<PlayerInput>, player_q: Query<(&mut Player, &Transform)>) {
+    let (mut player, player_transform) = player_q.single();
 
     if input.fire {
         commands.spawn_bundle(SpriteBundle {
@@ -66,7 +79,22 @@ fn handle_fire(mut commands: Commands, input: Res<PlayerInput>, player: Query<(&
             },
             transform: player_transform.clone(),
             ..default()
-        }).insert(Bullet);
+        }).insert(Bullet::new( player_transform.up().truncate() * player.projectile_speed ));
+    }
+}
+
+fn handle_bullets(mut commands: Commands, time: Res<Time>, mut query: Query<(&Bullet, &mut Transform, Entity)>) {
+    let dt = time.delta_seconds();
+
+    for (bullet, mut transform, entity) in query.iter_mut() {
+        transform.translation += bullet.velocity.extend(0.0) * dt;
+
+        if transform.translation.x > 300.0
+            || transform.translation.x < -300.0
+            || transform.translation.y > 300.0
+            || transform.translation.y < -300.0 {
+                commands.entity(entity).despawn();
+        }
     }
 }
 
@@ -106,6 +134,7 @@ fn main() {
         .add_system(handle_input)
         .add_system(handle_movement)
         .add_system(handle_fire)
+        .add_system(handle_bullets)
         .run();
 }
 
