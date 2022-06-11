@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::render::primitives::{Frustum, Sphere};
 
 #[derive(Component)]
 struct Player {
@@ -78,7 +79,7 @@ fn handle_fire(
             .spawn_bundle(SpriteBundle {
                 sprite: Sprite {
                     color: Color::ALICE_BLUE,
-                    custom_size: Some(Vec2::new(5.0, 5.0)),
+                    custom_size: Some(Vec2::new(5.0, 5.0)), // todo replace with constant
                     ..default()
                 },
                 transform: player_transform.clone(),
@@ -93,17 +94,22 @@ fn handle_fire(
 fn handle_bullets(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(&Bullet, &mut Transform, Entity)>,
+    mut query_bullets: Query<(&Bullet, &mut Transform, Entity)>,
+    query_frustrum: Query<&Frustum, With<Camera>>,
 ) {
     let dt = time.delta_seconds();
 
-    for (bullet, mut transform, entity) in query.iter_mut() {
+    let frustum = query_frustrum.get_single().unwrap();
+
+    for (bullet, mut transform, entity) in query_bullets.iter_mut() {
         transform.translation += bullet.velocity.extend(0.0) * dt;
 
-        if transform.translation.x > 300.0
-            || transform.translation.x < -300.0
-            || transform.translation.y > 300.0
-            || transform.translation.y < -300.0
+        let model_sphere = Sphere {
+            center: transform.translation.into(),
+            radius: 5.0, // todo replace with constant
+        };
+
+        if !frustum.intersects_sphere(&model_sphere, false)
         {
             commands.entity(entity).despawn();
         }
