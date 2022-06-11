@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use bevy::render::primitives::{Frustum, Sphere};
 use wasm_bindgen::prelude::*;
 
-
 #[derive(Component)]
 struct Player {
     speed: f32,
@@ -111,8 +110,7 @@ fn handle_bullets(
             radius: 5.0, // todo replace with constant
         };
 
-        if !frustum.intersects_sphere(&model_sphere, false)
-        {
+        if !frustum.intersects_sphere(&model_sphere, false) {
             commands.entity(entity).despawn();
         }
     }
@@ -151,12 +149,10 @@ impl PlayerInput {
     }
 }
 
-
 fn resize_window(mut windows: ResMut<Windows>) {
     let mut window = windows.get_primary_mut().unwrap();
     log!("{:?}", window);
 }
-
 
 fn main() {
     #[cfg(target_arch = "wasm32")]
@@ -187,6 +183,7 @@ macro_rules! log {
 #[cfg(target_arch = "wasm32")]
 #[macro_export]
 macro_rules! log {
+    () => (log("\n"));
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
 }
 
@@ -196,4 +193,3 @@ extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
 }
-
