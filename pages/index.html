@@ -2,12 +2,26 @@
   <head>
     <meta charset="UTF-8" />
     <style>
+      body {
+        background-color: gray;
+        touch-action: none;
+      }
+
+      canvas:focus {
+        outline: none;
+      }
+
       .loader {
         border: 16px solid #f3f3f3; /* Light grey */
-        border-top: 16px solid #3498db; /* Blue */
+        border-top: 16px solid #00ffff; /* Blue */
         border-radius: 50%;
         width: 120px;
         height: 120px;
+        position: absolute;
+        margin-top: -60px;
+        margin-left: -60px;
+        top: 50%;
+        left: 50%;
         animation: spin 2s linear infinite;
       }
 
@@ -26,6 +40,7 @@
       for (let loader of document.getElementsByClassName("loader")) {
         loader.remove()
       }
+      document.getElementsByTagName("canvas")[0].focus();
     });
   </script>
 </html>

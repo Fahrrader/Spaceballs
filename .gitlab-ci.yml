@@ -10,6 +10,8 @@ before_script:
 pages:
   stage: deploy
   script:
+    - mkdir public
+    - cp pages/index.html public/
     - cargo build --release --target=wasm32-unknown-unknown
     - .cargo/bin/wasm-bindgen --no-typescript --out-dir ./public/ --target web target/wasm32-unknown-unknown/release/cosmic_spaceball_tactical_action_arena.wasm
     - gzip -9 --keep public/cosmic_spaceball_tactical_action_arena_bg.wasm

@@ -1,6 +1,10 @@
 # Cargo
 /target
 
+# Local setup for convinience
+Makefile
+/public
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/macos,rust,windows,linux,clion,visualstudiocode,vim
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,rust,windows,linux,clion,visualstudiocode,vim

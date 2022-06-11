@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use wasm_bindgen::prelude::*;
 
 
 #[derive(Component)]
@@ -51,7 +52,7 @@ fn handle_input(keys: Res<Input<KeyCode>>, mut input: ResMut<PlayerInput>) {
     input.down  = keys.pressed(KeyCode::S) || keys.pressed(KeyCode::Down);
     input.left  = keys.pressed(KeyCode::A) || keys.pressed(KeyCode::Left);
     input.right = keys.pressed(KeyCode::D) || keys.pressed(KeyCode::Right);
-    input.fire   = keys.pressed(KeyCode::Space);
+    input.fire  = keys.pressed(KeyCode::Space);
 }
 
 fn handle_movement(
@@ -125,9 +126,19 @@ impl PlayerInput {
 }
 
 
+fn resize_window(mut windows: ResMut<Windows>) {
+    let mut window = windows.get_primary_mut().unwrap();
+    log!("{:?}", window);
+}
+
+
 fn main() {
+    #[cfg(target_arch = "wasm32")]
+    console_error_panic_hook::set_once();
+
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_startup_system(resize_window)
         .insert_resource(ClearColor(Color::BLACK))
         .init_resource::<PlayerInput>()
         .add_startup_system(setup)
@@ -136,5 +147,27 @@ fn main() {
         .add_system(handle_fire)
         .add_system(handle_bullets)
         .run();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[macro_export]
+macro_rules! log {
+    () => (println!());
+    ($($arg:tt)*) => ({
+        println!($($arg)*)
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+#[macro_export]
+macro_rules! log {
+    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
 }
 

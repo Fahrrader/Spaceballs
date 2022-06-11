@@ -1129,6 +1129,8 @@ name = "cosmic_spaceball_tactical_action_arena"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "console_error_panic_hook",
+ "wasm-bindgen",
 ]
 
 [[package]]
