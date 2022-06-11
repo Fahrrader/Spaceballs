@@ -99,7 +99,7 @@ fn handle_bullets(
 ) {
     let dt = time.delta_seconds();
 
-    let frustum = query_frustum.get_single().unwrap();
+    let frustum = query_frustum.single();
 
     for (bullet, mut transform, entity) in query_bullets.iter_mut() {
         transform.translation += bullet.velocity.extend(0.0) * dt;
