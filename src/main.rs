@@ -95,11 +95,11 @@ fn handle_bullets(
     mut commands: Commands,
     time: Res<Time>,
     mut query_bullets: Query<(&Bullet, &mut Transform, Entity)>,
-    query_frustrum: Query<&Frustum, With<Camera>>,
+    query_frustum: Query<&Frustum, With<Camera>>,
 ) {
     let dt = time.delta_seconds();
 
-    let frustum = query_frustrum.get_single().unwrap();
+    let frustum = query_frustum.get_single().unwrap();
 
     for (bullet, mut transform, entity) in query_bullets.iter_mut() {
         transform.translation += bullet.velocity.extend(0.0) * dt;
