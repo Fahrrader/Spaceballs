@@ -5,17 +5,13 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[target.'cfg(not(any(target_arch = "wasm32", target_os = "windows")))'.dependencies]
 bevy = {features = ["dynamic"], version = "0.7"}
 
 [dependencies]
 bevy = "0.7"
 console_error_panic_hook = "0.1"
 wasm-bindgen = "*"
-
-
-[profile.dev.package."*"]
-opt-level = 3
 
 [profile.release]
 opt-level = 's'
