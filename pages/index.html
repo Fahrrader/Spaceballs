@@ -5,6 +5,14 @@
       body {
         background-color: gray;
         touch-action: none;
+        margin: 0px;
+        padding: 0px;
+        border: 0px;
+      }
+
+      canvas {
+        display: block;
+        margin: 0 auto;
       }
 
       canvas:focus {
@@ -29,19 +37,103 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
+
+      .controls_panel {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+      }
+
+      .controls {
+        width: 200px;
+        height: 200px;
+        background-color: #00cccccc;
+        border-radius: 15%;
+        margin: 0;
+      }
+
+      #key_w {
+        margin-left: 200px;
+      }
     </style>
   </head>
   <div class="loader"></div>
 
+  <script>
+    function requestedWidth() {
+      return document.body.clientWidth;
+    }
+
+    function requestedHeight() {
+      return document.body.clientHeight;
+    }
+  </script>
   <script type="module">
     import init from './cosmic_spaceball_tactical_action_arena.js'
+
+    function detectMob() {
+        const toMatch = [
+            /Android/i,
+            /webOS/i,
+            /iPhone/i,
+            /iPad/i,
+            /iPod/i,
+            /BlackBerry/i,
+            /Windows Phone/i
+        ];
+
+        return toMatch.some((toMatchItem) => {
+            return navigator.userAgent.match(toMatchItem);
+        });
+    }
+    if (!detectMob()) {
+      for (let controls of document.getElementsByClassName("controls_panel")) {
+        controls.remove()
+      }
+    }
+
+    let setup_controls = (function(c) {
+      let fake_press = function(key, code, type) {
+        c.dispatchEvent(new KeyboardEvent(type, {'key': key, 'code': code}));
+      }
+      let setup_one_button = function(button, key, code) {
+        button.onmousedown   = (e) => { fake_press(key, code, 'keydown') }
+        button.onmouseup     = (e) => { fake_press(key, code, 'keyup') }
+        button.ontouchstart  = (e) => { fake_press(key, code, 'keydown'); return false; }
+        button.ontouchend    = (e) => { fake_press(key, code, 'keyup'); return false; }
+        button.ontouchcancel = (e) => { fake_press(key, code, 'keyup'); return false; }
+      }
+
+      setup_one_button(key_w, 'w', 'KeyW');
+      setup_one_button(key_a, 'a', 'KeyA');
+      setup_one_button(key_s, 's', 'KeyS');
+      setup_one_button(key_d, 'd', 'KeyD');
+
+      setup_one_button(key_space, ' ', 'Space');
+    });
 
     init().finally(() => {
       for (let loader of document.getElementsByClassName("loader")) {
         loader.remove()
       }
-      document.getElementsByTagName("canvas")[0].focus();
+      let c = document.getElementsByTagName("canvas")[0];
+
+      if (detectMob()) {
+        setup_controls(c);
+      }
+      c.focus();
     });
   </script>
+
+
+  <div class='controls_panel'>
+    <button id='key_w' class='controls'></button> <br>
+    <button id='key_a' class='controls'></button>
+    <button id='key_s' class='controls'></button>
+    <button id='key_d' class='controls'></button>
+
+    <button id='key_space' class='controls'></button>
+  <div/>
+
 </html>
 
