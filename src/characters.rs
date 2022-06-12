@@ -1,8 +1,8 @@
-use crate::actions::ActionInput;
+use crate::controls::ActionInput;
 use crate::collisions::Collider;
 use crate::health::{Health, HitPoints};
 use crate::projectiles::{BulletBundle, BULLET_SIZE, BULLET_SPEED};
-use crate::team::{team_color, Team};
+use crate::teams::{team_color, Team};
 use bevy::core::{Time, Timer};
 use bevy::math::Vec2;
 use bevy::prelude::{

@@ -11,16 +11,6 @@ pub struct ActionInput {
     pub fire: bool,
 }
 
-impl GetVelocity for ActionInput {
-    fn get_velocity(&self) -> Velocity {
-        // transform?
-        Velocity {
-            // linear:
-            //angular: self.angular_speed(),
-        }
-    }
-}
-
 impl ActionInput {
     pub fn speed(&self) -> f32 {
         let mut speed = 0.0;
@@ -42,6 +32,16 @@ impl ActionInput {
             angle += 1.0
         }
         angle
+    }
+}
+
+impl GetVelocity for ActionInput {
+    fn get_velocity(&self) -> Velocity {
+        // transform?
+        Velocity {
+            // linear:
+            //angular: self.angular_speed(),
+        }
     }
 }
 

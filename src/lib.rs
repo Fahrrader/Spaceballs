@@ -1,18 +1,18 @@
-mod scenes;
-mod actions;
 mod ai;
-mod character;
+mod characters;
 mod collisions;
+mod controls;
 mod health;
 mod movement;
 mod projectiles;
-mod team;
+mod scenes;
+mod teams;
 
-pub use crate::actions::{handle_player_input, ActionInput};
 pub use crate::ai::AI_DEFAULT_TEAM;
-pub use crate::character::{
+pub use crate::characters::{
     handle_gunfire, BaseCharacterBundle, ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
 };
+pub use crate::controls::{handle_player_input, ActionInput};
 pub use crate::health::{calculate_damages, EntityDamagedEvent};
 pub use crate::movement::handle_movement;
 pub use crate::projectiles::{handle_bullet_collision, handle_bullet_flight};
