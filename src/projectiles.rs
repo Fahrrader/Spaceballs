@@ -1,8 +1,8 @@
-use crate::character::{Character, CHARACTER_SIZE};
+use crate::characters::{Character, CHARACTER_SIZE};
 use crate::collisions::Collider;
 use crate::health::EntityDamagedEvent;
 use crate::health::HitPoints;
-use crate::team::Team;
+use crate::teams::Team;
 use bevy::core::Time;
 use bevy::math::Vec2;
 use bevy::prelude::{

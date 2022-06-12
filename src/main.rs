@@ -2,18 +2,18 @@ use bevy::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-pub mod actions;
+pub mod controls;
 pub mod ai;
-pub mod character;
+pub mod characters;
 pub mod collisions;
 pub mod health;
 pub mod movement;
 pub mod projectiles;
-pub mod team;
+pub mod teams;
 
-use crate::actions::{handle_player_input, ActionInput};
+use crate::controls::{handle_player_input, ActionInput};
 use crate::ai::AI_DEFAULT_TEAM;
-use crate::character::{
+use crate::characters::{
     handle_gunfire, BaseCharacterBundle, ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
 };
 use crate::health::{calculate_damages, EntityDamagedEvent};

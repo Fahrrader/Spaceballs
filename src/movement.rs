@@ -1,5 +1,5 @@
-use crate::actions::ActionInput;
-use crate::character::{PlayerControlled, CHARACTER_RAD_SPEED, CHARACTER_SPEED};
+use crate::controls::ActionInput;
+use crate::characters::{PlayerControlled, CHARACTER_RAD_SPEED, CHARACTER_SPEED};
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{Component, Query, Res, Time, Transform, With};
 
