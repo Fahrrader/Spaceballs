@@ -149,9 +149,27 @@ impl PlayerInput {
     }
 }
 
-fn resize_window(mut windows: ResMut<Windows>) {
-    let mut window = windows.get_primary_mut().unwrap();
-    log!("{:?}", window);
+fn create_window_descriptor() -> WindowDescriptor {
+    let ratio = 1.0;
+    let (mut wid, mut hei) = match get_screen_size() {
+       Some(size) => size,
+       None => {
+           let wd = WindowDescriptor::default();
+           (wd.width, wd.height)
+       }
+    };
+
+    if wid / hei > ratio {
+        wid = hei * ratio;
+    } else {
+        hei = wid / ratio;
+    }
+
+    WindowDescriptor {
+        width: wid,
+        height: hei,
+        ..default()
+    }
 }
 
 fn main() {
@@ -159,8 +177,8 @@ fn main() {
     console_error_panic_hook::set_once();
 
     App::new()
+        .insert_resource(create_window_descriptor())
         .add_plugins(DefaultPlugins)
-        .add_startup_system(resize_window)
         .insert_resource(ClearColor(Color::BLACK))
         .init_resource::<PlayerInput>()
         .add_startup_system(setup)
@@ -169,6 +187,16 @@ fn main() {
         .add_system(handle_fire)
         .add_system(handle_bullets)
         .run();
+}
+
+#[cfg(target_arch = "wasm32")]
+fn get_screen_size() -> Option<(f32, f32)> {
+    Some((requestedWidth(), requestedHeight()))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn get_screen_size() -> Option<(f32, f32)> {
+    None
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -192,4 +220,8 @@ macro_rules! log {
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
+
+    fn requestedWidth() -> f32;
+    fn requestedHeight() -> f32;
 }
+
