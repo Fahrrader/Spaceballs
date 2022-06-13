@@ -59,7 +59,6 @@ fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
     }
 }
 
-
 fn main() {
     #[cfg(target_arch = "wasm32")]
     console_error_panic_hook::set_once();
@@ -83,7 +82,6 @@ fn main() {
         .run();
 }
 
-
 #[cfg(not(target_arch = "wasm32"))]
 #[macro_export]
 macro_rules! log {
@@ -106,4 +104,3 @@ extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
 }
-
