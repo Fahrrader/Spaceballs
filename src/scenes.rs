@@ -1,5 +1,5 @@
 use crate::{
-    ControlledPlayerCharacterBundle, BaseCharacterBundle, AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM,
+    BaseCharacterBundle, ControlledPlayerCharacterBundle, AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM,
 };
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{Commands, OrthographicCameraBundle, Res, Transform};
