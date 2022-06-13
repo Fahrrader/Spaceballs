@@ -28,9 +28,9 @@ impl BulletBundle {
     pub fn new(team: Team, transform: Transform, velocity: Vec3) -> Self {
         Self {
             bullet: Bullet { team },
-            rigidbody: heron::RigidBody::KinematicVelocityBased,
+            rigidbody: heron::RigidBody::Dynamic,
             collider: heron::CollisionShape::Sphere {
-                radius: BULLET_SIZE * transform.scale.length(),
+                radius: BULLET_SIZE / 2.0 * transform.scale.length(),
             },
             velocity: heron::Velocity {
                 linear: velocity,
@@ -39,10 +39,9 @@ impl BulletBundle {
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: Color::ALICE_BLUE,
-                    custom_size: Some(Vec2::new(BULLET_SIZE, BULLET_SIZE)),
                     ..default()
                 },
-                transform,
+                transform: transform.with_scale(Vec3::ONE * BULLET_SIZE),
                 ..default()
             },
         }
