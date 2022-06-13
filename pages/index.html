@@ -59,15 +59,6 @@
   </head>
   <div class="loader"></div>
 
-  <script>
-    function requestedWidth() {
-      return document.body.clientWidth;
-    }
-
-    function requestedHeight() {
-      return document.body.clientHeight;
-    }
-  </script>
   <script type="module">
     import init from './cosmic_spaceball_tactical_action_arena.js'
 
@@ -112,6 +103,22 @@
       setup_one_button(key_space, ' ', 'Space');
     });
 
+
+    let setup_canvas_size = (c) => {
+      let wid = document.body.clientWidth;
+      let hei = document.body.clientHeight;
+
+      let ratio = c.width / c.height;
+
+      if (wid/hei > ratio)
+        wid = ratio * hei;
+      else
+        hei = wid / ratio;
+
+      c.style.width = wid + "px";
+      c.style.height = hei + "px";
+    };
+
     init().finally(() => {
       for (let loader of document.getElementsByClassName("loader")) {
         loader.remove()
@@ -121,6 +128,7 @@
       if (detectMob()) {
         setup_controls(c);
       }
+      setup_canvas_size(c);
       c.focus();
     });
   </script>

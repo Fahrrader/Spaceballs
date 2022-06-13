@@ -324,25 +324,23 @@ impl PlayerInput {
     }
 }
 
-fn create_window_descriptor() -> WindowDescriptor {
-    let ratio = 1.0;
-    let (mut wid, mut hei) = match get_screen_size() {
-        Some(size) => size,
-        None => {
-            let wd = WindowDescriptor::default();
-            (wd.width, wd.height)
-        }
-    };
-
-    if wid / hei > ratio {
-        wid = hei * ratio;
-    } else {
-        hei = wid / ratio;
-    }
-
+#[cfg(target_arch = "wasm32")]
+fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
+    let (width, height) = resolution;
     WindowDescriptor {
-        width: wid,
-        height: hei,
+        width,
+        height,
+        scale_factor_override: Some(1.0),
+        ..default()
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
+    let (width, height) = resolution;
+    WindowDescriptor {
+        width,
+        height,
         ..default()
     }
 }
@@ -352,7 +350,7 @@ fn main() {
     console_error_panic_hook::set_once();
 
     App::new()
-        .insert_resource(create_window_descriptor())
+        .insert_resource(create_window_descriptor((800.0, 800.0)))
         .add_plugins(DefaultPlugins)
         .insert_resource(ClearColor(Color::BLACK))
         .init_resource::<PlayerInput>()
@@ -367,15 +365,6 @@ fn main() {
         .run();
 }
 
-#[cfg(target_arch = "wasm32")]
-fn get_screen_size() -> Option<(f32, f32)> {
-    Some((requestedWidth(), requestedHeight()))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn get_screen_size() -> Option<(f32, f32)> {
-    None
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[macro_export]
@@ -398,7 +387,4 @@ macro_rules! log {
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
-
-    fn requestedWidth() -> f32;
-    fn requestedHeight() -> f32;
 }

@@ -17,3 +17,5 @@ wasm-bindgen = "*"
 opt-level = 's'
 lto = 'thin'
 
+[profile.dev]
+opt-level = 3
