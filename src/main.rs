@@ -12,7 +12,7 @@ pub mod movement;
 pub mod projectiles;
 pub mod teams;
 
-use crate::ai::AI_DEFAULT_TEAM;
+use crate::ai::{handle_ai_input, AI_DEFAULT_TEAM};
 use crate::characters::{
     handle_character_velocity, handle_gunfire, BaseCharacterBundle,
     ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
@@ -72,6 +72,7 @@ fn main() {
         .add_event::<EntityDamagedEvent>()
         .add_startup_system(setup)
         .add_system(handle_player_input)
+        .add_system(handle_ai_input)
         .add_system(handle_character_velocity.after(handle_player_input))
         .add_system(handle_movement.after(handle_character_velocity))
         .add_system(handle_gunfire.after(handle_player_input))
