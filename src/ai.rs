@@ -11,6 +11,7 @@ pub fn handle_ai_input(mut query: Query<&mut ActionInput, Without<PlayerControll
     // I heard spinning is a good trick
     for mut actions in query.iter_mut() {
         actions.right = true;
+        actions.up = true;
         actions.fire = random::<f32>() < 0.25;
     }
 }
