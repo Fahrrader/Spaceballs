@@ -1,13 +1,13 @@
-use crate::controls::ActionInput;
+use crate::actions::ActionInput;
 use crate::collisions::Collider;
 use crate::health::{Health, HitPoints};
+use crate::movement::Velocity;
 use crate::projectiles::{BulletBundle, BULLET_SIZE, BULLET_SPEED};
 use crate::teams::{team_color, Team};
+use crate::Vec3;
 use bevy::core::{Time, Timer};
 use bevy::math::Vec2;
-use bevy::prelude::{
-    Bundle, Commands, Component, Query, Res, Sprite, SpriteBundle, Transform, With,
-};
+use bevy::prelude::{Bundle, Commands, Component, Query, Res, Sprite, SpriteBundle, Transform};
 use bevy::utils::default;
 use std::time::Duration;
 
@@ -25,6 +25,7 @@ pub const PLAYER_DEFAULT_TEAM: Team = 0;
 pub struct BaseCharacterBundle {
     character: Character,
     health: Health,
+    velocity: Velocity,
     action_input: ActionInput,
     #[bundle]
     sprite_bundle: SpriteBundle,
@@ -36,6 +37,7 @@ impl BaseCharacterBundle {
         Self {
             character: Character { team, ..default() },
             health: Health::new(CHARACTER_MAX_HEALTH),
+            velocity: Velocity::default(),
             action_input: ActionInput::default(),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
@@ -43,7 +45,7 @@ impl BaseCharacterBundle {
                     custom_size: Some(Vec2::new(CHARACTER_SIZE, CHARACTER_SIZE)),
                     ..default()
                 },
-                transform: transform.clone(),
+                transform,
                 ..default()
             },
             collider: Collider,
@@ -86,36 +88,48 @@ impl Default for Character {
 }
 
 impl Character {
-    pub fn check_fire(&mut self, time_delta: Duration) -> bool {
+    pub fn check_fire_unchanged(&self) -> bool {
+        self.fire_cooldown.finished()
+    }
+
+    fn check_fire(&mut self, time_delta: Duration) -> bool {
         self.fire_cooldown.tick(time_delta).finished()
     }
 
-    pub fn fire(&mut self) {
+    fn mark_fire(&mut self) {
         self.fire_cooldown.reset();
+    }
+}
+
+pub fn handle_character_velocity(mut query: Query<(&mut Velocity, &Transform, &ActionInput)>) {
+    for (mut velocity, transform, action_input) in query.iter_mut() {
+        velocity.angular = action_input.angular_speed() * CHARACTER_RAD_SPEED;
+        velocity.linear = transform.up() * action_input.speed() * CHARACTER_SPEED;
     }
 }
 
 pub fn handle_gunfire(
     mut commands: Commands,
     time: Res<Time>,
-    input: Res<ActionInput>,
-    mut query_characters: Query<(&mut Character, &Transform), With<PlayerControlled>>,
+    mut query_characters: Query<(&mut Character, &Transform, &ActionInput)>,
 ) {
-    for (mut character, character_transform) in query_characters.iter_mut() {
+    for (mut character, character_transform, input) in query_characters.iter_mut() {
         if character.check_fire(time.delta()) && input.fire {
             commands.spawn_bundle(BulletBundle::new(
                 character.team,
-                character_transform.with_translation(
-                    character_transform.translation
-                        + character_transform.up()
-                            * (CHARACTER_SIZE / 2.0
-                                + BULLET_SIZE
-                                + input.speed() * CHARACTER_SPEED * time.delta_seconds()),
-                ),
-                character_transform.up().truncate() * BULLET_SPEED,
+                character_transform
+                    .with_translation(
+                        character_transform.translation
+                            + character_transform.up()
+                                * (CHARACTER_SIZE / 2.0
+                                    + BULLET_SIZE
+                                    + input.speed() * CHARACTER_SPEED * time.delta_seconds()),
+                    )
+                    .with_scale(Vec3::ONE),
+                character_transform.up() * BULLET_SPEED, // .truncate()
             ));
 
-            character.fire();
+            character.mark_fire();
         }
     }
 }

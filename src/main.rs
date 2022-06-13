@@ -2,23 +2,26 @@ use bevy::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-pub mod controls;
+pub mod actions;
 pub mod ai;
 pub mod characters;
 pub mod collisions;
+pub mod controls;
 pub mod health;
 pub mod movement;
 pub mod projectiles;
 pub mod teams;
 
-use crate::controls::{handle_player_input, ActionInput};
 use crate::ai::AI_DEFAULT_TEAM;
 use crate::characters::{
-    handle_gunfire, BaseCharacterBundle, ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
+    handle_character_velocity, handle_gunfire, BaseCharacterBundle,
+    ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
 };
+use crate::collisions::{handle_collision, CollisionEvent};
+use crate::controls::handle_player_input;
 use crate::health::{calculate_damages, EntityDamagedEvent};
 use crate::movement::handle_movement;
-use crate::projectiles::{handle_bullet_collision, handle_bullet_flight};
+use crate::projectiles::{handle_bullet_collision_events, handle_bullet_flight};
 
 fn setup(mut commands: Commands) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
@@ -65,15 +68,17 @@ fn main() {
         .insert_resource(create_window_descriptor((800.0, 800.0)))
         .add_plugins(DefaultPlugins)
         .insert_resource(ClearColor(Color::BLACK))
-        .init_resource::<ActionInput>()
-        .add_startup_system(setup)
+        .add_event::<CollisionEvent>()
         .add_event::<EntityDamagedEvent>()
+        .add_startup_system(setup)
         .add_system(handle_player_input)
-        .add_system(handle_movement)
-        .add_system(handle_gunfire)
-        .add_system(handle_bullet_flight)
-        .add_system(handle_bullet_collision.after(handle_bullet_flight))
-        .add_system(calculate_damages.after(handle_bullet_collision))
+        .add_system(handle_character_velocity.after(handle_player_input))
+        .add_system(handle_movement.after(handle_character_velocity))
+        .add_system(handle_gunfire.after(handle_player_input))
+        .add_system(handle_bullet_flight.after(handle_gunfire))
+        .add_system(handle_collision.after(handle_bullet_flight))
+        .add_system(handle_bullet_collision_events.after(handle_collision))
+        .add_system(calculate_damages.after(handle_bullet_collision_events))
         .run();
 }
 
