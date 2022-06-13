@@ -9,7 +9,7 @@ mod projectiles;
 mod scenes;
 mod teams;
 
-pub use crate::ai::AI_DEFAULT_TEAM;
+pub use crate::ai::{handle_ai_input, AI_DEFAULT_TEAM};
 pub use crate::characters::{
     handle_character_velocity, handle_gunfire, BaseCharacterBundle,
     ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
