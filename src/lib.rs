@@ -1,3 +1,4 @@
+mod actions;
 mod ai;
 mod characters;
 mod collisions;
@@ -10,12 +11,14 @@ mod teams;
 
 pub use crate::ai::AI_DEFAULT_TEAM;
 pub use crate::characters::{
-    handle_gunfire, BaseCharacterBundle, ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
+    handle_character_velocity, handle_gunfire, BaseCharacterBundle,
+    ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
 };
-pub use crate::controls::{handle_player_input, ActionInput};
+pub use crate::collisions::{handle_collision, CollisionEvent};
+pub use crate::controls::handle_player_input;
 pub use crate::health::{calculate_damages, EntityDamagedEvent};
 pub use crate::movement::handle_movement;
-pub use crate::projectiles::{handle_bullet_collision, handle_bullet_flight};
+pub use crate::projectiles::{handle_bullet_collision_events, handle_bullet_flight};
 pub use crate::scenes::{summon_scene, SceneArg};
 
 pub use bevy::prelude::*;

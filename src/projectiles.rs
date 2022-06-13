@@ -1,16 +1,15 @@
-use crate::characters::{Character, CHARACTER_SIZE};
-use crate::collisions::Collider;
+use crate::characters::Character;
+use crate::collisions::{Collider, CollisionEvent};
 use crate::health::EntityDamagedEvent;
 use crate::health::HitPoints;
+use crate::movement::Velocity;
 use crate::teams::Team;
-use bevy::core::Time;
-use bevy::math::Vec2;
+use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
-    Bundle, Camera, Color, Commands, Component, DespawnRecursiveExt, Entity, EventWriter, Query,
-    Res, Sprite, SpriteBundle, Transform, With,
+    Bundle, Camera, Color, Commands, Component, DespawnRecursiveExt, Entity, EventReader,
+    EventWriter, Query, Sprite, SpriteBundle, Transform, With,
 };
 use bevy::render::primitives::{Frustum, Sphere};
-use bevy::sprite::collide_aabb::collide;
 use bevy::utils::default;
 
 pub const BULLET_SIZE: f32 = 5.0;
@@ -20,22 +19,27 @@ pub const BULLET_DAMAGE: HitPoints = 5.0;
 #[derive(Bundle)]
 pub struct BulletBundle {
     bullet: Bullet,
+    velocity: Velocity,
     #[bundle]
     sprite_bundle: SpriteBundle,
     collider: Collider,
 }
 
 impl BulletBundle {
-    pub fn new(team: Team, transform: Transform, velocity: Vec2) -> Self {
+    pub fn new(team: Team, transform: Transform, velocity: Vec3) -> Self {
         Self {
-            bullet: Bullet { team, velocity },
+            bullet: Bullet { team },
+            velocity: Velocity {
+                linear: velocity,
+                ..default()
+            },
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: Color::ALICE_BLUE,
                     custom_size: Some(Vec2::new(BULLET_SIZE, BULLET_SIZE)),
                     ..default()
                 },
-                transform: transform.clone(),
+                transform,
                 ..default()
             },
             collider: Collider,
@@ -46,29 +50,17 @@ impl BulletBundle {
 #[derive(Component)]
 pub struct Bullet {
     pub team: Team,
-    pub velocity: Vec2,
 }
 
-impl Bullet {
-    pub fn stop(&mut self) {
-        self.velocity = Vec2::default();
-    }
-}
-
-// todo displace to movement, there will be no more need for frustum -- despawn on collide with arena bounds
+// todo remove soon, there will be no more need for frustum -- despawn on collide with arena bounds
 pub fn handle_bullet_flight(
     mut commands: Commands,
-    time: Res<Time>,
-    mut query_bullets: Query<(&Bullet, &mut Transform, Entity)>,
+    mut query_bullets: Query<(&Transform, Entity), With<Bullet>>,
     query_frustum: Query<&Frustum, With<Camera>>,
 ) {
-    let dt = time.delta_seconds();
-
     let frustum = query_frustum.single();
 
-    for (bullet, mut transform, entity) in query_bullets.iter_mut() {
-        transform.translation += bullet.velocity.extend(0.0) * dt;
-
+    for (transform, entity) in query_bullets.iter_mut() {
         let model_sphere = Sphere {
             center: transform.translation.into(),
             radius: BULLET_SIZE,
@@ -80,33 +72,26 @@ pub fn handle_bullet_flight(
     }
 }
 
-// todo make a general collision event, parse event data here
-pub fn handle_bullet_collision(
+pub fn handle_bullet_collision_events(
     mut commands: Commands,
-    mut query_bullets: Query<(&Bullet, &Transform, Entity), With<Collider>>,
-    mut query_characters: Query<(&Character, &Transform, Entity), With<Collider>>,
+    mut collision_events: EventReader<CollisionEvent>,
+    query_characters: Query<&Character>,
+    query_bullets: Query<&Bullet>, // velocity?
     mut ew_damage: EventWriter<EntityDamagedEvent>,
 ) {
-    for (bullet, bullet_transform, bullet_entity) in query_bullets.iter_mut() {
-        for (character, character_transform, character_entity) in query_characters.iter_mut() {
-            let collision = collide(
-                bullet_transform.translation,
-                Vec2::new(BULLET_SIZE, BULLET_SIZE) * bullet_transform.scale.truncate(),
-                character_transform.translation,
-                Vec2::new(CHARACTER_SIZE, CHARACTER_SIZE) * character_transform.scale.truncate(),
-            );
-
-            if collision.is_some() {
-                // perhaps send damage to bullets as well to handle multiple types / buffs?
-                commands.entity(bullet_entity).despawn_recursive();
-                if bullet.team != character.team {
-                    ew_damage.send(EntityDamagedEvent {
-                        entity: character_entity,
-                        damage: BULLET_DAMAGE,
-                    })
-                } else {
-                    // friendly fire!
-                }
+    for event in collision_events.iter() {
+        let bullet = query_bullets.get(event.entity_a);
+        let character = query_characters.get(event.entity_b);
+        // perhaps send damage to bullets as well to handle multiple types / buffs?
+        if let (Ok(bullet), Ok(character)) = (bullet, character) {
+            commands.entity(event.entity_a).despawn_recursive();
+            if bullet.team != character.team {
+                ew_damage.send(EntityDamagedEvent {
+                    entity: event.entity_b,
+                    damage: BULLET_DAMAGE,
+                })
+            } else {
+                // friendly fire!
             }
         }
     }

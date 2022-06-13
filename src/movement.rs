@@ -1,34 +1,27 @@
-use crate::controls::ActionInput;
-use crate::characters::{PlayerControlled, CHARACTER_RAD_SPEED, CHARACTER_SPEED};
 use bevy::math::{Quat, Vec3};
-use bevy::prelude::{Component, Query, Res, Time, Transform, With};
+use bevy::prelude::{Component, Query, Res, Time, Transform};
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Velocity {
     // todo look into rapier first
-// also possibly replace with Option to send and parse less data // would be pretty with Rapier
-// linear: Vec2,
-// angular: f32,
+    // also possibly replace with Option to send and parse less data // would be pretty with Rapier
+    pub linear: Vec3,
+    pub angular: f32,
 }
 
-pub trait GetVelocity {
-    fn get_velocity(&self) -> Velocity;
+impl Velocity {
+    pub fn stop(&mut self) {
+        self.linear = Vec3::default();
+        self.angular = 0.0;
+    }
 }
 
-// todo handle movement for all moving entities -- perm velocity for bullets, depending on action input for chars
-pub fn handle_movement(
-    time: Res<Time>,
-    input: Res<ActionInput>,
-    mut query: Query<&mut Transform, With<PlayerControlled>>,
-) {
+pub fn handle_movement(time: Res<Time>, mut query: Query<(&mut Transform, &Velocity)>) {
     let dt = time.delta_seconds();
 
-    for mut transform in query.iter_mut() {
-        transform.rotate(Quat::from_axis_angle(
-            -Vec3::Z,
-            input.angular_speed() * CHARACTER_RAD_SPEED * dt,
-        ));
-        let dx = transform.up() * input.speed() * CHARACTER_SPEED * dt;
+    for (mut transform, velocity) in query.iter_mut() {
+        transform.rotate(Quat::from_axis_angle(-Vec3::Z, velocity.angular * dt));
+        let dx = velocity.linear * dt;
         transform.translation += dx;
     }
 }
