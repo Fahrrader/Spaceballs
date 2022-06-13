@@ -1,14 +1,13 @@
 use bevy::prelude::*;
+use heron::PhysicsPlugin;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 pub mod actions;
 pub mod ai;
 pub mod characters;
-pub mod collisions;
 pub mod controls;
 pub mod health;
-pub mod movement;
 pub mod projectiles;
 pub mod teams;
 
@@ -17,10 +16,8 @@ use crate::characters::{
     calculate_character_velocity, handle_gunfire, BaseCharacterBundle,
     ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
 };
-use crate::collisions::{handle_collision, CollisionEvent};
 use crate::controls::handle_player_input;
 use crate::health::{handle_damage, EntityDamagedEvent};
-use crate::movement::handle_movement;
 use crate::projectiles::{handle_bullet_collision_events, handle_bullet_flight};
 
 fn setup(mut commands: Commands) {
@@ -66,18 +63,20 @@ fn main() {
     App::new()
         .insert_resource(create_window_descriptor((800.0, 800.0)))
         .add_plugins(DefaultPlugins)
+        .add_plugin(PhysicsPlugin::default())
         .insert_resource(ClearColor(Color::BLACK))
-        .add_event::<CollisionEvent>()
         .add_event::<EntityDamagedEvent>()
         .add_startup_system(setup)
         .add_system(handle_player_input)
         .add_system(handle_ai_input)
-        .add_system(calculate_character_velocity.after(handle_player_input))
-        .add_system(handle_movement.after(calculate_character_velocity))
+        .add_system(
+            calculate_character_velocity
+                .after(handle_player_input)
+                .after(handle_ai_input),
+        ) // todo plugin?
         .add_system(handle_gunfire.after(handle_player_input))
         .add_system(handle_bullet_flight.after(handle_gunfire))
-        .add_system(handle_collision.after(handle_bullet_flight))
-        .add_system(handle_bullet_collision_events.after(handle_collision))
+        .add_system(handle_bullet_collision_events)
         .add_system(handle_damage.after(handle_bullet_collision_events))
         .run();
 }

@@ -1,8 +1,6 @@
 use crate::characters::Character;
-use crate::collisions::{Collider, CollisionEvent};
 use crate::health::EntityDamagedEvent;
 use crate::health::HitPoints;
-use crate::movement::Velocity;
 use crate::teams::Team;
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
@@ -19,17 +17,22 @@ pub const BULLET_DAMAGE: HitPoints = 5.0;
 #[derive(Bundle)]
 pub struct BulletBundle {
     bullet: Bullet,
-    velocity: Velocity,
+    rigidbody: heron::RigidBody,
+    collider: heron::CollisionShape,
+    velocity: heron::Velocity,
     #[bundle]
     sprite_bundle: SpriteBundle,
-    collider: Collider,
 }
 
 impl BulletBundle {
     pub fn new(team: Team, transform: Transform, velocity: Vec3) -> Self {
         Self {
             bullet: Bullet { team },
-            velocity: Velocity {
+            rigidbody: heron::RigidBody::KinematicVelocityBased,
+            collider: heron::CollisionShape::Sphere {
+                radius: BULLET_SIZE * transform.scale.length(),
+            },
+            velocity: heron::Velocity {
                 linear: velocity,
                 ..default()
             },
@@ -42,7 +45,6 @@ impl BulletBundle {
                 transform,
                 ..default()
             },
-            collider: Collider,
         }
     }
 }
@@ -74,20 +76,21 @@ pub fn handle_bullet_flight(
 
 pub fn handle_bullet_collision_events(
     mut commands: Commands,
-    mut collision_events: EventReader<CollisionEvent>,
+    mut collision_events: EventReader<heron::CollisionEvent>,
     query_characters: Query<&Character>,
-    query_bullets: Query<&Bullet>, // velocity?
+    query_bullets: Query<&Bullet>,
     mut ew_damage: EventWriter<EntityDamagedEvent>,
 ) {
     for event in collision_events.iter() {
-        let bullet = query_bullets.get(event.entity_a);
-        let character = query_characters.get(event.entity_b);
+        let (entity_a, entity_b) = event.rigid_body_entities();
+        let bullet = query_bullets.get(entity_a);
+        let character = query_characters.get(entity_b);
         // perhaps send damage to bullets as well to handle multiple types / buffs?
         if let (Ok(bullet), Ok(character)) = (bullet, character) {
-            commands.entity(event.entity_a).despawn_recursive();
+            commands.entity(entity_a).despawn_recursive();
             if bullet.team != character.team {
                 ew_damage.send(EntityDamagedEvent {
-                    entity: event.entity_b,
+                    entity: entity_b,
                     damage: BULLET_DAMAGE,
                 })
             } else {

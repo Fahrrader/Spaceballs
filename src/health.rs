@@ -1,5 +1,4 @@
-use crate::collisions::Collider;
-use bevy::prelude::{Commands, Component, DespawnRecursiveExt, Entity, EventReader, Query, With};
+use bevy::prelude::{Commands, Component, DespawnRecursiveExt, Entity, EventReader, Query};
 
 pub type HitPoints = f32;
 
@@ -38,7 +37,7 @@ pub struct EntityDamagedEvent {
 pub fn handle_damage(
     mut commands: Commands,
     mut damage_events: EventReader<EntityDamagedEvent>,
-    mut query_lives: Query<&mut Health, With<Collider>>,
+    mut query_lives: Query<&mut Health>,
 ) {
     for event in damage_events.iter() {
         let life = query_lives.get_mut(event.entity);

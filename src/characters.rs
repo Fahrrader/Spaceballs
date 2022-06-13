@@ -1,7 +1,5 @@
 use crate::actions::CharacterActionInput;
-use crate::collisions::Collider;
 use crate::health::{Health, HitPoints};
-use crate::movement::Velocity;
 use crate::projectiles::{BulletBundle, BULLET_SIZE, BULLET_SPEED};
 use crate::teams::{team_color, Team};
 use crate::Vec3;
@@ -25,11 +23,12 @@ pub const PLAYER_DEFAULT_TEAM: Team = 0;
 pub struct BaseCharacterBundle {
     character: Character,
     health: Health,
-    velocity: Velocity,
+    rigidbody: heron::RigidBody,
+    velocity: heron::Velocity,
+    collider: heron::CollisionShape,
     action_input: CharacterActionInput,
     #[bundle]
     sprite_bundle: SpriteBundle,
-    collider: Collider,
 }
 
 impl BaseCharacterBundle {
@@ -37,7 +36,12 @@ impl BaseCharacterBundle {
         Self {
             character: Character { team, ..default() },
             health: Health::new(CHARACTER_MAX_HEALTH),
-            velocity: Velocity::default(),
+            rigidbody: heron::RigidBody::Dynamic,
+            velocity: heron::Velocity::default(),
+            collider: heron::CollisionShape::Cuboid {
+                half_extends: CHARACTER_SIZE / 2.0 * transform.scale,
+                border_radius: None,
+            },
             action_input: CharacterActionInput::default(),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
@@ -48,7 +52,6 @@ impl BaseCharacterBundle {
                 transform,
                 ..default()
             },
-            collider: Collider,
         }
     }
 }
@@ -101,10 +104,13 @@ impl Character {
     }
 }
 
-pub fn calculate_character_velocity(mut query: Query<(&mut Velocity, &Transform, &CharacterActionInput)>) {
+pub fn calculate_character_velocity(
+    mut query: Query<(&mut heron::Velocity, &Transform, &CharacterActionInput)>,
+) {
     for (mut velocity, transform, action_input) in query.iter_mut() {
-        velocity.angular = action_input.angular_speed() * CHARACTER_RAD_SPEED;
         velocity.linear = transform.up() * action_input.speed() * CHARACTER_SPEED;
+        velocity.angular =
+            heron::AxisAngle::new(-Vec3::Z, action_input.angular_speed() * CHARACTER_RAD_SPEED);
     }
 }
 
