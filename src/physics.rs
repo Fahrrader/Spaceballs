@@ -10,6 +10,7 @@ use bevy::prelude::{
 use heron::prelude::*;
 
 pub const OBSTACLE_STEP_SIZE: f32 = 50.0;
+pub const DEFAULT_OBSTACLE_COLOR: Color = Color::ANTIQUE_WHITE;
 
 #[derive(Bundle)]
 pub struct KinematicsBundle {
@@ -88,7 +89,7 @@ impl Default for RectangularObstacleBundle {
                 .without_mask(CollisionLayer::Obstacle),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
-                    color: Color::ANTIQUE_WHITE,
+                    color: DEFAULT_OBSTACLE_COLOR,
                     ..default()
                 },
                 ..default()
@@ -105,6 +106,10 @@ impl RectangularObstacleBundle {
                 transform.scale,
             ),
             sprite_bundle: SpriteBundle {
+                sprite: Sprite {
+                    color: DEFAULT_OBSTACLE_COLOR,
+                    ..default()
+                },
                 transform: transform.with_scale(transform.scale * OBSTACLE_STEP_SIZE),
                 ..default()
             },
