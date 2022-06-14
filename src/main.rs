@@ -8,6 +8,7 @@ pub mod ai;
 pub mod characters;
 pub mod controls;
 pub mod health;
+pub mod physics;
 pub mod projectiles;
 pub mod teams;
 
@@ -18,21 +19,63 @@ use crate::characters::{
 };
 use crate::controls::handle_player_input;
 use crate::health::{handle_damage, EntityDamagedEvent};
-use crate::projectiles::{handle_bullet_collision_events, handle_bullet_flight};
+use crate::physics::{
+    handle_bullet_collision_events, RectangularObstacleBundle, OBSTACLE_STEP_SIZE,
+};
+use crate::projectiles::handle_bullets_out_of_bounds;
+
+pub const WINDOW_WIDTH: f32 = 800.0;
+pub const WINDOW_HEIGHT: f32 = 800.0;
 
 fn setup(mut commands: Commands) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
+    // ----- The walls of the arena
+    commands.spawn_bundle(RectangularObstacleBundle::new(
+        Transform::from_translation(Vec3::X * -WINDOW_WIDTH / 2.0).with_scale(Vec3::new(
+            1.0,
+            WINDOW_HEIGHT / OBSTACLE_STEP_SIZE,
+            1.0,
+        )),
+    ));
+    commands.spawn_bundle(RectangularObstacleBundle::new(
+        Transform::from_translation(Vec3::X * WINDOW_WIDTH / 2.0).with_scale(Vec3::new(
+            1.0,
+            WINDOW_HEIGHT / OBSTACLE_STEP_SIZE,
+            1.0,
+        )),
+    ));
+    commands.spawn_bundle(RectangularObstacleBundle::new(
+        Transform::from_translation(Vec3::Y * WINDOW_HEIGHT / 2.0).with_scale(Vec3::new(
+            WINDOW_WIDTH / OBSTACLE_STEP_SIZE,
+            1.0,
+            1.0,
+        )),
+    ));
+    commands.spawn_bundle(RectangularObstacleBundle::new(
+        Transform::from_translation(Vec3::Y * -WINDOW_HEIGHT / 2.0).with_scale(Vec3::new(
+            WINDOW_WIDTH / OBSTACLE_STEP_SIZE,
+            1.0,
+            1.0,
+        )),
+    ));
+    // -----
+
     commands.spawn_bundle(ControlledPlayerCharacterBundle::new(
         PLAYER_DEFAULT_TEAM,
-        Transform::default(),
+        Transform::from_translation(Vec3::new(-150.0, 0.0, 0.0)),
     ));
 
     commands.spawn_bundle(BaseCharacterBundle::new(
         AI_DEFAULT_TEAM,
-        Transform::from_scale(Vec3::new(2.0, 3.0, 1.0))
-            .with_rotation(Quat::from_axis_angle(-Vec3::Z, 30.0)),
+        Transform::from_translation(Vec3::new(150.0, 0.0, 0.0))
+            .with_rotation(Quat::from_axis_angle(-Vec3::Z, 30.0))
+            .with_scale(Vec3::new(2.0, 3.0, 1.0)),
     ));
+
+    commands.spawn_bundle(RectangularObstacleBundle::new(Transform::from_scale(
+        Vec3::new(1.0, 2.0, 1.0),
+    )));
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -61,7 +104,7 @@ fn main() {
     console_error_panic_hook::set_once();
 
     App::new()
-        .insert_resource(create_window_descriptor((800.0, 800.0)))
+        .insert_resource(create_window_descriptor((WINDOW_WIDTH, WINDOW_HEIGHT)))
         .add_plugins(DefaultPlugins)
         .add_plugin(PhysicsPlugin::default())
         .insert_resource(ClearColor(Color::BLACK))
@@ -74,8 +117,8 @@ fn main() {
                 .after(handle_player_input)
                 .after(handle_ai_input),
         ) // todo plugin?
-        .add_system(handle_gunfire.after(handle_player_input))
-        .add_system(handle_bullet_flight.after(handle_gunfire))
+        .add_system(handle_gunfire.after(calculate_character_velocity))
+        .add_system(handle_bullets_out_of_bounds.after(handle_gunfire))
         .add_system(handle_bullet_collision_events)
         .add_system(handle_damage.after(handle_bullet_collision_events))
         .run();

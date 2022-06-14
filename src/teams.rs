@@ -1,8 +1,12 @@
+use bevy::prelude::Component;
 use bevy::render::color::Color;
 
-pub type Team = u8;
+pub type TeamNumber = u8;
 
-pub fn team_color(team: Team) -> Color {
+#[derive(Component, Eq, PartialEq)]
+pub struct Team(pub TeamNumber);
+
+pub fn team_color(team: TeamNumber) -> Color {
     match team {
         0 => Color::CYAN,
         1 => Color::CRIMSON,
