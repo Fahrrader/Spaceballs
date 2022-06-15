@@ -10,7 +10,7 @@ use bevy::prelude::{
 use heron::prelude::*;
 
 pub const OBSTACLE_STEP_SIZE: f32 = 50.0;
-pub const DEFAULT_OBSTACLE_COLOR: Color = Color::ANTIQUE_WHITE;
+pub const DEFAULT_OBSTACLE_COLOR: Color = Color::WHITE;
 
 #[derive(Bundle)]
 pub struct KinematicsBundle {

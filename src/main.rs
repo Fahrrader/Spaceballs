@@ -34,27 +34,27 @@ fn setup(mut commands: Commands) {
     commands.spawn_bundle(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::X * -WINDOW_WIDTH / 2.0).with_scale(Vec3::new(
             1.0,
-            WINDOW_HEIGHT / OBSTACLE_STEP_SIZE,
+            WINDOW_HEIGHT / OBSTACLE_STEP_SIZE + 1.0,
             1.0,
         )),
     ));
     commands.spawn_bundle(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::X * WINDOW_WIDTH / 2.0).with_scale(Vec3::new(
             1.0,
-            WINDOW_HEIGHT / OBSTACLE_STEP_SIZE,
+            WINDOW_HEIGHT / OBSTACLE_STEP_SIZE + 1.0,
             1.0,
         )),
     ));
     commands.spawn_bundle(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::Y * WINDOW_HEIGHT / 2.0).with_scale(Vec3::new(
-            WINDOW_WIDTH / OBSTACLE_STEP_SIZE,
+            WINDOW_WIDTH / OBSTACLE_STEP_SIZE + 1.0,
             1.0,
             1.0,
         )),
     ));
     commands.spawn_bundle(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::Y * -WINDOW_HEIGHT / 2.0).with_scale(Vec3::new(
-            WINDOW_WIDTH / OBSTACLE_STEP_SIZE,
+            WINDOW_WIDTH / OBSTACLE_STEP_SIZE + 1.0,
             1.0,
             1.0,
         )),
