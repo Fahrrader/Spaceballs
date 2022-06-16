@@ -14,7 +14,7 @@ pub mod teams;
 
 use crate::ai::{handle_ai_input, AI_DEFAULT_TEAM};
 use crate::characters::{
-    handle_character_velocity, handle_gunfire, BaseCharacterBundle,
+    calculate_character_velocity, handle_gunfire, BaseCharacterBundle,
     ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
 };
 use crate::collisions::{handle_collision, CollisionEvent};
@@ -72,8 +72,8 @@ fn main() {
         .add_startup_system(setup)
         .add_system(handle_player_input)
         .add_system(handle_ai_input)
-        .add_system(handle_character_velocity.after(handle_player_input))
-        .add_system(handle_movement.after(handle_character_velocity))
+        .add_system(calculate_character_velocity.after(handle_player_input))
+        .add_system(handle_movement.after(calculate_character_velocity))
         .add_system(handle_gunfire.after(handle_player_input))
         .add_system(handle_bullet_flight.after(handle_gunfire))
         .add_system(handle_collision.after(handle_bullet_flight))

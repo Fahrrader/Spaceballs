@@ -88,20 +88,20 @@ impl Default for Character {
 }
 
 impl Character {
-    pub fn check_fire_unchanged(&self) -> bool {
+    pub fn check_fire_cooldown(&self) -> bool {
         self.fire_cooldown.finished()
     }
 
-    fn check_fire(&mut self, time_delta: Duration) -> bool {
+    fn tick_fire_cooldown(&mut self, time_delta: Duration) -> bool {
         self.fire_cooldown.tick(time_delta).finished()
     }
 
-    fn mark_fire(&mut self) {
+    fn reset_fire_cooldown(&mut self) {
         self.fire_cooldown.reset();
     }
 }
 
-pub fn handle_character_velocity(mut query: Query<(&mut Velocity, &Transform, &ActionInput)>) {
+pub fn calculate_character_velocity(mut query: Query<(&mut Velocity, &Transform, &ActionInput)>) {
     for (mut velocity, transform, action_input) in query.iter_mut() {
         velocity.angular = action_input.angular_speed() * CHARACTER_RAD_SPEED;
         velocity.linear = transform.up() * action_input.speed() * CHARACTER_SPEED;
@@ -114,22 +114,22 @@ pub fn handle_gunfire(
     mut query_characters: Query<(&mut Character, &Transform, &ActionInput)>,
 ) {
     for (mut character, character_transform, input) in query_characters.iter_mut() {
-        if character.check_fire(time.delta()) && input.fire {
+        if character.tick_fire_cooldown(time.delta()) && input.fire {
+            let facing_direction = character_transform.up();
+
+            let character_movement_offset = input.speed() * CHARACTER_SPEED * time.delta_seconds();
+            let size_offset = CHARACTER_SIZE / 2.0 + BULLET_SIZE;
+            let bullet_spawn_offset = facing_direction * (size_offset + character_movement_offset);
+
             commands.spawn_bundle(BulletBundle::new(
                 character.team,
                 character_transform
-                    .with_translation(
-                        character_transform.translation
-                            + character_transform.up()
-                                * (CHARACTER_SIZE / 2.0
-                                    + BULLET_SIZE
-                                    + input.speed() * CHARACTER_SPEED * time.delta_seconds()),
-                    )
+                    .with_translation(character_transform.translation + bullet_spawn_offset)
                     .with_scale(Vec3::ONE),
-                character_transform.up() * BULLET_SPEED, // .truncate()
+                facing_direction * BULLET_SPEED,
             ));
 
-            character.mark_fire();
+            character.reset_fire_cooldown();
         }
     }
 }
