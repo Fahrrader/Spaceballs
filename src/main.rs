@@ -19,7 +19,7 @@ use crate::characters::{
 };
 use crate::collisions::{handle_collision, CollisionEvent};
 use crate::controls::handle_player_input;
-use crate::health::{calculate_damages, EntityDamagedEvent};
+use crate::health::{handle_damage, EntityDamagedEvent};
 use crate::movement::handle_movement;
 use crate::projectiles::{handle_bullet_collision_events, handle_bullet_flight};
 
@@ -78,7 +78,7 @@ fn main() {
         .add_system(handle_bullet_flight.after(handle_gunfire))
         .add_system(handle_collision.after(handle_bullet_flight))
         .add_system(handle_bullet_collision_events.after(handle_collision))
-        .add_system(calculate_damages.after(handle_bullet_collision_events))
+        .add_system(handle_damage.after(handle_bullet_collision_events))
         .run();
 }
 
