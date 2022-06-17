@@ -35,7 +35,7 @@ pub struct EntityDamagedEvent {
     pub damage: HitPoints,
 }
 
-pub fn calculate_damages(
+pub fn handle_damage(
     mut commands: Commands,
     mut damage_events: EventReader<EntityDamagedEvent>,
     mut query_lives: Query<&mut Health, With<Collider>>,

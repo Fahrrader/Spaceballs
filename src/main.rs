@@ -22,6 +22,6 @@ fn main() {
         .add_system(handle_bullet_flight.after(handle_gunfire))
         .add_system(handle_collision.after(handle_bullet_flight))
         .add_system(handle_bullet_collision_events.after(handle_collision))
-        .add_system(calculate_damages.after(handle_bullet_collision_events))
+        .add_system(handle_damage.after(handle_bullet_collision_events))
         .run();
 }

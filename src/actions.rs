@@ -1,7 +1,7 @@
 use bevy::prelude::Component;
 
 #[derive(Component, Default)]
-pub struct ActionInput {
+pub struct CharacterActionInput {
     pub up: bool,
     pub down: bool,
     pub left: bool,
@@ -9,7 +9,7 @@ pub struct ActionInput {
     pub fire: bool,
 }
 
-impl ActionInput {
+impl CharacterActionInput {
     pub fn speed(&self) -> f32 {
         let mut speed = 0.0;
         if self.up {

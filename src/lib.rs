@@ -16,7 +16,7 @@ pub use crate::characters::{
 };
 pub use crate::collisions::{handle_collision, CollisionEvent};
 pub use crate::controls::handle_player_input;
-pub use crate::health::{calculate_damages, EntityDamagedEvent};
+pub use crate::health::{handle_damage, EntityDamagedEvent};
 pub use crate::movement::handle_movement;
 pub use crate::projectiles::{handle_bullet_collision_events, handle_bullet_flight};
 pub use crate::scenes::{summon_scene, SceneArg};

@@ -1,4 +1,4 @@
-use crate::actions::ActionInput;
+use crate::actions::CharacterActionInput;
 use crate::collisions::Collider;
 use crate::health::{Health, HitPoints};
 use crate::movement::Velocity;
@@ -26,7 +26,7 @@ pub struct BaseCharacterBundle {
     character: Character,
     health: Health,
     velocity: Velocity,
-    action_input: ActionInput,
+    action_input: CharacterActionInput,
     #[bundle]
     sprite_bundle: SpriteBundle,
     collider: Collider,
@@ -38,7 +38,7 @@ impl BaseCharacterBundle {
             character: Character { team, ..default() },
             health: Health::new(CHARACTER_MAX_HEALTH),
             velocity: Velocity::default(),
-            action_input: ActionInput::default(),
+            action_input: CharacterActionInput::default(),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: team_color(team),
@@ -101,7 +101,7 @@ impl Character {
     }
 }
 
-pub fn calculate_character_velocity(mut query: Query<(&mut Velocity, &Transform, &ActionInput)>) {
+pub fn calculate_character_velocity(mut query: Query<(&mut Velocity, &Transform, &CharacterActionInput)>) {
     for (mut velocity, transform, action_input) in query.iter_mut() {
         velocity.angular = action_input.angular_speed() * CHARACTER_RAD_SPEED;
         velocity.linear = transform.up() * action_input.speed() * CHARACTER_SPEED;
@@ -111,7 +111,7 @@ pub fn calculate_character_velocity(mut query: Query<(&mut Velocity, &Transform,
 pub fn handle_gunfire(
     mut commands: Commands,
     time: Res<Time>,
-    mut query_characters: Query<(&mut Character, &Transform, &ActionInput)>,
+    mut query_characters: Query<(&mut Character, &Transform, &CharacterActionInput)>,
 ) {
     for (mut character, character_transform, input) in query_characters.iter_mut() {
         if character.tick_fire_cooldown(time.delta()) && input.fire {
