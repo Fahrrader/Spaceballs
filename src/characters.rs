@@ -133,11 +133,9 @@ pub fn handle_gunfire(
                 commands.spawn_bundle(BulletBundle::new(
                     team.0,
                     character_transform
-                        .with_translation(
-                            character_transform.translation + bullet_spawn_offset,
-                        )
+                        .with_translation(character_transform.translation + bullet_spawn_offset)
                         .with_scale(Vec3::ONE),
-                    facing_direction * BULLET_SPEED
+                    facing_direction * BULLET_SPEED,
                 ));
             }
 

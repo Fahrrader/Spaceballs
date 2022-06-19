@@ -1,13 +1,12 @@
 use crate::health::HitPoints;
 use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
 use crate::teams::{Team, TeamNumber};
+use crate::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use bevy::math::Vec3;
 use bevy::prelude::{
-    Bundle, Color, Commands, Component, Entity, Query, Sprite,
-    SpriteBundle, Transform, With,
+    Bundle, Color, Commands, Component, Entity, Query, Sprite, SpriteBundle, Transform, With,
 };
 use bevy::utils::default;
-use crate::{WINDOW_HEIGHT, WINDOW_WIDTH};
 
 pub const BULLET_SIZE: f32 = 5.0;
 pub const BULLET_SPEED: f32 = 300.0;
@@ -67,7 +66,11 @@ pub fn handle_bullets_out_of_bounds(
     mut query_bullets: Query<(&Transform, Entity), With<Bullet>>,
 ) {
     for (transform, entity) in query_bullets.iter_mut() {
-        if transform.translation.x < WINDOW_WIDTH * -0.5 || transform.translation.x > WINDOW_WIDTH * 0.5 || transform.translation.y < WINDOW_HEIGHT * -0.5 || transform.translation.y > WINDOW_HEIGHT * 0.5{
+        if transform.translation.x < WINDOW_WIDTH * -0.5
+            || transform.translation.x > WINDOW_WIDTH * 0.5
+            || transform.translation.y < WINDOW_HEIGHT * -0.5
+            || transform.translation.y > WINDOW_HEIGHT * 0.5
+        {
             bevy::log::warn!("An entity {} got out of bounds!", entity.id());
             commands.entity(entity).despawn();
         }
