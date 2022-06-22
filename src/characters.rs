@@ -5,8 +5,11 @@ use crate::projectiles::{BulletBundle, BULLET_SIZE, BULLET_SPEED};
 use crate::teams::{team_color, Team, TeamNumber};
 use crate::Vec3;
 use bevy::core::{Time, Timer};
+use bevy::hierarchy::BuildChildren;
 use bevy::math::Vec2;
-use bevy::prelude::{Bundle, Commands, Component, Query, Res, Sprite, SpriteBundle, Transform};
+use bevy::prelude::{
+    Bundle, Commands, Component, Entity, Query, Res, Sprite, SpriteBundle, Transform,
+};
 use bevy::utils::default;
 use std::time::Duration;
 
@@ -17,8 +20,6 @@ pub const CHARACTER_RAD_SPEED: f32 = 5.0;
 
 pub const CHARACTER_MAX_HEALTH: HitPoints = 100.0;
 pub const CHARACTER_FIRE_COOLDOWN: Duration = Duration::from_millis(25);
-
-pub const PLAYER_DEFAULT_TEAM: TeamNumber = 0;
 
 #[derive(Bundle)]
 pub struct BaseCharacterBundle {
@@ -104,6 +105,15 @@ impl Character {
     fn reset_fire_cooldown(&mut self) {
         self.fire_cooldown.reset();
     }
+}
+
+// todo figure where to use the equipping weapons
+// - picking up guns on the ground or from dead enemies
+// - switching guns on the fly from a selection (With<Equipped>?)
+// useless to have it in character
+// check that the entities possess the char and gun elements? probably just whatever
+pub(crate) fn equip_weapon(commands: &mut Commands, char_entity: Entity, weapon_entity: Entity) {
+    commands.entity(char_entity).add_child(weapon_entity);
 }
 
 pub fn calculate_character_velocity(

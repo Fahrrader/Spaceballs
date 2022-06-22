@@ -7,22 +7,25 @@ pub mod actions;
 pub mod ai;
 pub mod characters;
 pub mod controls;
+pub mod guns;
 pub mod health;
 pub mod physics;
 pub mod projectiles;
 pub mod teams;
 
-use crate::ai::{handle_ai_input, AI_DEFAULT_TEAM};
+use crate::ai::handle_ai_input;
 use crate::characters::{
-    calculate_character_velocity, handle_gunfire, BaseCharacterBundle,
-    ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
+    calculate_character_velocity, equip_weapon, handle_gunfire, BaseCharacterBundle,
+    ControlledPlayerCharacterBundle,
 };
 use crate::controls::handle_player_input;
+use crate::guns::{GunBundle, GunPreset};
 use crate::health::{handle_damage, EntityDamagedEvent};
 use crate::physics::{
     handle_bullet_collision_events, RectangularObstacleBundle, OBSTACLE_STEP_SIZE,
 };
 use crate::projectiles::handle_bullets_out_of_bounds;
+use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 
 pub const WINDOW_WIDTH: f32 = 800.0;
 pub const WINDOW_HEIGHT: f32 = 800.0;
@@ -61,17 +64,29 @@ fn setup(mut commands: Commands) {
     ));
     // -----
 
-    commands.spawn_bundle(ControlledPlayerCharacterBundle::new(
-        PLAYER_DEFAULT_TEAM,
-        Transform::from_translation(Vec3::new(-150.0, 0.0, 0.0)),
-    ));
+    let player_char = commands
+        .spawn_bundle(ControlledPlayerCharacterBundle::new(
+            PLAYER_DEFAULT_TEAM,
+            Transform::from_translation(Vec3::new(-150.0, 0.0, 0.0)),
+        ))
+        .id();
+    let gun_1 = commands
+        .spawn_bundle(GunBundle::new(GunPreset::Imprecise))
+        .id();
+    equip_weapon(&mut commands, player_char, gun_1);
 
-    commands.spawn_bundle(BaseCharacterBundle::new(
-        AI_DEFAULT_TEAM,
-        Transform::from_translation(Vec3::new(150.0, 0.0, 0.0))
-            .with_rotation(Quat::from_axis_angle(-Vec3::Z, 30.0))
-            .with_scale(Vec3::new(2.0, 3.0, 1.0)),
-    ));
+    let ai_char = commands
+        .spawn_bundle(BaseCharacterBundle::new(
+            AI_DEFAULT_TEAM,
+            Transform::from_translation(Vec3::new(150.0, 0.0, 0.0))
+                .with_rotation(Quat::from_axis_angle(-Vec3::Z, 30.0))
+                .with_scale(Vec3::new(2.0, 3.0, 1.0)),
+        ))
+        .id();
+    let gun_2 = commands
+        .spawn_bundle(GunBundle::new(GunPreset::Scattershot))
+        .id();
+    equip_weapon(&mut commands, ai_char, gun_2);
 
     commands.spawn_bundle(RectangularObstacleBundle::new(Transform::from_scale(
         Vec3::new(1.0, 2.0, 1.0),
