@@ -22,6 +22,7 @@ const GUN_NEUTRAL_COLOR: Color = Color::Rgba {
     alpha: GUN_TRANSPARENCY,
 }; // Color::DARK_GRAY
 
+/// Will deprecate in favor of sprites/varying gun sizes.
 const GUN_LENGTH: f32 = CHARACTER_SIZE * 1.25;
 const GUN_WIDTH: f32 = CHARACTER_SIZE * 0.25;
 
@@ -83,6 +84,7 @@ impl GunBundle {
     }*/
 }
 
+/// Holder of all non-constant properties of a weapon.
 #[derive(Component)]
 pub struct Gun {
     fire_cooldown: Timer,
@@ -110,6 +112,7 @@ impl Gun {
     }
 }
 
+/// Array of guns for your taste and pleasure. All fixed variables per type are found via a look-up tree by a value of this enum.
 #[derive(Component, Clone)]
 pub enum GunPreset {
     Regular,
@@ -152,6 +155,7 @@ Quat::from_axis_angle(-Vec3::Z, (rand::random::<f32>() - 0.5) * PI * 2.0)
 }
 } * character_transform.up();*/
 
+/// Marker signifying that the entity is equipped "by" another entity and is a child (transforms are shared).
 #[derive(Component)]
 pub struct Equipped {
     pub by: Entity,
@@ -175,6 +179,8 @@ pub fn handle_gunfire(
             //let character_movement_offset = input.speed() * CHARACTER_SPEED * time.delta_seconds();
             let barrel_offset = GUN_LENGTH / 2.0 * gun_transform.scale.y + BULLET_SIZE / 2.0;
             let bullet_spawn_offset = facing_direction * barrel_offset; //( + character_movement_offset);
+            // todo add a ray cast from the body to the gun barrel to check for collisions
+            // but currently it's kinda like shooting from cover / over shoulder, fun
 
             for _ in 0..1 {
                 commands.spawn_bundle(BulletBundle::new(

@@ -2,10 +2,9 @@ use crate::actions::CharacterActionInput;
 use crate::characters::{PlayerControlled, CHARACTER_RAD_SPEED};
 use crate::Without;
 use bevy::core::Time;
-use bevy::log::info;
 use bevy::prelude::{Query, Res};
 use bevy::utils::default;
-use rand::prelude::random;
+// use rand::prelude::random;
 use std::f64::consts::PI;
 
 const TIME_STEP: f64 = 2.0 * PI / (CHARACTER_RAD_SPEED as f64);

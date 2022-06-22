@@ -6,18 +6,22 @@ use crate::teams::{team_color, Team, TeamNumber};
 use crate::Vec3;
 use bevy::hierarchy::BuildChildren;
 use bevy::math::Vec2;
-use bevy::prelude::{
-    Bundle, Commands, Component, Entity, Query, Sprite, SpriteBundle, Transform,
-};
+use bevy::prelude::{Bundle, Commands, Component, Entity, Query, Sprite, SpriteBundle, Transform};
 use bevy::utils::default;
+use std::f32::consts::PI;
 
+/// Standard size for a character body in the prime time of their life.
 pub const CHARACTER_SIZE: f32 = 50.0;
 
+/// Standard linear speed per second at full capacity in floating point units.
 pub const CHARACTER_SPEED: f32 = 200.0;
-pub const CHARACTER_RAD_SPEED: f32 = 5.0;
+/// Standard rotational speed at full capacity per second in radians.
+pub const CHARACTER_RAD_SPEED: f32 = PI;
 
+/// Standard maximum health for a player character.
 pub const CHARACTER_MAX_HEALTH: HitPoints = 100.0;
 
+/// The Character base all other Character bundles should use and add to.
 #[derive(Bundle)]
 pub struct BaseCharacterBundle {
     character: Character,
@@ -58,6 +62,7 @@ impl BaseCharacterBundle {
     }
 }
 
+/// Bundle for a Player Character, controlled locally
 #[derive(Bundle)]
 pub struct ControlledPlayerCharacterBundle {
     #[bundle]
@@ -74,9 +79,11 @@ impl ControlledPlayerCharacterBundle {
     }
 }
 
+/// [deprecated] Marker designating an entity serving as a character body and character.
 #[derive(Component)]
 pub struct Character;
 
+/// Marker designating an entity controlled by the local player.
 #[derive(Component)]
 pub struct PlayerControlled;
 
