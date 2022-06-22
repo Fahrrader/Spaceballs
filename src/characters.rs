@@ -1,17 +1,15 @@
 use crate::actions::CharacterActionInput;
+use crate::guns::Equipped;
 use crate::health::{Health, HitPoints};
 use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
-use crate::projectiles::{BulletBundle, BULLET_SIZE, BULLET_SPEED};
 use crate::teams::{team_color, Team, TeamNumber};
 use crate::Vec3;
-use bevy::core::{Time, Timer};
 use bevy::hierarchy::BuildChildren;
 use bevy::math::Vec2;
 use bevy::prelude::{
-    Bundle, Commands, Component, Entity, Query, Res, Sprite, SpriteBundle, Transform,
+    Bundle, Commands, Component, Entity, Query, Sprite, SpriteBundle, Transform,
 };
 use bevy::utils::default;
-use std::time::Duration;
 
 pub const CHARACTER_SIZE: f32 = 50.0;
 
@@ -19,14 +17,13 @@ pub const CHARACTER_SPEED: f32 = 200.0;
 pub const CHARACTER_RAD_SPEED: f32 = 5.0;
 
 pub const CHARACTER_MAX_HEALTH: HitPoints = 100.0;
-pub const CHARACTER_FIRE_COOLDOWN: Duration = Duration::from_millis(25);
 
 #[derive(Bundle)]
 pub struct BaseCharacterBundle {
     character: Character,
     health: Health,
     team: Team,
-    action_input: CharacterActionInput,
+    pub(crate) action_input: CharacterActionInput,
     #[bundle]
     kinematics: KinematicsBundle,
     #[bundle]
@@ -36,7 +33,7 @@ pub struct BaseCharacterBundle {
 impl BaseCharacterBundle {
     pub fn new(team: TeamNumber, transform: Transform) -> Self {
         Self {
-            character: Character { ..default() },
+            character: Character,
             health: Health::new(CHARACTER_MAX_HEALTH),
             team: Team(team),
             action_input: CharacterActionInput::default(),
@@ -78,34 +75,10 @@ impl ControlledPlayerCharacterBundle {
 }
 
 #[derive(Component)]
-pub struct Character {
-    pub fire_cooldown: Timer,
-}
+pub struct Character;
 
 #[derive(Component)]
 pub struct PlayerControlled;
-
-impl Default for Character {
-    fn default() -> Self {
-        Self {
-            fire_cooldown: Timer::new(CHARACTER_FIRE_COOLDOWN, false),
-        }
-    }
-}
-
-impl Character {
-    pub fn check_fire_cooldown(&self) -> bool {
-        self.fire_cooldown.finished()
-    }
-
-    fn tick_fire_cooldown(&mut self, time_delta: Duration) -> bool {
-        self.fire_cooldown.tick(time_delta).finished()
-    }
-
-    fn reset_fire_cooldown(&mut self) {
-        self.fire_cooldown.reset();
-    }
-}
 
 // todo figure where to use the equipping weapons
 // - picking up guns on the ground or from dead enemies
@@ -113,7 +86,15 @@ impl Character {
 // useless to have it in character
 // check that the entities possess the char and gun elements? probably just whatever
 pub(crate) fn equip_weapon(commands: &mut Commands, char_entity: Entity, weapon_entity: Entity) {
+    //ensure!(); is a gun/equippable, doesn't have equipped -- though should panic, trying to insert an existing component
+    // what else could be equippable,
     commands.entity(char_entity).add_child(weapon_entity);
+    commands
+        .entity(weapon_entity)
+        .insert(Equipped { by: char_entity });
+    // insert/replace team, equipped(char_entity.id())
+    // set velocity to 0 and rotation to identity
+    // ooh! have multiple guns on a body
 }
 
 pub fn calculate_character_velocity(
@@ -123,33 +104,5 @@ pub fn calculate_character_velocity(
         velocity.linear = transform.up() * action_input.speed() * CHARACTER_SPEED;
         velocity.angular =
             heron::AxisAngle::new(-Vec3::Z, action_input.angular_speed() * CHARACTER_RAD_SPEED);
-    }
-}
-
-pub fn handle_gunfire(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query_characters: Query<(&mut Character, &Team, &Transform, &CharacterActionInput)>,
-) {
-    for (mut character, team, character_transform, input) in query_characters.iter_mut() {
-        if character.tick_fire_cooldown(time.delta()) && input.fire {
-            let facing_direction = character_transform.up() * character_transform.scale;
-
-            let character_movement_offset = input.speed() * CHARACTER_SPEED * time.delta_seconds();
-            let size_offset = CHARACTER_SIZE / 1.4 + BULLET_SIZE;
-            let bullet_spawn_offset = facing_direction * (size_offset + character_movement_offset);
-
-            for _ in 0..1 {
-                commands.spawn_bundle(BulletBundle::new(
-                    team.0,
-                    character_transform
-                        .with_translation(character_transform.translation + bullet_spawn_offset)
-                        .with_scale(Vec3::ONE),
-                    facing_direction * BULLET_SPEED,
-                ));
-            }
-
-            character.reset_fire_cooldown();
-        }
     }
 }

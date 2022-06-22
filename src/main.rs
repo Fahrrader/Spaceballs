@@ -16,11 +16,11 @@ pub mod teams;
 
 use crate::ai::handle_ai_input;
 use crate::characters::{
-    calculate_character_velocity, equip_weapon, handle_gunfire, BaseCharacterBundle,
+    calculate_character_velocity, equip_weapon, BaseCharacterBundle,
     ControlledPlayerCharacterBundle,
 };
 use crate::controls::handle_player_input;
-use crate::guns::{GunBundle, GunPreset};
+use crate::guns::{handle_gunfire, GunBundle, GunPreset};
 use crate::health::{handle_damage, EntityDamagedEvent};
 use crate::physics::{
     handle_bullet_collision_events, RectangularObstacleBundle, OBSTACLE_STEP_SIZE,

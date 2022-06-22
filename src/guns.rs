@@ -1,10 +1,20 @@
-use crate::characters::CHARACTER_SIZE;
-use crate::teams::{Team, NONEXISTENT_TEAM};
+use crate::actions::CharacterActionInput;
+use crate::characters::{Character, CHARACTER_SIZE};
+use crate::projectiles::{BulletBundle, BULLET_SIZE, BULLET_SPEED};
+use crate::teams::Team;
+use bevy::core::{Time, Timer};
 use bevy::math::{Vec2, Vec3};
-use bevy::prelude::{Bundle, Color, Component, Sprite, SpriteBundle, Transform};
+use bevy::prelude::{
+    Bundle, Color, Commands, Component, Entity, GlobalTransform, Query, Res, Sprite, SpriteBundle,
+    Transform, With,
+};
 use bevy::utils::default;
+use std::time::Duration;
 
+/// The gun is slightly transparent to let the players see the projectiles and whatnot underneath,
+/// since the gun doesn't have a collider.
 const GUN_TRANSPARENCY: f32 = 0.95;
+/// The gun color while it's unequipped.
 const GUN_NEUTRAL_COLOR: Color = Color::Rgba {
     red: 0.25,
     green: 0.25,
@@ -15,6 +25,9 @@ const GUN_NEUTRAL_COLOR: Color = Color::Rgba {
 const GUN_LENGTH: f32 = CHARACTER_SIZE * 1.25;
 const GUN_WIDTH: f32 = CHARACTER_SIZE * 0.25;
 
+// todo replace with enum unpacking
+const GUN_FIRE_COOLDOWN: Duration = Duration::from_millis(25);
+
 const GUN_CENTER_X: f32 = 0.0;
 const GUN_CENTER_Y: f32 = CHARACTER_SIZE * -0.15 + GUN_LENGTH * 0.5;
 const GUN_Z_LAYER: f32 = 1.0;
@@ -23,7 +36,8 @@ const GUN_Z_LAYER: f32 = 1.0;
 #[derive(Bundle)]
 pub struct GunBundle {
     preset: GunPreset,
-    team: Team,
+    gun: Gun,
+    //team: Team,
     // scenarios for modifying a single weapon?
     // - power-ups: apply damage boost, but why, use another function that'd go through the vec to skew
     // -
@@ -38,6 +52,7 @@ impl Default for GunBundle {
     fn default() -> Self {
         let preset = GunPreset::default();
         Self {
+            gun: Gun::default(),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: GUN_NEUTRAL_COLOR,
@@ -47,7 +62,7 @@ impl Default for GunBundle {
                 transform: preset.get_transform(),
                 ..default()
             },
-            team: Team(NONEXISTENT_TEAM),
+            //team: Team(NONEXISTENT_TEAM),
             preset,
         }
     }
@@ -62,9 +77,36 @@ impl GunBundle {
     }
 
     // todo refactor to work with queries
-    pub(crate) fn make_ones_own(&mut self, team: &Team) {
+    /*pub(crate) fn make_ones_own(&mut self, team: &Team) {
         self.team = team.clone();
         self.sprite_bundle.sprite.color = *self.team.color().set_a(GUN_TRANSPARENCY);
+    }*/
+}
+
+#[derive(Component)]
+pub struct Gun {
+    fire_cooldown: Timer,
+}
+
+impl Default for Gun {
+    fn default() -> Self {
+        Self {
+            fire_cooldown: Timer::new(GUN_FIRE_COOLDOWN, false),
+        }
+    }
+}
+
+impl Gun {
+    pub fn check_fire_cooldown(&self) -> bool {
+        self.fire_cooldown.finished()
+    }
+
+    fn tick_fire_cooldown(&mut self, time_delta: Duration) -> bool {
+        self.fire_cooldown.tick(time_delta).finished()
+    }
+
+    fn reset_fire_cooldown(&mut self) {
+        self.fire_cooldown.reset();
     }
 }
 
@@ -109,3 +151,43 @@ FiringMode::Typhoon => {
 Quat::from_axis_angle(-Vec3::Z, (rand::random::<f32>() - 0.5) * PI * 2.0)
 }
 } * character_transform.up();*/
+
+#[derive(Component)]
+pub struct Equipped {
+    pub by: Entity,
+}
+
+pub fn handle_gunfire(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query_weapons: Query<(&mut Gun, &GlobalTransform, &Equipped)>,
+    query_characters: Query<(&CharacterActionInput, &Team), With<Character>>,
+) {
+    for (mut gun, gun_transform, equipped) in query_weapons.iter_mut() {
+        let (is_firing, team) = query_characters
+            .get(equipped.by)
+            .map(|(input, team)| (input.fire, team))
+            .unwrap();
+
+        if gun.tick_fire_cooldown(time.delta()) && is_firing {
+            let facing_direction = gun_transform.up();
+
+            //let character_movement_offset = input.speed() * CHARACTER_SPEED * time.delta_seconds();
+            let barrel_offset = GUN_LENGTH / 2.0 * gun_transform.scale.y + BULLET_SIZE / 2.0;
+            let bullet_spawn_offset = facing_direction * barrel_offset; //( + character_movement_offset);
+
+            for _ in 0..1 {
+                commands.spawn_bundle(BulletBundle::new(
+                    team.0,
+                    gun_transform
+                        .with_translation(gun_transform.translation + bullet_spawn_offset)
+                        .with_scale(Vec3::ONE)
+                        .into(),
+                    facing_direction * BULLET_SPEED,
+                ));
+            }
+
+            gun.reset_fire_cooldown();
+        }
+    }
+}
