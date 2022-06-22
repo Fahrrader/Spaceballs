@@ -31,4 +31,13 @@ impl CharacterActionInput {
         }
         angle
     }
+
+    pub fn replace_from(&mut self, another: &Self) -> &mut Self {
+        self.up = another.up;
+        self.down = another.down;
+        self.left = another.left;
+        self.right = another.right;
+        self.fire = another.fire;
+        self
+    }
 }

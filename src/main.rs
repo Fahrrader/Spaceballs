@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use heron::PhysicsPlugin;
+use std::f32::consts::PI;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -79,7 +80,7 @@ fn setup(mut commands: Commands) {
         .spawn_bundle(BaseCharacterBundle::new(
             AI_DEFAULT_TEAM,
             Transform::from_translation(Vec3::new(150.0, 0.0, 0.0))
-                .with_rotation(Quat::from_axis_angle(-Vec3::Z, 30.0))
+                .with_rotation(Quat::from_axis_angle(Vec3::Z, PI / 6.0))
                 .with_scale(Vec3::new(2.0, 3.0, 1.0)),
         ))
         .id();
