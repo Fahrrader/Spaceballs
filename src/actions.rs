@@ -7,7 +7,11 @@ pub struct CharacterActionInput {
     pub down: bool,
     pub left: bool,
     pub right: bool,
+
     pub fire: bool,
+
+    pub use_environment_1: bool,
+    pub use_environment_2: bool,
 }
 
 impl CharacterActionInput {
@@ -42,6 +46,8 @@ impl CharacterActionInput {
         self.left = another.left;
         self.right = another.right;
         self.fire = another.fire;
+        self.use_environment_1 = another.use_environment_1;
+        self.use_environment_2 = another.use_environment_2;
         self
     }
 }

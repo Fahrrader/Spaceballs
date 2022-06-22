@@ -21,7 +21,7 @@ impl Health {
         Self { hp: max_health }
     }
 
-    pub fn damage(&mut self, damage: HitPoints) -> bool {
+    fn damage(&mut self, damage: HitPoints) -> bool {
         self.hp -= damage;
         self.is_dead()
     }

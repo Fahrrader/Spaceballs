@@ -2,7 +2,7 @@ use crate::health::Health;
 use crate::projectiles::Bullet;
 use crate::teams::Team;
 use crate::{EntityDamagedEvent, Transform};
-use bevy::ecs::query::WorldQuery;
+use bevy::ecs::query::{FilterFetch, WorldQuery};
 use bevy::math::Vec3;
 use bevy::prelude::{
     default, Bundle, Color, Commands, Entity, EventReader, EventWriter, Query, Sprite, SpriteBundle,
@@ -18,8 +18,21 @@ pub const DEFAULT_OBSTACLE_COLOR: Color = Color::WHITE;
 pub struct KinematicsBundle {
     pub rigidbody: RigidBody,
     pub velocity: Velocity,
+    pub damping: Damping,
     pub collider: CollisionShape,
     pub collision_layers: CollisionLayers,
+}
+
+impl Default for KinematicsBundle {
+    fn default() -> Self {
+        Self {
+            rigidbody: RigidBody::Dynamic,
+            velocity: Velocity::default(),
+            damping: Damping::default(),
+            collider: CollisionShape::default(),
+            collision_layers: CollisionLayers::none(),
+        }
+    }
 }
 
 impl KinematicsBundle {
@@ -61,20 +74,19 @@ impl KinematicsBundle {
         self
     }
 
-    pub fn with_angular_velocity_from_angle(mut self, axis: Vec3, angle: f32) -> Self {
-        self.velocity.angular = AxisAngle::new(axis, angle);
+    pub fn with_angular_velocity_in_rads(mut self, axis: Vec3, radians: f32) -> Self {
+        self.velocity.angular = AxisAngle::new(axis, radians);
         self
     }
-}
 
-impl Default for KinematicsBundle {
-    fn default() -> Self {
-        Self {
-            rigidbody: RigidBody::Dynamic,
-            velocity: Velocity::default(),
-            collider: CollisionShape::default(),
-            collision_layers: CollisionLayers::none(),
-        }
+    pub fn with_linear_damping(mut self, damping: f32) -> Self {
+        self.damping.linear = damping;
+        self
+    }
+
+    pub fn with_angular_damping(mut self, damping: f32) -> Self {
+        self.damping.angular = damping;
+        self
     }
 }
 
@@ -114,7 +126,7 @@ impl RectangularObstacleBundle {
     pub fn new(transform: Transform) -> Self {
         Self {
             collider: PopularCollisionShape::get(
-                PopularCollisionShape::Cell(OBSTACLE_STEP_SIZE),
+                PopularCollisionShape::SquareCell(OBSTACLE_STEP_SIZE),
                 transform.scale,
             ),
             sprite_bundle: SpriteBundle {
@@ -134,6 +146,7 @@ impl RectangularObstacleBundle {
 #[derive(PhysicsLayer)]
 pub enum CollisionLayer {
     Character,
+    Gear,
     Projectile,
     Obstacle,
 }
@@ -142,6 +155,7 @@ impl CollisionLayer {
     pub fn all() -> &'static [Self] {
         &[
             CollisionLayer::Character,
+            CollisionLayer::Gear,
             CollisionLayer::Projectile,
             CollisionLayer::Obstacle,
         ]
@@ -150,15 +164,20 @@ impl CollisionLayer {
 
 /// Collection of shortcuts to commonly used collision shapes.
 pub enum PopularCollisionShape {
-    Cell(f32),
+    SquareCell(f32),
+    RectangularCell(f32, f32),
     Disc(f32),
 }
 
 impl PopularCollisionShape {
     pub fn get(shape: Self, scale: Vec3) -> CollisionShape {
         match shape {
-            Self::Cell(size) => CollisionShape::Cuboid {
+            Self::SquareCell(size) => CollisionShape::Cuboid {
                 half_extends: size / 2.0 * scale,
+                border_radius: None,
+            },
+            Self::RectangularCell(size_x, size_y) => CollisionShape::Cuboid {
+                half_extends: Vec3::new(scale.x * size_x / 2.0, scale.y * size_y / 2.0, scale.z),
                 border_radius: None,
             },
             Self::Disc(size) => CollisionShape::Sphere {
@@ -169,18 +188,30 @@ impl PopularCollisionShape {
 }
 
 /// Try to find two entities in two queries without knowing which one entity exists in which query.
-fn try_get_components_from_entities<'a, ComponentA: WorldQuery, ComponentB: WorldQuery>(
-    query_a: &'a Query<ComponentA>,
-    query_b: &'a Query<ComponentB>,
+pub(crate) fn try_get_components_from_entities<
+    'a,
+    ComponentA: WorldQuery,
+    ComponentB: WorldQuery,
+    FilterA: WorldQuery,
+    FilterB: WorldQuery,
+>(
+    query_a: &'a Query<ComponentA, FilterA>,
+    query_b: &'a Query<ComponentB, FilterB>,
     entity_a: Entity,
     entity_b: Entity,
-) -> Option<(
-    <ComponentA::ReadOnlyFetch as bevy::ecs::query::Fetch<'a, 'a>>::Item,
-    Entity,
-    <ComponentB::ReadOnlyFetch as bevy::ecs::query::Fetch<'a, 'a>>::Item,
-    Entity,
-)> {
-    return if let (Ok(component_a), Ok(component_b)) =
+) -> Option<(Entity, Entity)>
+where
+    FilterA::Fetch: FilterFetch,
+    FilterB::Fetch: FilterFetch,
+{
+    return if query_a.contains(entity_a) && query_b.contains(entity_b) {
+        Some((entity_a, entity_b))
+    } else if query_a.contains(entity_b) && query_b.contains(entity_a) {
+        Some((entity_b, entity_a))
+    } else {
+        None
+    };
+    /*return if let (Ok(component_a), Ok(component_b)) =
         (query_a.get(entity_a), query_b.get(entity_b))
     {
         Some((component_a, entity_a, component_b, entity_b))
@@ -190,7 +221,7 @@ fn try_get_components_from_entities<'a, ComponentA: WorldQuery, ComponentB: Worl
         Some((component_a, entity_b, component_b, entity_a))
     } else {
         None
-    };
+    };*/
 }
 
 pub fn handle_bullet_collision_events(
@@ -204,15 +235,14 @@ pub fn handle_bullet_collision_events(
         let (entity_a, entity_b) = event.rigid_body_entities();
         // perhaps send damage to bullets as well to handle multiple types / buffs?
         if let Some((
-            (bullet, bullet_team),
+            //(bullet, bullet_team),
             bullet_entity,
-            (_, body_health, body_team),
+            //(_, body_health, body_team),
             body_entity,
-        )) = try_get_components_from_entities::<
-            (&Bullet, &Team),
-            (&CollisionShape, Option<&Health>, Option<&Team>),
-        >(&query_bullets, &query_bodies, entity_a, entity_b)
+        )) = try_get_components_from_entities(&query_bullets, &query_bodies, entity_a, entity_b)
         {
+            let (bullet, bullet_team) = query_bullets.get(bullet_entity).unwrap();
+            let (_, body_health, body_team) = query_bodies.get(body_entity).unwrap();
             // commands.entity(bullet_entity).despawn(); todo uncomment after display
             if let Some(body_team) = body_team {
                 if bullet_team != body_team {

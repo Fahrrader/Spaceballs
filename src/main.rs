@@ -16,8 +16,8 @@ pub mod teams;
 
 use crate::ai::handle_ai_input;
 use crate::characters::{
-    calculate_character_velocity, equip_weapon, BaseCharacterBundle,
-    ControlledPlayerCharacterBundle,
+    calculate_character_velocity, equip_gear, handle_gun_picking, handle_letting_gear_go,
+    BaseCharacterBundle, ControlledPlayerCharacterBundle,
 };
 use crate::controls::handle_player_input;
 use crate::guns::{handle_gunfire, GunBundle, GunPreset};
@@ -72,9 +72,12 @@ fn setup(mut commands: Commands) {
         ))
         .id();
     let gun_1 = commands
-        .spawn_bundle(GunBundle::new(GunPreset::Imprecise))
+        .spawn_bundle(GunBundle::new(
+            GunPreset::Imprecise,
+            Some(Transform::from_translation(Vec3::new(-120.0, 30.0, 0.0))),
+        ))
         .id();
-    equip_weapon(&mut commands, player_char, gun_1);
+    //equip_gear(&mut commands, player_char, gun_1);
 
     let ai_char = commands
         .spawn_bundle(BaseCharacterBundle::new(
@@ -85,9 +88,9 @@ fn setup(mut commands: Commands) {
         ))
         .id();
     let gun_2 = commands
-        .spawn_bundle(GunBundle::new(GunPreset::Scattershot))
+        .spawn_bundle(GunBundle::new(GunPreset::Scattershot, None).with_paint_job(AI_DEFAULT_TEAM))
         .id();
-    equip_weapon(&mut commands, ai_char, gun_2);
+    equip_gear(&mut commands, ai_char, gun_2, None, None);
 
     commands.spawn_bundle(RectangularObstacleBundle::new(Transform::from_scale(
         Vec3::new(1.0, 2.0, 1.0),
@@ -136,6 +139,8 @@ fn main() {
         .add_system(handle_gunfire.after(calculate_character_velocity))
         .add_system(handle_bullets_out_of_bounds.after(handle_gunfire))
         .add_system(handle_bullet_collision_events)
+        .add_system(handle_gun_picking)
+        .add_system(handle_letting_gear_go)
         .add_system(handle_damage.after(handle_bullet_collision_events))
         .run();
 }
