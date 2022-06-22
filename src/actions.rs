@@ -1,5 +1,6 @@
 use bevy::prelude::Component;
 
+/// Inputs for characters to act on during the next frame.
 #[derive(Component, Default)]
 pub struct CharacterActionInput {
     pub up: bool,
@@ -10,6 +11,7 @@ pub struct CharacterActionInput {
 }
 
 impl CharacterActionInput {
+    /// Get direction of linear speed.
     pub fn speed(&self) -> f32 {
         let mut speed = 0.0;
         if self.up {
@@ -21,6 +23,7 @@ impl CharacterActionInput {
         speed
     }
 
+    /// Get direction of rotational speed.
     pub fn angular_speed(&self) -> f32 {
         let mut angle = 0.0;
         if self.left {
@@ -32,6 +35,7 @@ impl CharacterActionInput {
         angle
     }
 
+    /// Copy data from other input data (used primarily for components)
     pub fn replace_from(&mut self, another: &Self) -> &mut Self {
         self.up = another.up;
         self.down = another.down;

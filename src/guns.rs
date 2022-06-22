@@ -179,8 +179,8 @@ pub fn handle_gunfire(
             //let character_movement_offset = input.speed() * CHARACTER_SPEED * time.delta_seconds();
             let barrel_offset = GUN_LENGTH / 2.0 * gun_transform.scale.y + BULLET_SIZE / 2.0;
             let bullet_spawn_offset = facing_direction * barrel_offset; //( + character_movement_offset);
-            // todo add a ray cast from the body to the gun barrel to check for collisions
-            // but currently it's kinda like shooting from cover / over shoulder, fun
+                                                                        // todo add a ray cast from the body to the gun barrel to check for collisions
+                                                                        // but currently it's kinda like shooting from cover / over shoulder, fun
 
             for _ in 0..1 {
                 commands.spawn_bundle(BulletBundle::new(

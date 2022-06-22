@@ -9,9 +9,11 @@ use bevy::prelude::{
 };
 use heron::prelude::*;
 
+/// The size of an obstacle chunk. Useful to keep about the same as a character's body size to configure the terrain easier.
 pub const OBSTACLE_STEP_SIZE: f32 = 50.0;
 pub const DEFAULT_OBSTACLE_COLOR: Color = Color::WHITE;
 
+/// Collection of components desired for physics and collision simulation.
 #[derive(Bundle)]
 pub struct KinematicsBundle {
     pub rigidbody: RigidBody,
@@ -21,6 +23,15 @@ pub struct KinematicsBundle {
 }
 
 impl KinematicsBundle {
+    /// Create a new kinematic bundle.
+    ///
+    /// [shape] is akin to a collider mesh, an invisible shape used to calculate collisions; it doesn't need to be the exact shape of the object.
+    ///
+    /// [collision_group] is a [`CollisionLayer`] the entity would belong to, i.e. a bullet would be a [`Projectile`](crate::CollisionLayer::Projectile).
+    /// It makes up the mask of heron's [`CollisionLayers`] struct.
+    ///
+    /// [collided_groups] is an array of [`CollisionLayer`] enums the entity would collide with and fire events in such a case.
+    /// It makes up the groups of heron's [`CollisionLayers`] struct.
     pub fn new(
         shape: CollisionShape,
         collision_group: CollisionLayer,
@@ -67,6 +78,7 @@ impl Default for KinematicsBundle {
     }
 }
 
+/// Standard rectangular obstacle, stopping characters and bullets alike.
 #[derive(Bundle)]
 pub struct RectangularObstacleBundle {
     rigidbody: RigidBody,
@@ -118,6 +130,7 @@ impl RectangularObstacleBundle {
     }
 }
 
+/// All various layers of collision used in the game, used by the CollisionLayers component to check if a collision should happen or not.
 #[derive(PhysicsLayer)]
 pub enum CollisionLayer {
     Character,
@@ -135,6 +148,7 @@ impl CollisionLayer {
     }
 }
 
+/// Collection of shortcuts to commonly used collision shapes.
 pub enum PopularCollisionShape {
     Cell(f32),
     Disc(f32),
@@ -154,6 +168,7 @@ impl PopularCollisionShape {
     }
 }
 
+/// Try to find two entities in two queries without knowing which one entity exists in which query.
 fn try_get_components_from_entities<'a, ComponentA: WorldQuery, ComponentB: WorldQuery>(
     query_a: &'a Query<ComponentA>,
     query_b: &'a Query<ComponentB>,

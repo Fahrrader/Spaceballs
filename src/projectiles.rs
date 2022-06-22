@@ -12,6 +12,7 @@ pub const BULLET_SIZE: f32 = 5.0;
 pub const BULLET_SPEED: f32 = 300.0;
 pub const BULLET_DAMAGE: HitPoints = 5.0;
 
+/// Collection of components making up a projectile entity.
 #[derive(Bundle)]
 pub struct BulletBundle {
     bullet: Bullet,
@@ -50,6 +51,7 @@ impl BulletBundle {
     }
 }
 
+/// Marker component signifying that this is indeed a bullet / projectile.
 #[derive(Component)]
 pub struct Bullet;
 
