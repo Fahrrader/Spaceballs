@@ -7,9 +7,6 @@ pub type TeamNumber = u8;
 pub const PLAYER_DEFAULT_TEAM: TeamNumber = 1;
 /// The default team number of the AI enemies.
 pub const AI_DEFAULT_TEAM: TeamNumber = 9;
-/// A team number that shouldn't be used to designate anyone's allegiance
-/// and instead panic if used conventionally.
-pub const NONEXISTENT_TEAM: TeamNumber = 0;
 
 #[derive(Component, Clone, Eq, PartialEq)]
 pub struct Team(pub TeamNumber);
@@ -31,6 +28,6 @@ pub fn team_color(team: TeamNumber) -> Color {
         7 => Color::ORANGE_RED,
         8 => Color::INDIGO,
         9 => Color::SILVER,
-        NONEXISTENT_TEAM | _ => panic!("The team number is too big!"),
+        _ => panic!("The team number is too big!"),
     }
 }
