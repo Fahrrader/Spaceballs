@@ -26,9 +26,9 @@ impl Default for GunPreset {
 }
 
 impl GunPreset {
-    pub fn stats(&self) -> &GunPersistentStats {
+    pub fn stats(&self) -> GunPersistentStats {
         match self {
-            GunPreset::Regular => &REGULAR,
+            GunPreset::Regular => REGULAR,
             GunPreset::Imprecise => IMPRECISE,
             GunPreset::Scattershot => SCATTERSHOT,
             GunPreset::Typhoon => TYPHOON,
@@ -60,7 +60,7 @@ pub const TYPHOON: GunPersistentStats = GunPersistentStats {
     projectile_damage: BULLET_DAMAGE * 0.4,
     projectiles_per_shot: 64,
     fire_cooldown: Duration::from_millis(1800),
-    friendly_fire: true,
+    //friendly_fire: true, // todo spawn at equal distance from the character center for particular guns
     ..GunPersistentStats::regular()
 };
 
