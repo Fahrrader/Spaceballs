@@ -22,10 +22,8 @@ use crate::characters::{
 use crate::controls::handle_player_input;
 use crate::guns::{handle_gun_idle_bobbing, handle_gunfire, GunBundle, GunPreset};
 use crate::health::{handle_damage, EntityDamagedEvent};
-use crate::physics::{
-    handle_bullet_collision_events, RectangularObstacleBundle, OBSTACLE_STEP_SIZE,
-};
-use crate::projectiles::handle_bullets_out_of_bounds;
+use crate::physics::{RectangularObstacleBundle, OBSTACLE_CHUNK_SIZE};
+use crate::projectiles::{handle_bullet_collision_events, handle_bullets_out_of_bounds};
 use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 
 pub const WINDOW_WIDTH: f32 = 800.0;
@@ -38,46 +36,54 @@ fn setup(mut commands: Commands) {
     commands.spawn_bundle(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::X * -WINDOW_WIDTH / 2.0).with_scale(Vec3::new(
             1.0,
-            WINDOW_HEIGHT / OBSTACLE_STEP_SIZE + 1.0,
+            WINDOW_HEIGHT / OBSTACLE_CHUNK_SIZE + 1.0,
             1.0,
         )),
     ));
     commands.spawn_bundle(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::X * WINDOW_WIDTH / 2.0).with_scale(Vec3::new(
             1.0,
-            WINDOW_HEIGHT / OBSTACLE_STEP_SIZE + 1.0,
+            WINDOW_HEIGHT / OBSTACLE_CHUNK_SIZE + 1.0,
             1.0,
         )),
     ));
     commands.spawn_bundle(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::Y * WINDOW_HEIGHT / 2.0).with_scale(Vec3::new(
-            WINDOW_WIDTH / OBSTACLE_STEP_SIZE + 1.0,
+            WINDOW_WIDTH / OBSTACLE_CHUNK_SIZE + 1.0,
             1.0,
             1.0,
         )),
     ));
     commands.spawn_bundle(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::Y * -WINDOW_HEIGHT / 2.0).with_scale(Vec3::new(
-            WINDOW_WIDTH / OBSTACLE_STEP_SIZE + 1.0,
+            WINDOW_WIDTH / OBSTACLE_CHUNK_SIZE + 1.0,
             1.0,
             1.0,
         )),
     ));
     // -----
 
-    let player_char = commands
+    commands
         .spawn_bundle(ControlledPlayerCharacterBundle::new(
             PLAYER_DEFAULT_TEAM,
             Transform::from_translation(Vec3::new(-150.0, 0.0, 0.0)),
-        ))
-        .id();
-    let gun_1 = commands
+        ));
+
+    commands
         .spawn_bundle(GunBundle::new(
-            GunPreset::Imprecise,
-            Some(Transform::from_translation(Vec3::new(-120.0, 30.0, 0.0))),
-        ))
-        .id();
-    //equip_gear(&mut commands, player_char, gun_1);
+            GunPreset::LaserGun,
+            Some(Transform::from_translation(Vec3::new(-120.0, 50.0, 0.0))),
+        ));
+    commands
+        .spawn_bundle(GunBundle::new(
+            GunPreset::RailGun,
+            Some(Transform::from_translation(Vec3::new(-180.0, 50.0, 0.0))),
+        ));
+    commands
+        .spawn_bundle(GunBundle::new(
+            GunPreset::Typhoon,
+            Some(Transform::from_translation(Vec3::new(-240.0, 50.0, 0.0))),
+        ));
 
     let ai_char = commands
         .spawn_bundle(BaseCharacterBundle::new(
@@ -87,10 +93,11 @@ fn setup(mut commands: Commands) {
                 .with_scale(Vec3::new(2.0, 3.0, 1.0)),
         ))
         .id();
+    let ai_gun_preset = GunPreset::RailGun;
     let gun_2 = commands
-        .spawn_bundle(GunBundle::new(GunPreset::Scattershot, None).with_paint_job(AI_DEFAULT_TEAM))
+        .spawn_bundle(GunBundle::new(ai_gun_preset.clone(), None).with_paint_job(AI_DEFAULT_TEAM))
         .id();
-    equip_gear(&mut commands, ai_char, gun_2, None, None);
+    equip_gear(&mut commands, ai_char, gun_2, &ai_gun_preset, None, None);
 
     commands.spawn_bundle(RectangularObstacleBundle::new(Transform::from_scale(
         Vec3::new(1.0, 2.0, 1.0),
@@ -126,6 +133,8 @@ fn main() {
         .insert_resource(create_window_descriptor((WINDOW_WIDTH, WINDOW_HEIGHT)))
         .add_plugins(DefaultPlugins)
         .add_plugin(PhysicsPlugin::default())
+        /*.add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())*/
         .insert_resource(ClearColor(Color::BLACK))
         .add_event::<EntityDamagedEvent>()
         .add_startup_system(setup)

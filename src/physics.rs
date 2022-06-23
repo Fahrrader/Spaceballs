@@ -1,16 +1,10 @@
-use crate::health::Health;
-use crate::projectiles::Bullet;
-use crate::teams::Team;
-use crate::{EntityDamagedEvent, Transform};
 use bevy::ecs::query::{FilterFetch, WorldQuery};
 use bevy::math::Vec3;
-use bevy::prelude::{
-    default, Bundle, Color, Commands, Entity, EventReader, EventWriter, Query, Sprite, SpriteBundle,
-};
+use bevy::prelude::{default, Bundle, Color, Entity, Query, Sprite, SpriteBundle, Transform};
 use heron::prelude::*;
 
 /// The size of an obstacle chunk. Useful to keep about the same as a character's body size to configure the terrain easier.
-pub const OBSTACLE_STEP_SIZE: f32 = 50.0;
+pub const OBSTACLE_CHUNK_SIZE: f32 = 50.0;
 pub const DEFAULT_OBSTACLE_COLOR: Color = Color::WHITE;
 
 /// Collection of components desired for physics and collision simulation.
@@ -91,6 +85,7 @@ impl KinematicsBundle {
 }
 
 /// Standard rectangular obstacle, stopping characters and bullets alike.
+/// Uses [`OBSTACLE_CHUNK_SIZE`] to determine its dimensions in addition to the provided scale.
 #[derive(Bundle)]
 pub struct RectangularObstacleBundle {
     rigidbody: RigidBody,
@@ -126,7 +121,7 @@ impl RectangularObstacleBundle {
     pub fn new(transform: Transform) -> Self {
         Self {
             collider: PopularCollisionShape::get(
-                PopularCollisionShape::SquareCell(OBSTACLE_STEP_SIZE),
+                PopularCollisionShape::SquareCell(OBSTACLE_CHUNK_SIZE),
                 transform.scale,
             ),
             sprite_bundle: SpriteBundle {
@@ -134,7 +129,7 @@ impl RectangularObstacleBundle {
                     color: DEFAULT_OBSTACLE_COLOR,
                     ..default()
                 },
-                transform: transform.with_scale(transform.scale * OBSTACLE_STEP_SIZE),
+                transform: transform.with_scale(transform.scale * OBSTACLE_CHUNK_SIZE),
                 ..default()
             },
             ..default()
@@ -211,51 +206,4 @@ where
     } else {
         None
     };
-    /*return if let (Ok(component_a), Ok(component_b)) =
-        (query_a.get(entity_a), query_b.get(entity_b))
-    {
-        Some((component_a, entity_a, component_b, entity_b))
-    } else if let (Ok(component_a), Ok(component_b)) =
-        (query_a.get(entity_b), query_b.get(entity_a))
-    {
-        Some((component_a, entity_b, component_b, entity_a))
-    } else {
-        None
-    };*/
-}
-
-pub fn handle_bullet_collision_events(
-    mut commands: Commands,
-    mut collision_events: EventReader<CollisionEvent>,
-    query_bodies: Query<(&CollisionShape, Option<&Health>, Option<&Team>)>,
-    query_bullets: Query<(&Bullet, &Team)>,
-    mut ew_damage: EventWriter<EntityDamagedEvent>,
-) {
-    for event in collision_events.iter() {
-        let (entity_a, entity_b) = event.rigid_body_entities();
-        // perhaps send damage to bullets as well to handle multiple types / buffs?
-        if let Some((
-            //(bullet, bullet_team),
-            bullet_entity,
-            //(_, body_health, body_team),
-            body_entity,
-        )) = try_get_components_from_entities(&query_bullets, &query_bodies, entity_a, entity_b)
-        {
-            let (bullet, bullet_team) = query_bullets.get(bullet_entity).unwrap();
-            let (_, body_health, body_team) = query_bodies.get(body_entity).unwrap();
-            // commands.entity(bullet_entity).despawn(); todo uncomment after display
-            if let Some(body_team) = body_team {
-                if bullet_team != body_team {
-                    if body_health.is_some() {
-                        ew_damage.send(EntityDamagedEvent {
-                            entity: body_entity,
-                            damage: bullet.get_damage(),
-                        })
-                    }
-                } else {
-                    // friendly fire!
-                }
-            }
-        }
-    }
 }

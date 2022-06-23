@@ -1,13 +1,12 @@
 use crate::actions::CharacterActionInput;
-use crate::guns::{paint_gun, reset_gun, Equipped};
+use crate::guns::{paint_gun, reset_gun, Equipped, GunPreset};
 use crate::health::{Health, HitPoints};
 use crate::physics::{
     try_get_components_from_entities, CollisionLayer, KinematicsBundle, PopularCollisionShape,
 };
 use crate::teams::{team_color, Team, TeamNumber};
-use crate::{GunBundle, GunPreset, Vec3};
 use bevy::hierarchy::{BuildChildren, Children};
-use bevy::math::Vec2;
+use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
     Bundle, Commands, Component, Entity, EventReader, GlobalTransform, Query, Sprite, SpriteBundle,
     Transform, With, Without,
@@ -104,7 +103,8 @@ pub(crate) fn equip_gear(
     commands: &mut Commands,
     char_entity: Entity,
     gear_entity: Entity,
-    gear_properties: Option<(&GunPreset, &mut Transform)>,
+    gun_preset: &GunPreset,
+    gear_properties: Option<&mut Transform>,
     gear_paint_job: Option<(&mut Sprite, Option<TeamNumber>)>,
 ) {
     commands.entity(char_entity).add_child(gear_entity);
@@ -115,19 +115,19 @@ pub(crate) fn equip_gear(
 
     // only guns for now
     if let Some(such) = gear_properties {
-        reset_gun(such.0, such.1);
+        reset_gun(gun_preset, such);
     }
     if let Some(such) = gear_paint_job {
-        paint_gun(such.0, such.1);
+        paint_gun(gun_preset, such.0, such.1);
     }
     // ooh! have multiple guns on a body
 }
 
-pub(crate) fn uneqip_gear(
+pub(crate) fn unequip_gear(
     commands: &mut Commands,
     gear_entity: Entity,
     kinematics: KinematicsBundle,
-    gun_preset: &GunPreset,
+    gun_type: &GunPreset,
     gear_sprite: &mut Sprite,
     gear_transform: &mut Transform,
 ) {
@@ -136,30 +136,32 @@ pub(crate) fn uneqip_gear(
         .remove::<Equipped>()
         .insert_bundle(kinematics);
 
-    reset_gun(gun_preset, gear_transform);
-    paint_gun(gear_sprite, None);
+    reset_gun(gun_type, gear_transform);
+    paint_gun(gun_type, gear_sprite, None);
 }
 
 pub(crate) fn throw_away_gear(
     commands: &mut Commands,
     gear_entity: Entity,
     gear_linear_velocity: Vec3,
-    gun_preset: &GunPreset,
+    gun_type: &GunPreset,
     gear_sprite: &mut Sprite,
     gear_transform: &mut Transform,
     char_transform: &Transform,
 ) {
-    let kinematics = GunBundle::get_kinematics(gear_transform.scale)
+    let kinematics = gun_type
+        .stats()
+        .get_kinematics(gear_transform.scale)
         .with_linear_velocity(gear_linear_velocity)
         .with_angular_velocity_in_rads(Vec3::Z, GUN_THROW_SPIN_SPEED)
         .with_linear_damping(GUN_THROW_DAMPING_RATIO)
         .with_angular_damping(GUN_THROW_DAMPING_RATIO);
 
-    uneqip_gear(
+    unequip_gear(
         commands,
         gear_entity,
         kinematics,
-        gun_preset,
+        gun_type,
         gear_sprite,
         gear_transform,
     );
@@ -203,7 +205,8 @@ pub fn handle_gun_picking(
                 &mut commands,
                 char_entity,
                 weapon_entity,
-                Some((weapon_preset, &mut weapon_transform)),
+                weapon_preset,
+                Some(&mut weapon_transform),
                 Some((&mut weapon_sprite, Some(char_team.0))),
             );
         }
@@ -234,7 +237,7 @@ pub fn handle_letting_gear_go(
         let mut equipped_gears = Vec::<Entity>::new();
         for child in children.iter() {
             let child = *child;
-            if let Ok((gun_preset, mut gun_sprite, mut gun_transform, gun_g_transform)) =
+            if let Ok((gun_type, mut gun_sprite, mut gun_transform, gun_g_transform)) =
                 query_gear.get_mut(child)
             {
                 equipped_gears.push(child);
@@ -243,7 +246,7 @@ pub fn handle_letting_gear_go(
                     &mut commands,
                     child,
                     gun_velocity,
-                    gun_preset,
+                    gun_type,
                     &mut gun_sprite,
                     &mut gun_transform,
                     &transform,
