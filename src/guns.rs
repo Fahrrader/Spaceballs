@@ -184,7 +184,8 @@ pub fn handle_gunfire(
             // but currently it's kinda like shooting from cover / over shoulder, fun
 
             for _ in 0..gun_stats.projectiles_per_shot {
-                let facing_direction = gun_stats.get_spread_direction(&mut gun) * gun_transform.up();
+                let facing_direction =
+                    gun_stats.get_spread_direction(&mut gun) * gun_transform.up();
                 let bullet_spawn_offset = facing_direction * bullet_spawn_distance;
 
                 let mut bullet_commands = commands.spawn_bundle(BulletBundle::new(

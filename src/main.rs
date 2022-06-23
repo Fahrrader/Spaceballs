@@ -63,27 +63,23 @@ fn setup(mut commands: Commands) {
     ));
     // -----
 
-    commands
-        .spawn_bundle(ControlledPlayerCharacterBundle::new(
-            PLAYER_DEFAULT_TEAM,
-            Transform::from_translation(Vec3::new(-150.0, 0.0, 0.0)),
-        ));
+    commands.spawn_bundle(ControlledPlayerCharacterBundle::new(
+        PLAYER_DEFAULT_TEAM,
+        Transform::from_translation(Vec3::new(-150.0, 0.0, 0.0)),
+    ));
 
-    commands
-        .spawn_bundle(GunBundle::new(
-            GunPreset::LaserGun,
-            Some(Transform::from_translation(Vec3::new(-120.0, 50.0, 0.0))),
-        ));
-    commands
-        .spawn_bundle(GunBundle::new(
-            GunPreset::RailGun,
-            Some(Transform::from_translation(Vec3::new(-180.0, 50.0, 0.0))),
-        ));
-    commands
-        .spawn_bundle(GunBundle::new(
-            GunPreset::Typhoon,
-            Some(Transform::from_translation(Vec3::new(-240.0, 50.0, 0.0))),
-        ));
+    commands.spawn_bundle(GunBundle::new(
+        GunPreset::LaserGun,
+        Some(Transform::from_translation(Vec3::new(-120.0, 50.0, 0.0))),
+    ));
+    commands.spawn_bundle(GunBundle::new(
+        GunPreset::RailGun,
+        Some(Transform::from_translation(Vec3::new(-180.0, 50.0, 0.0))),
+    ));
+    commands.spawn_bundle(GunBundle::new(
+        GunPreset::Typhoon,
+        Some(Transform::from_translation(Vec3::new(-240.0, 50.0, 0.0))),
+    ));
 
     let ai_char = commands
         .spawn_bundle(BaseCharacterBundle::new(

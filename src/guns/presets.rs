@@ -1,10 +1,10 @@
-use bevy::prelude::Component;
 use crate::guns::stats::{
     GunPersistentStats, BULLET_DAMAGE, BULLET_SPEED, REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS,
 };
+use crate::Color;
+use bevy::prelude::Component;
 use std::f32::consts::PI;
 use std::time::Duration;
-use crate::Color;
 
 /// Array of guns for your taste and pleasure. All fixed variables per type are found via a look-up tree by a value of this enum.
 #[derive(Component, Clone)]
