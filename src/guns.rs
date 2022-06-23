@@ -26,13 +26,13 @@ const GUN_NEUTRAL_COLOR: Color = Color::Rgba {
     alpha: GUN_TRANSPARENCY,
 }; // Color::DARK_GRAY
 
-/// Gun minimum and maximum scale offset when bobbing when idle
-const GUN_BOBBING_AMPLITUDE: f32 = 0.4;
+/// Gun minimum and maximum scale offset when bobbing when idle.
+const GUN_BOBBING_AMPLITUDE: f32 = 0.2;
 /// Gun full-cycle pulse (bobbing) time.
 const GUN_BOBBING_TIME: f32 = 1.0;
 /// Gun bobbing tempo, multiplier to the cosine.
 const GUN_BOBBING_TEMPO: f64 = (2.0 * PI / GUN_BOBBING_TIME) as f64;
-/// Gun's maximum velocity to start bobbing. The closer to zero velocity, the stronger the bobbing.
+/// Gun's maximum velocity to start bobbing when it's below it.
 const GUN_MAX_BOBBING_VELOCITY: f32 = CHARACTER_SPEED / 10.0;
 /// Convenience. See [`GUN_MAX_BOBBING_VELOCITY`]
 const GUN_MAX_BOBBING_VELOCITY_SQR: f32 = GUN_MAX_BOBBING_VELOCITY * GUN_MAX_BOBBING_VELOCITY;
@@ -183,6 +183,7 @@ pub(crate) fn reset_gun(preset: &GunPreset, transform: &mut Transform) {
     let preset_transform = preset.get_transform();
     transform.translation = preset_transform.translation;
     transform.rotation = preset_transform.rotation;
+    transform.scale = preset_transform.scale;
 }
 
 pub(crate) fn paint_gun(sprite: &mut Sprite, team_number: Option<TeamNumber>) {
@@ -241,21 +242,26 @@ pub fn handle_gun_idle_bobbing(
     time: Res<Time>,
     mut query_weapons: Query<(&mut Transform, &heron::Velocity), (With<Gun>, Without<Equipped>)>,
 ) {
-    fn eval_bobbing(a: f32, cos: f32, velocity: &heron::Velocity) -> f32 {
-        let magnitude = velocity.linear.length() / GUN_MAX_BOBBING_VELOCITY - 1.0;
-        magnitude * cos * a + 1.0
+    fn eval_bobbing(a: f32, cos_dt: f32) -> f32 {
+        a + cos_dt
     }
 
-    let time_cos = (((GUN_BOBBING_TEMPO * time.seconds_since_startup()).cos() / 2.0) as f32)
-        * GUN_BOBBING_AMPLITUDE;
+    let time_cos_dt = -(GUN_BOBBING_TEMPO
+        * (GUN_BOBBING_TEMPO * time.seconds_since_startup()).sin()) as f32
+        * GUN_BOBBING_AMPLITUDE
+        * time.delta_seconds();
 
     for (mut transform, velocity) in query_weapons.iter_mut() {
         if GUN_MAX_BOBBING_VELOCITY_SQR > velocity.linear.length_squared() {
             transform.scale = Vec3::new(
-                eval_bobbing(1.0, time_cos, velocity),
-                eval_bobbing(1.0, time_cos, velocity),
+                eval_bobbing(transform.scale.x, time_cos_dt),
+                eval_bobbing(transform.scale.y, time_cos_dt),
                 transform.scale.z,
             );
+        } else {
+            // todo look into programmatic scales if there's ever non-standard gun scale
+            // or at least somehow don't update it every frame
+            transform.scale = Vec3::ONE;
         }
     }
 }
