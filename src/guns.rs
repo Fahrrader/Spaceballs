@@ -1,5 +1,5 @@
 use crate::actions::CharacterActionInput;
-use crate::characters::{Character, CHARACTER_SIZE};
+use crate::characters::{Character, CHARACTER_SIZE, CHARACTER_SPEED};
 use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
 use crate::projectiles::{BulletBundle, BULLET_SIZE, BULLET_SPEED};
 use crate::teams::{team_color, Team, TeamNumber};
@@ -10,6 +10,7 @@ use bevy::prelude::{
     Transform, With, Without,
 };
 use bevy::utils::default;
+use std::f32::consts::PI;
 use std::time::Duration;
 
 /// The gun is slightly transparent to let the players see the projectiles and whatnot underneath,
@@ -24,6 +25,17 @@ const GUN_NEUTRAL_COLOR: Color = Color::Rgba {
     blue: 0.25,
     alpha: GUN_TRANSPARENCY,
 }; // Color::DARK_GRAY
+
+/// Gun minimum and maximum scale offset when bobbing when idle
+const GUN_BOBBING_AMPLITUDE: f32 = 0.4;
+/// Gun full-cycle pulse (bobbing) time.
+const GUN_BOBBING_TIME: f32 = 1.0;
+/// Gun bobbing tempo, multiplier to the cosine.
+const GUN_BOBBING_TEMPO: f64 = (2.0 * PI / GUN_BOBBING_TIME) as f64;
+/// Gun's maximum velocity to start bobbing. The closer to zero velocity, the stronger the bobbing.
+const GUN_MAX_BOBBING_VELOCITY: f32 = CHARACTER_SPEED / 10.0;
+/// Convenience. See [`GUN_MAX_BOBBING_VELOCITY`]
+const GUN_MAX_BOBBING_VELOCITY_SQR: f32 = GUN_MAX_BOBBING_VELOCITY * GUN_MAX_BOBBING_VELOCITY;
 
 /// Will deprecate in favor of sprites/varying gun sizes.
 const GUN_LENGTH: f32 = CHARACTER_SIZE * 1.25;
@@ -225,11 +237,25 @@ pub fn handle_gunfire(
     }
 }
 
-pub fn handle_pulsation(
+pub fn handle_gun_idle_bobbing(
     time: Res<Time>,
-    mut query_weapons: Query<(&mut Transform, &heron::Velocity), Without<Equipped>>,
+    mut query_weapons: Query<(&mut Transform, &heron::Velocity), (With<Gun>, Without<Equipped>)>,
 ) {
-    for (mut transform, velocity) in query_weapons.iter() {
-        //transform.scale = cosf32();
+    fn eval_bobbing(a: f32, cos: f32, velocity: &heron::Velocity) -> f32 {
+        let magnitude = velocity.linear.length() / GUN_MAX_BOBBING_VELOCITY - 1.0;
+        magnitude * cos * a + 1.0
+    }
+
+    let time_cos = (((GUN_BOBBING_TEMPO * time.seconds_since_startup()).cos() / 2.0) as f32)
+        * GUN_BOBBING_AMPLITUDE;
+
+    for (mut transform, velocity) in query_weapons.iter_mut() {
+        if GUN_MAX_BOBBING_VELOCITY_SQR > velocity.linear.length_squared() {
+            transform.scale = Vec3::new(
+                eval_bobbing(1.0, time_cos, velocity),
+                eval_bobbing(1.0, time_cos, velocity),
+                transform.scale.z,
+            );
+        }
     }
 }

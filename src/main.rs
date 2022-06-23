@@ -20,7 +20,7 @@ use crate::characters::{
     BaseCharacterBundle, ControlledPlayerCharacterBundle,
 };
 use crate::controls::handle_player_input;
-use crate::guns::{handle_gunfire, GunBundle, GunPreset};
+use crate::guns::{handle_gun_idle_bobbing, handle_gunfire, GunBundle, GunPreset};
 use crate::health::{handle_damage, EntityDamagedEvent};
 use crate::physics::{
     handle_bullet_collision_events, RectangularObstacleBundle, OBSTACLE_STEP_SIZE,
@@ -141,6 +141,8 @@ fn main() {
         .add_system(handle_bullet_collision_events)
         .add_system(handle_gun_picking)
         .add_system(handle_letting_gear_go)
+        .add_system(handle_gun_picking)
+        .add_system(handle_gun_idle_bobbing)
         .add_system(handle_damage.after(handle_bullet_collision_events))
         .run();
 }
