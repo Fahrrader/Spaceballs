@@ -1,15 +1,15 @@
 [package]
-name = "cosmic_spaceball_tactical_action_arena"
+name = "cosmic-spaceball-tactical-action-arena"
+description = "High-concept, extremely fun and varied in level selection arcade to keep you and yer friends entertained for days/minutes of high-hell action! It's COSMIC SPACEBALL TACTICAL ACTION ARENA!"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "windows")))'.dependencies]
 bevy = {features = ["dynamic"], version = "0.7"}
 
 [dependencies]
 bevy = "0.7"
+clap = { version = "3.2.5", features = ["derive"] }
 console_error_panic_hook = "0.1"
 wasm-bindgen = "*"
 
