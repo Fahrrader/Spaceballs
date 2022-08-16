@@ -1,5 +1,5 @@
 use crate::{
-    ControlledPlayerCharacterBundle, NonPlayerCharacterBundle, AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM,
+    BaseCharacterBundle, ControlledPlayerCharacterBundle, AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM,
 };
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{Commands, OrthographicCameraBundle, Res, Transform};
@@ -40,7 +40,7 @@ pub fn setup_experimental(mut commands: Commands) {
         Transform::default(),
     ));
 
-    commands.spawn_bundle(NonPlayerCharacterBundle::new(
+    commands.spawn_bundle(BaseCharacterBundle::new(
         AI_DEFAULT_TEAM,
         Transform::from_scale(Vec3::new(2.0, 3.0, 1.0))
             .with_rotation(Quat::from_axis_angle(-Vec3::Z, 30.0)),
