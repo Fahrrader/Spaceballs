@@ -86,6 +86,7 @@ impl GunBundle {
         gun
     }
 
+    /// Change the bundled gun's color from neutral to that in line with the team.
     pub fn with_paint_job(mut self, team_number: TeamNumber) -> Self {
         paint_gun(
             &self.preset,
@@ -119,7 +120,7 @@ impl Gun {
     pub fn new(preset: &GunPreset, random_seed: u64) -> Self {
         let cooldown = preset.stats().fire_cooldown;
         let mut timer = Timer::new(cooldown, false);
-        // mark it as finished, the player shouldn't wait for the gun to recover when first picking it up
+        // Mark cooldown after firing as finished, the player shouldn't wait for the gun to recover when first picking it up
         timer.tick(cooldown);
         Self {
             fire_cooldown: timer,
@@ -127,14 +128,17 @@ impl Gun {
         }
     }
 
+    /// Check if the cooldown timer has finished, and the gun can be fired again.
     pub fn check_fire_cooldown(&self) -> bool {
         self.fire_cooldown.finished()
     }
 
+    /// Tick some time off the cooldown timer and optionally check if finished.
     fn tick_fire_cooldown(&mut self, time_delta: Duration) -> bool {
         self.fire_cooldown.tick(time_delta).finished()
     }
 
+    /// Set the cooldown timer to run anew. To be used usually when making a shot.
     fn reset_fire_cooldown(&mut self) {
         self.fire_cooldown.reset();
     }
@@ -146,13 +150,15 @@ pub struct Equipped {
     pub by: Entity,
 }
 
-pub(crate) fn reset_gun(preset: &GunPreset, transform: &mut Transform) {
+/// Reset everything about the gun's transform, replacing the component's parts with their default state.
+pub(crate) fn reset_gun_transform(preset: &GunPreset, transform: &mut Transform) {
     let preset_transform = preset.stats().get_transform();
     transform.translation = preset_transform.translation;
     transform.rotation = preset_transform.rotation;
     transform.scale = preset_transform.scale;
 }
 
+/// Make a gun look in line with a team's color or neutral (usually when not equipped by anybody).
 pub(crate) fn paint_gun(preset: &GunPreset, sprite: &mut Sprite, team_number: Option<TeamNumber>) {
     if let Some(team_number) = team_number {
         // todo decide how to discern equipped weapons, just sprite/mesh shape or color, too
@@ -164,6 +170,7 @@ pub(crate) fn paint_gun(preset: &GunPreset, sprite: &mut Sprite, team_number: Op
     }
 }
 
+/// System to spawn projectiles out of guns and keep track of their firing cooldowns, magazine sizes, and character recoil.
 pub fn handle_gunfire(
     mut commands: Commands,
     time: Res<Time>,
@@ -175,6 +182,9 @@ pub fn handle_gunfire(
             .get(equipped.by)
             .map(|(input, team)| (input.fire, team))
             .unwrap();
+
+        // todo fixed time increment and potentially spawning multiple projectiles with go-ahead distance if cooldown is small enough
+        // that is, fix gunfire skipping if cooldown is close to the frame time
 
         if gun.tick_fire_cooldown(time.delta()) && is_firing {
             let gun_stats = gun_type.stats();
@@ -197,6 +207,8 @@ pub fn handle_gunfire(
                         .into(),
                     facing_direction * gun_stats.projectile_speed,
                 ));
+
+                // 0.5 is applied as the default restitution when no PhysicMaterial is present
                 if gun_stats.projectile_elasticity != 0.5 {
                     bullet_commands.insert(heron::PhysicMaterial {
                         restitution: gun_stats.projectile_elasticity,
@@ -210,6 +222,7 @@ pub fn handle_gunfire(
     }
 }
 
+/// System to make weapons more noticeable when not equipped and otherwise at rest.
 pub fn handle_gun_idle_bobbing(
     time: Res<Time>,
     mut query_weapons: Query<(&mut Transform, &heron::Velocity), (With<Gun>, Without<Equipped>)>,
@@ -232,7 +245,9 @@ pub fn handle_gun_idle_bobbing(
             );
         } else {
             // todo look into programmatic scales if there's ever non-standard gun scale
-            // or at least somehow don't update it every frame
+            // potentially dangerous if there's anything else affecting the thrown gun scale
+            // performance impact of constantly setting scale is negligible,
+            // but would be nice to mark the gun with a separate 'Flying' component instead
             transform.scale = Vec3::ONE;
         }
     }

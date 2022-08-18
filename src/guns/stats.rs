@@ -19,6 +19,9 @@ pub(crate) const BULLET_SIZE: f32 = 5.0;
 pub(crate) const BULLET_SPEED: f32 = 300.0;
 pub(crate) const BULLET_DAMAGE: HitPoints = 5.0;
 
+// todo projectile trajectory dotted lines. So many projectile types, though...
+// references: Brigador, PC billiard. Experiment!
+
 /// Fixed variables per gun preset that are typically accessed via a look-up tree.
 pub struct GunPersistentStats {
     /// Width (x-axis) of the gun's sprite.
@@ -42,6 +45,7 @@ pub struct GunPersistentStats {
     pub reload_time: f32, // todo
     /// Units of distance the character is pushed back when firing.
     pub recoil: f32, // todo
+    // transparent? implant? have property that'd prevent gun dropping /
 
     // displace the following sections to ProjectilePreset if there's ever a gun that can shoot more than one type
     /// Number of projectiles that are fired each shot.
@@ -99,11 +103,13 @@ impl GunPersistentStats {
         }
     }
 
+    /// Get the standard transform of a gun.
     pub fn get_transform(&self) -> Transform {
         // todo
         Transform::from_translation(Vec3::new(self.gun_center_x, self.gun_center_y, GUN_Z_LAYER))
     }
 
+    /// Get the standard physics components for a gun.
     pub fn get_kinematics(&self, scale: Vec3) -> KinematicsBundle {
         KinematicsBundle::new(
             PopularCollisionShape::get(
@@ -115,6 +121,7 @@ impl GunPersistentStats {
         ) //.with_rigidbody_type(heron::RigidBody::KinematicVelocityBased)
     }
 
+    /// Calculate a possibly random vector of flight direction of a projectile.
     pub fn get_spread_direction(&self, gun: &mut Gun) -> Quat {
         if self.projectile_spread_angle == 0.0 {
             Quat::IDENTITY
@@ -126,7 +133,9 @@ impl GunPersistentStats {
         }
     }
 
+    /// Calculate the point where the bullet spawns (usually, at the tip of the gun barrel).
     pub fn get_bullet_spawn_offset(&self, scale: Vec3) -> f32 {
+        // todo account for Typhoon
         self.gun_length / 2.0 * scale.y + self.projectile_size / 2.0
     }
 }

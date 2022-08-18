@@ -1,5 +1,5 @@
 use crate::actions::CharacterActionInput;
-use crate::guns::{paint_gun, reset_gun, Equipped, GunPreset};
+use crate::guns::{paint_gun, reset_gun_transform, Equipped, GunPreset};
 use crate::health::{Health, HitPoints};
 use crate::physics::{
     try_get_components_from_entities, CollisionLayer, KinematicsBundle, PopularCollisionShape,
@@ -99,6 +99,8 @@ pub struct Character;
 #[derive(Component)]
 pub struct PlayerControlled;
 
+/// Attach some equippable gear to a character and allow it to be interacted with.
+/// Unchecked if actually equippable, or if the equipping entity is a character!
 pub(crate) fn equip_gear(
     commands: &mut Commands,
     char_entity: Entity,
@@ -115,7 +117,7 @@ pub(crate) fn equip_gear(
 
     // only guns for now
     if let Some(such) = gear_properties {
-        reset_gun(gun_preset, such);
+        reset_gun_transform(gun_preset, such);
     }
     if let Some(such) = gear_paint_job {
         paint_gun(gun_preset, such.0, such.1);
@@ -123,6 +125,8 @@ pub(crate) fn equip_gear(
     // ooh! have multiple guns on a body
 }
 
+/// Un-attach something equipped on some entity and give it physics.
+/// No safety checks are made.
 pub(crate) fn unequip_gear(
     commands: &mut Commands,
     gear_entity: Entity,
@@ -136,10 +140,12 @@ pub(crate) fn unequip_gear(
         .remove::<Equipped>()
         .insert_bundle(kinematics);
 
-    reset_gun(gun_type, gear_transform);
+    reset_gun_transform(gun_type, gear_transform);
     paint_gun(gun_type, gear_sprite, None);
 }
 
+/// Unequip gear and give it some speed according to its type.
+/// No safety checks are made.
 pub(crate) fn throw_away_gear(
     commands: &mut Commands,
     gear_entity: Entity,
@@ -171,6 +177,7 @@ pub(crate) fn throw_away_gear(
     gear_transform.rotation = char_transform.rotation;
 }
 
+/// System to convert a character's action input (human or not) to linear and angular velocities.
 pub fn calculate_character_velocity(
     mut query: Query<(&mut Velocity, &Transform, &CharacterActionInput)>,
 ) {
@@ -181,6 +188,7 @@ pub fn calculate_character_velocity(
     }
 }
 
+/// System to, according to a character's input, pick up and equip guns off the ground.
 pub fn handle_gun_picking(
     mut commands: Commands,
     mut collision_events: EventReader<CollisionEvent>,
@@ -213,6 +221,8 @@ pub fn handle_gun_picking(
     }
 }
 
+/// System to, according to a character's input, unequip guns and throw them to the ground with some forward speed.
+/// That perfect gun is gone, and the heat never bothered it anyway.
 pub fn handle_letting_gear_go(
     mut commands: Commands,
     mut query_characters: Query<

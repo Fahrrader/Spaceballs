@@ -147,6 +147,7 @@ pub enum CollisionLayer {
 }
 
 impl CollisionLayer {
+    /// Fetch all possible collision layers.
     pub fn all() -> &'static [Self] {
         &[
             CollisionLayer::Character,

@@ -21,11 +21,13 @@ impl Health {
         Self { hp: max_health }
     }
 
+    /// Take off (or add, if negative) some hit points.
     fn damage(&mut self, damage: HitPoints) -> bool {
         self.hp -= damage;
         self.is_dead()
     }
 
+    /// Check if the character is dead.
     pub fn is_dead(&self) -> bool {
         self.hp <= 0.0
     }
@@ -37,6 +39,7 @@ pub struct EntityDamagedEvent {
     pub damage: HitPoints,
 }
 
+/// System to sift through events of taking damage and apply it to entities' health.
 pub fn handle_damage(
     mut commands: Commands,
     mut damage_events: EventReader<EntityDamagedEvent>,

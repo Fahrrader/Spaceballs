@@ -64,6 +64,8 @@ impl BulletBundle {
 #[derive(Component)]
 pub struct Bullet;
 
+/// System to read collision events and apply their effects to the respective bodies. todo fill out after additional components
+/// In particular, damage.
 pub fn handle_bullet_collision_events(
     mut commands: Commands,
     mut collision_events: EventReader<heron::CollisionEvent>,
@@ -93,7 +95,8 @@ pub fn handle_bullet_collision_events(
     }
 }
 
-// fallback if anyone gets out of the arena?
+/// System to despawn entities (bullets, in particular) that get out of bounds.
+/// Temporary fallback measurement, possibly, since normally it shouldn't happen.
 pub fn handle_bullets_out_of_bounds(
     mut commands: Commands,
     mut query_bullets: Query<(&Transform, Entity), With<Bullet>>,

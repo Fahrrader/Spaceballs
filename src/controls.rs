@@ -3,6 +3,7 @@ use crate::characters::PlayerControlled;
 use bevy::input::Input;
 use bevy::prelude::{KeyCode, Query, Res, With};
 
+/// System to convert player external input to character action input.
 pub fn handle_player_input(
     keys: Res<Input<KeyCode>>,
     mut query: Query<&mut CharacterActionInput, With<PlayerControlled>>,

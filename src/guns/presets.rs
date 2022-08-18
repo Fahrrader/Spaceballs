@@ -6,7 +6,7 @@ use bevy::prelude::Component;
 use std::f32::consts::PI;
 use std::time::Duration;
 
-/// Array of guns for your taste and pleasure. All fixed variables per type are found via a look-up tree by a value of this enum.
+/// Array of guns for your taste and pleasure. All fixed variables per type are found via a look-up table by a value of this enum.
 #[derive(Component, Clone)]
 pub enum GunPreset {
     Regular,
@@ -26,6 +26,7 @@ impl Default for GunPreset {
 }
 
 impl GunPreset {
+    /// Look-up table, mapping an enum of a weapon to its constant stats.
     pub fn stats(&self) -> GunPersistentStats {
         match self {
             GunPreset::Regular => REGULAR,
@@ -38,15 +39,18 @@ impl GunPreset {
     }
 }
 
+/// Regular, default gun. Shoots straight. Trusty and simple.
 pub const REGULAR: GunPersistentStats = GunPersistentStats::regular();
 
+/// An experimental "upgrade" over a regular gun. Faster, inaccurate, doesn't hit as hard.
 pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
     projectile_spread_angle: PI / 12.,
-    projectile_damage: BULLET_DAMAGE * 0.6,
+    projectile_damage: BULLET_DAMAGE * 0.7,
     projectile_speed: BULLET_SPEED * 2.,
     ..GunPersistentStats::regular()
 };
 
+/// Shotgun. Individual pellets don't hit as hard and spread apart with time, but devastating at close range.
 pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
     projectile_spread_angle: PI / 6.,
     projectile_damage: BULLET_DAMAGE * 0.2,
@@ -55,6 +59,7 @@ pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
     ..GunPersistentStats::regular()
 };
 
+/// Discombobulate your surrounding foes with this. Spreads many projectiles in a circle.
 pub const TYPHOON: GunPersistentStats = GunPersistentStats {
     projectile_spread_angle: 2. * PI,
     projectile_damage: BULLET_DAMAGE * 0.4,
@@ -64,6 +69,7 @@ pub const TYPHOON: GunPersistentStats = GunPersistentStats {
     ..GunPersistentStats::regular()
 };
 
+/// Fast and furious. Penetrates foes, walls, and lusty Argonian maids like butter.
 pub const RAIL_GUN: GunPersistentStats = GunPersistentStats {
     gun_neutral_color: Color::SILVER,
     projectile_damage: BULLET_DAMAGE * 3.,
@@ -75,6 +81,7 @@ pub const RAIL_GUN: GunPersistentStats = GunPersistentStats {
     ..GunPersistentStats::regular()
 };
 
+/// Make a light show! Reflects off walls, your equivalent of a magic missile.
 pub const LASER_GUN: GunPersistentStats = GunPersistentStats {
     gun_neutral_color: Color::AQUAMARINE,
     projectile_color: Color::LIME_GREEN,
