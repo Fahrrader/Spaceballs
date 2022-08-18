@@ -25,13 +25,49 @@ pub use crate::scenes::{summon_scene, SceneArg};
 
 pub use bevy::prelude::*;
 pub use heron::PhysicsPlugin;
+pub use bevy::render::camera::{camera_system, RenderTarget};
+use bevy::window::WindowResized;
 
 use clap::Parser;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-pub const WINDOW_WIDTH: f32 = 800.0;
-pub const WINDOW_HEIGHT: f32 = 800.0;
+// todo after the adjustment of body sizes, change to probably 200.0
+pub const SCREEN_SPAN: f32 = 800.0;
+
+pub fn calculate_projection_scale(
+    mut window_resized_events: EventReader<WindowResized>,
+    windows: Res<Windows>,
+    mut query: Query<(&Camera, &mut OrthographicProjection)>,
+) {
+    if window_resized_events.len() == 0 {
+        return;
+    }
+
+    let mut changed_window_ids = Vec::new();
+    for event in window_resized_events.iter().rev() {
+        if changed_window_ids.contains(&event.id) {
+            continue;
+        }
+
+        changed_window_ids.push(event.id);
+    }
+
+    for (camera, mut projection) in query.iter_mut() {
+        let window_id = match camera.target {
+            RenderTarget::Window(window_id) => window_id,
+            RenderTarget::Image(_) => continue,
+        };
+        if changed_window_ids.contains(&window_id) {
+            if let Some(size) = windows
+                .get(window_id)
+                .map(|window| Vec2::new(window.width(), window.height()))
+            {
+                projection.scale = SCREEN_SPAN / (size.x).max(size.y);
+            }
+        }
+    }
+}
 
 #[cfg(target_arch = "wasm32")]
 pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
@@ -50,6 +86,8 @@ pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
     WindowDescriptor {
         width,
         height,
+        // todo uncomment if window size must be fixed (events of resizing at the window creation still apply)
+        // resizable: false,
         ..default()
     }
 }
