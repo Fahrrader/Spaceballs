@@ -14,13 +14,16 @@ fn main() {
         .add_plugin(PhysicsPlugin::default())
         .add_event::<EntityDamagedEvent>()
         .add_startup_system(summon_scene)
-        .add_system(handle_player_input)
-        .add_system(handle_ai_input)
-        .add_system(
-            calculate_character_velocity
-                .after(handle_player_input)
-                .after(handle_ai_input),
-        ) // todo plugin?
+        .add_system(handle_gamepad_connections)
+        .add_system_set(
+            SystemSet::new()
+                .label("handle_input")
+                .with_system(reset_input)
+                .with_system(handle_keyboard_input.after(reset_input))
+                .with_system(handle_gamepad_input.after(reset_input))
+                .with_system(handle_ai_input.after(reset_input)),
+        )
+        .add_system(calculate_character_velocity.after("handle_input"))
         .add_system(handle_gunfire.after(calculate_character_velocity))
         .add_system(handle_bullets_out_of_bounds.after(handle_gunfire))
         .add_system(handle_bullet_collision_events)
