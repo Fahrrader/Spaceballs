@@ -4,11 +4,10 @@ use crate::guns::stats::{GunPersistentStats, REGULAR_GUN_FIRE_COOLDOWN_TIME_MILL
 use crate::physics::KinematicsBundle;
 use crate::projectiles::BulletBundle;
 use crate::teams::{team_color, Team, TeamNumber};
-use bevy::core::{Time, Timer};
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
     Bundle, Commands, Component, Entity, GlobalTransform, Query, Res, Sprite, SpriteBundle,
-    Transform, With, Without,
+    Transform, Time, Timer, With, Without,
 };
 use bevy::utils::default;
 use rand::prelude::StdRng;
@@ -187,8 +186,9 @@ pub fn handle_gunfire(
         // that is, fix gunfire skipping if cooldown is close to the frame time
 
         if gun.tick_fire_cooldown(time.delta()) && is_firing {
+            let (gun_scale, _, gun_translation) = gun_transform.to_scale_rotation_translation();
             let gun_stats = gun_type.stats();
-            let bullet_spawn_distance = gun_stats.get_bullet_spawn_offset(gun_transform.scale);
+            let bullet_spawn_distance = gun_stats.get_bullet_spawn_offset(gun_scale);
 
             // todo add a ray cast from the body to the gun barrel to check for collisions
             // but currently it's kinda like shooting from cover / over shoulder, fun
@@ -202,7 +202,8 @@ pub fn handle_gunfire(
                     gun_type,
                     team.0,
                     gun_transform
-                        .with_translation(gun_transform.translation + bullet_spawn_offset)
+                        .compute_transform()
+                        .with_translation(gun_translation + bullet_spawn_offset)
                         .with_scale(Vec3::ONE)
                         .into(),
                     facing_direction * gun_stats.projectile_speed,

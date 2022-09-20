@@ -1,4 +1,4 @@
-use bevy::ecs::query::{FilterFetch, WorldQuery};
+use bevy::ecs::query::WorldQuery;
 use bevy::math::Vec3;
 use bevy::prelude::{default, Bundle, Color, Entity, Query, Sprite, SpriteBundle, Transform};
 use heron::prelude::*;
@@ -196,9 +196,6 @@ pub(crate) fn try_get_components_from_entities<
     entity_a: Entity,
     entity_b: Entity,
 ) -> Option<(Entity, Entity)>
-where
-    FilterA::Fetch: FilterFetch,
-    FilterB::Fetch: FilterFetch,
 {
     return if query_a.contains(entity_a) && query_b.contains(entity_b) {
         Some((entity_a, entity_b))

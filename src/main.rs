@@ -30,7 +30,7 @@ pub const WINDOW_WIDTH: f32 = 800.0;
 pub const WINDOW_HEIGHT: f32 = 800.0;
 
 fn setup(mut commands: Commands) {
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+    commands.spawn_bundle(Camera2dBundle::default());
 
     // ----- The walls of the arena
     commands.spawn_bundle(RectangularObstacleBundle::new(

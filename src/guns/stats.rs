@@ -3,7 +3,7 @@ use crate::guns::{Gun, GUN_TRANSPARENCY, GUN_Z_LAYER};
 use crate::health::HitPoints;
 use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
 use bevy::math::{Quat, Vec3};
-use bevy::prelude::{Color, Component, Transform};
+use bevy::prelude::{Color, Transform};
 use rand::Rng;
 use std::time::Duration;
 
