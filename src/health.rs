@@ -1,4 +1,4 @@
-use bevy::prelude::{Commands, Component, DespawnRecursiveExt, Entity, EventReader, Query};
+use bevy::prelude::{Commands, Component, DespawnRecursiveExt, Entity, Query, With};
 
 /// Floating point number signifying an entity's last arbitrary currency it pays to stay in this world.
 pub type HitPoints = f32;
@@ -22,7 +22,7 @@ impl Health {
     }
 
     /// Take off (or add, if negative) some hit points.
-    fn damage(&mut self, damage: HitPoints) -> bool {
+    pub(crate) fn damage(&mut self, damage: HitPoints) -> bool {
         self.hp -= damage;
         self.is_dead()
     }
@@ -33,25 +33,21 @@ impl Health {
     }
 }
 
-/// Event that should fire when an entity takes damage to be parsed later and determine its oblivion.
-pub struct EntityDamagedEvent {
-    pub entity: Entity,
-    pub damage: HitPoints,
-}
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+pub struct Dying;
 
 /// System to sift through events of taking damage and apply it to entities' health.
-pub fn handle_damage(
+pub fn handle_death(
     mut commands: Commands,
-    mut damage_events: EventReader<EntityDamagedEvent>,
-    mut query_lives: Query<&mut Health>,
+    // todo joke on Gogol's Dead Souls
+    mut query_lives: Query<(&Health, Entity), With<Dying>>,
 ) {
-    for event in damage_events.iter() {
-        let life = query_lives.get_mut(event.entity);
-        if let Ok(mut life) = life {
-            life.damage(event.damage);
-            if life.is_dead() {
-                commands.entity(event.entity).despawn_recursive();
-            }
+    for (life, entity) in query_lives.iter_mut() {
+        if life.is_dead() {
+            commands.entity(entity).despawn_recursive();
+        } else {
+            commands.entity(entity).remove::<Dying>();
         }
     }
 }

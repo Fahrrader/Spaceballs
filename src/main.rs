@@ -18,10 +18,12 @@ use crate::ai::handle_ai_input;
 use crate::characters::{
     calculate_character_velocity, equip_gear, handle_gun_picking, handle_letting_gear_go,
     BaseCharacterBundle, ControlledPlayerCharacterBundle,
-};
+}; //, handle_dead_men_walking};
 use crate::controls::handle_player_input;
-use crate::guns::{handle_gun_idle_bobbing, handle_gunfire, GunBundle, GunPreset};
-use crate::health::{handle_damage, EntityDamagedEvent};
+use crate::guns::{
+    handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gunfire, GunBundle, GunPreset,
+};
+use crate::health::handle_death;
 use crate::physics::{RectangularObstacleBundle, OBSTACLE_CHUNK_SIZE};
 use crate::projectiles::{handle_bullet_collision_events, handle_bullets_out_of_bounds};
 use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
@@ -132,7 +134,6 @@ fn main() {
         /*.add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())*/
         .insert_resource(ClearColor(Color::BLACK))
-        .add_event::<EntityDamagedEvent>()
         .add_startup_system(setup)
         .add_system(handle_player_input)
         .add_system(handle_ai_input)
@@ -140,7 +141,7 @@ fn main() {
             calculate_character_velocity
                 .after(handle_player_input)
                 .after(handle_ai_input),
-        ) // todo plugin?
+        )
         .add_system(handle_gunfire.after(calculate_character_velocity))
         .add_system(handle_bullets_out_of_bounds.after(handle_gunfire))
         .add_system(handle_bullet_collision_events)
@@ -148,7 +149,13 @@ fn main() {
         .add_system(handle_letting_gear_go)
         .add_system(handle_gun_picking)
         .add_system(handle_gun_idle_bobbing)
-        .add_system(handle_damage.after(handle_bullet_collision_events))
+        .add_system(handle_gun_arriving_at_rest)
+        // probably execute latest
+        .add_system(
+            handle_death
+                .after(handle_bullet_collision_events)
+                .after(handle_letting_gear_go),
+        )
         .run();
 }
 

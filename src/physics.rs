@@ -195,8 +195,7 @@ pub(crate) fn try_get_components_from_entities<
     query_b: &'a Query<ComponentB, FilterB>,
     entity_a: Entity,
     entity_b: Entity,
-) -> Option<(Entity, Entity)>
-{
+) -> Option<(Entity, Entity)> {
     return if query_a.contains(entity_a) && query_b.contains(entity_b) {
         Some((entity_a, entity_b))
     } else if query_a.contains(entity_b) && query_b.contains(entity_a) {

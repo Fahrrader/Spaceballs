@@ -1,13 +1,12 @@
-use crate::health::Health;
+use crate::health::{Dying, Health};
 use crate::physics::{
     try_get_components_from_entities, CollisionLayer, KinematicsBundle, PopularCollisionShape,
 };
 use crate::teams::{Team, TeamNumber};
-use crate::{EntityDamagedEvent, GunPreset, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::{GunPreset, WINDOW_HEIGHT, WINDOW_WIDTH};
 use bevy::math::Vec3;
 use bevy::prelude::{
-    Bundle, Color, Commands, Component, Entity, EventReader, EventWriter, Query, Sprite,
-    SpriteBundle, Transform, With,
+    Bundle, Commands, Component, Entity, EventReader, Query, Sprite, SpriteBundle, Transform, With,
 };
 use bevy::utils::default;
 
@@ -64,14 +63,13 @@ impl BulletBundle {
 #[derive(Component)]
 pub struct Bullet;
 
-/// System to read collision events and apply their effects to the respective bodies. todo fill out after additional components
+/// System to read collision events and apply their effects to the respective bodies.
 /// In particular, damage.
 pub fn handle_bullet_collision_events(
     mut commands: Commands,
     mut collision_events: EventReader<heron::CollisionEvent>,
-    query_bodies: Query<(&heron::CollisionShape, Option<&Health>, Option<&Team>)>,
+    mut query_bodies: Query<(Option<&mut Health>, Option<&Team>)>,
     query_bullets: Query<(&GunPreset, &Team), With<Bullet>>,
-    mut ew_damage: EventWriter<EntityDamagedEvent>,
 ) {
     for event in collision_events.iter() {
         let (entity_a, entity_b) = event.rigid_body_entities();
@@ -79,15 +77,14 @@ pub fn handle_bullet_collision_events(
             try_get_components_from_entities(&query_bullets, &query_bodies, entity_a, entity_b)
         {
             let (gun_type, bullet_team) = query_bullets.get(bullet_entity).unwrap();
-            let (_, body_health, body_team) = query_bodies.get(body_entity).unwrap();
+            let (body_health, body_team) = query_bodies.get_mut(body_entity).unwrap();
             // commands.entity(bullet_entity).despawn(); todo uncomment after display
             if let Some(body_team) = body_team {
                 if gun_type.stats().friendly_fire || bullet_team != body_team {
-                    if body_health.is_some() {
-                        ew_damage.send(EntityDamagedEvent {
-                            entity: body_entity,
-                            damage: gun_type.stats().projectile_damage,
-                        })
+                    if let Some(mut life) = body_health {
+                        if life.damage(gun_type.stats().projectile_damage) {
+                            commands.entity(body_entity).insert(Dying);
+                        }
                     }
                 }
             }

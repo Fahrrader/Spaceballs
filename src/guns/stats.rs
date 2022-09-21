@@ -1,5 +1,5 @@
 use crate::characters::CHARACTER_SIZE;
-use crate::guns::{Gun, GUN_TRANSPARENCY, GUN_Z_LAYER};
+use crate::guns::{Gun, GUN_TRANSPARENCY, GUN_Z_LAYER, GUN_VELOCITY_DAMPING_RATIO};
 use crate::health::HitPoints;
 use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
 use bevy::math::{Quat, Vec3};
@@ -118,7 +118,9 @@ impl GunPersistentStats {
             ),
             CollisionLayer::Gear,
             &[CollisionLayer::Character, CollisionLayer::Obstacle],
-        ) //.with_rigidbody_type(heron::RigidBody::KinematicVelocityBased)
+        ).with_linear_damping(GUN_VELOCITY_DAMPING_RATIO)
+        .with_angular_damping(GUN_VELOCITY_DAMPING_RATIO)
+        //.with_rigidbody_type(heron::RigidBody::KinematicVelocityBased)
     }
 
     /// Calculate a possibly random vector of flight direction of a projectile.

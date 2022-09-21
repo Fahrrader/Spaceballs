@@ -1,5 +1,5 @@
 use crate::actions::CharacterActionInput;
-use crate::guns::{paint_gun, reset_gun_transform, Equipped, GunPreset};
+use crate::guns::{paint_gun, reset_gun_transform, Equipped, GunPreset, Thrown};
 use crate::health::{Health, HitPoints};
 use crate::physics::{
     try_get_components_from_entities, CollisionLayer, KinematicsBundle, PopularCollisionShape,
@@ -27,8 +27,6 @@ pub const CHARACTER_RAD_SPEED: f32 = PI;
 const GUN_THROW_SPEED: f32 = CHARACTER_SPEED * 2.0;
 /// Throw away the gun, it spins. It's a good trick.
 const GUN_THROW_SPIN_SPEED: f32 = 4.0 * PI;
-/// The damping ratio of the gun when thrown.
-const GUN_THROW_DAMPING_RATIO: f32 = 1.15;
 
 /// Standard maximum health for a player character.
 pub const CHARACTER_MAX_HEALTH: HitPoints = 100.0;
@@ -138,7 +136,8 @@ pub(crate) fn unequip_gear(
     commands
         .entity(gear_entity)
         .remove::<Equipped>()
-        .insert_bundle(kinematics);
+        .insert_bundle(kinematics)
+        .insert(Thrown);
 
     reset_gun_transform(gun_type, gear_transform);
     paint_gun(gun_type, gear_sprite, None);
@@ -159,9 +158,7 @@ pub(crate) fn throw_away_gear(
         .stats()
         .get_kinematics(gear_transform.scale)
         .with_linear_velocity(gear_linear_velocity)
-        .with_angular_velocity_in_rads(Vec3::Z, GUN_THROW_SPIN_SPEED)
-        .with_linear_damping(GUN_THROW_DAMPING_RATIO)
-        .with_angular_damping(GUN_THROW_DAMPING_RATIO);
+        .with_angular_velocity_in_rads(Vec3::Z, GUN_THROW_SPIN_SPEED);
 
     unequip_gear(
         commands,
@@ -172,8 +169,8 @@ pub(crate) fn throw_away_gear(
         gear_transform,
     );
 
-    let offset_forward = char_transform.up() * char_transform.scale.y * CHARACTER_SIZE / 2.0;
-    gear_transform.translation = char_transform.translation + offset_forward;
+    let gear_offset_forward = char_transform.up() * char_transform.scale.y * CHARACTER_SIZE / 2.0;
+    gear_transform.translation = char_transform.translation + gear_offset_forward;
     gear_transform.rotation = char_transform.rotation;
 }
 
@@ -221,7 +218,7 @@ pub fn handle_gun_picking(
     }
 }
 
-/// System to, according to a character's input, unequip guns and throw them to the ground with some forward speed.
+/// System to, according to either to a character's input or its untimely demise, unequip guns and throw them to the ground with some gusto.
 /// That perfect gun is gone, and the heat never bothered it anyway.
 pub fn handle_letting_gear_go(
     mut commands: Commands,
@@ -231,6 +228,7 @@ pub fn handle_letting_gear_go(
             &Velocity,
             &Transform,
             &mut Children,
+            &Health,
             Entity,
         ),
         Without<Equipped>,
@@ -240,10 +238,13 @@ pub fn handle_letting_gear_go(
         With<Equipped>,
     >,
 ) {
-    for (action_input, velocity, transform, children, entity) in query_characters.iter_mut() {
-        if !action_input.use_environment_2 {
+    for (action_input, velocity, transform, children, health, entity) in query_characters.iter_mut()
+    {
+        // Only proceed with the throwing away if either the drop-gear button is pressed, or if the guy's wasted.
+        if !(action_input.use_environment_2 || health.is_dead()) {
             continue;
         }
+
         let mut equipped_gears = Vec::<Entity>::new();
         for child in children.iter() {
             let child = *child;
@@ -263,8 +264,9 @@ pub fn handle_letting_gear_go(
                 );
             }
         }
+
         commands.entity(entity).remove_children(&equipped_gears);
     }
 }
 
-// todo dead men walking parsing (dying characters and other entities, through sparse-set components --> un-equip guns)
+// dead men walking parsing (dying characters and other entities, through sparse-set components --> do a variety of laying-to-rest activities to them prior to their passing)

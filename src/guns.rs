@@ -1,13 +1,13 @@
 use crate::actions::CharacterActionInput;
 use crate::characters::{Character, CHARACTER_SPEED};
-use crate::guns::stats::{GunPersistentStats, REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS};
+use crate::guns::stats::REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS;
 use crate::physics::KinematicsBundle;
 use crate::projectiles::BulletBundle;
 use crate::teams::{team_color, Team, TeamNumber};
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
-    Bundle, Commands, Component, Entity, GlobalTransform, Query, Res, Sprite, SpriteBundle,
-    Transform, Time, Timer, With, Without,
+    Bundle, Commands, Component, Entity, GlobalTransform, Query, Res, Sprite, SpriteBundle, Time,
+    Timer, Transform, With, Without,
 };
 use bevy::utils::default;
 use rand::prelude::StdRng;
@@ -35,6 +35,8 @@ const GUN_BOBBING_TEMPO: f64 = (2.0 * PI / GUN_BOBBING_TIME) as f64;
 const GUN_MAX_BOBBING_VELOCITY: f32 = CHARACTER_SPEED / 10.0;
 /// Convenience. See [`GUN_MAX_BOBBING_VELOCITY`]
 const GUN_MAX_BOBBING_VELOCITY_SQR: f32 = GUN_MAX_BOBBING_VELOCITY * GUN_MAX_BOBBING_VELOCITY;
+/// The velocity-damping ratio of the gun, in effect when pushed or thrown.
+const GUN_VELOCITY_DAMPING_RATIO: f32 = 1.15;
 
 const GUN_Z_LAYER: f32 = 5.0;
 
@@ -149,6 +151,10 @@ pub struct Equipped {
     pub by: Entity,
 }
 
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+pub struct Thrown;
+
 /// Reset everything about the gun's transform, replacing the component's parts with their default state.
 pub(crate) fn reset_gun_transform(preset: &GunPreset, transform: &mut Transform) {
     let preset_transform = preset.stats().get_transform();
@@ -226,7 +232,7 @@ pub fn handle_gunfire(
 /// System to make weapons more noticeable when not equipped and otherwise at rest.
 pub fn handle_gun_idle_bobbing(
     time: Res<Time>,
-    mut query_weapons: Query<(&mut Transform, &heron::Velocity), (With<Gun>, Without<Equipped>)>,
+    mut query_weapons: Query<&mut Transform, (With<Gun>, Without<Thrown>, Without<Equipped>)>,
 ) {
     fn eval_bobbing(a: f32, cos_dt: f32) -> f32 {
         a + cos_dt
@@ -237,19 +243,28 @@ pub fn handle_gun_idle_bobbing(
         * GUN_BOBBING_AMPLITUDE
         * time.delta_seconds();
 
-    for (mut transform, velocity) in query_weapons.iter_mut() {
+    for mut transform in query_weapons.iter_mut() {
+        transform.scale = Vec3::new(
+            eval_bobbing(transform.scale.x, time_cos_dt),
+            eval_bobbing(transform.scale.y, time_cos_dt),
+            transform.scale.z,
+        );
+    }
+}
+
+/// System to strip the thrown guns of flying components if they have arrived within the threshold of rest.
+pub fn handle_gun_arriving_at_rest(
+    mut commands: Commands,
+    mut query_weapons: Query<
+        (&heron::Velocity, Entity),
+        (With<Gun>, With<Thrown>, Without<Equipped>),
+    >,
+) {
+    for (velocity, entity) in query_weapons.iter_mut() {
         if GUN_MAX_BOBBING_VELOCITY_SQR > velocity.linear.length_squared() {
-            transform.scale = Vec3::new(
-                eval_bobbing(transform.scale.x, time_cos_dt),
-                eval_bobbing(transform.scale.y, time_cos_dt),
-                transform.scale.z,
-            );
-        } else {
-            // todo look into programmatic scales if there's ever non-standard gun scale
-            // potentially dangerous if there's anything else affecting the thrown gun scale
-            // performance impact of constantly setting scale is negligible,
-            // but would be nice to mark the gun with a separate 'Flying' component instead
-            transform.scale = Vec3::ONE;
+            //transform.scale = Vec3::ONE;
+            commands.entity(entity).remove::<Thrown>();
+            // also possibly kinematics, or replace with sensors instead of rigidbodies. but first do projectiles to find a universal solution.
         }
     }
 }

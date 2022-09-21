@@ -1,5 +1,5 @@
 use crate::guns::stats::{
-    GunPersistentStats, BULLET_DAMAGE, BULLET_SPEED, REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS,
+    GunPersistentStats, BULLET_DAMAGE, BULLET_SPEED,
 };
 use crate::Color;
 use bevy::prelude::Component;
