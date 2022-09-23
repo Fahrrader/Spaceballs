@@ -2,7 +2,6 @@ use crate::actions::CharacterActionInput;
 use crate::characters::{Character, CHARACTER_SPEED};
 use crate::guns::stats::REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS;
 use crate::physics::KinematicsBundle;
-use crate::projectiles::BulletBundle;
 use crate::teams::{team_color, Team, TeamNumber};
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
@@ -151,6 +150,7 @@ pub struct Equipped {
     pub by: Entity,
 }
 
+/// Marker signifying that the gun has been thrown away from the player, has some velocity, and shouldn't idle-bob yet.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct Thrown;
@@ -189,31 +189,18 @@ pub fn handle_gunfire(
             .unwrap();
 
         // todo fixed time increment and potentially spawning multiple projectiles with go-ahead distance if cooldown is small enough
-        // that is, fix gunfire skipping if cooldown is close to the frame time
+        // that is, fix shot skipping if cooldown is close to the frame time
 
         if gun.tick_fire_cooldown(time.delta()) && is_firing {
-            let (gun_scale, _, gun_translation) = gun_transform.to_scale_rotation_translation();
             let gun_stats = gun_type.stats();
-            let bullet_spawn_distance = gun_stats.get_bullet_spawn_offset(gun_scale);
 
             // todo add a ray cast from the body to the gun barrel to check for collisions
             // but currently it's kinda like shooting from cover / over shoulder, fun
 
-            for _ in 0..gun_stats.projectiles_per_shot {
-                let facing_direction =
-                    gun_stats.get_spread_direction(&mut gun) * gun_transform.up();
-                let bullet_spawn_offset = facing_direction * bullet_spawn_distance;
+            let bullets = gun_stats.produce_projectiles(gun_transform, gun_type, &mut gun, team);
 
-                let mut bullet_commands = commands.spawn_bundle(BulletBundle::new(
-                    gun_type,
-                    team.0,
-                    gun_transform
-                        .compute_transform()
-                        .with_translation(gun_translation + bullet_spawn_offset)
-                        .with_scale(Vec3::ONE)
-                        .into(),
-                    facing_direction * gun_stats.projectile_speed,
-                ));
+            for bullet in bullets {
+                let mut bullet_commands = commands.spawn_bundle(bullet);
 
                 // 0.5 is applied as the default restitution when no PhysicMaterial is present
                 if gun_stats.projectile_elasticity != 0.5 {

@@ -1,6 +1,4 @@
-use crate::guns::stats::{
-    GunPersistentStats, BULLET_DAMAGE, BULLET_SPEED,
-};
+use crate::guns::stats::{GunPersistentStats, ProjectileSpawnPoint, BULLET_DAMAGE, BULLET_SPEED};
 use crate::Color;
 use bevy::prelude::Component;
 use std::f32::consts::PI;
@@ -45,7 +43,7 @@ pub const REGULAR: GunPersistentStats = GunPersistentStats::regular();
 /// An experimental "upgrade" over a regular gun. Faster, inaccurate, doesn't hit as hard.
 pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
     projectile_spread_angle: PI / 12.,
-    projectile_damage: BULLET_DAMAGE * 0.7,
+    projectile_damage: BULLET_DAMAGE * 1.1,
     projectile_speed: BULLET_SPEED * 2.,
     ..GunPersistentStats::regular()
 };
@@ -53,19 +51,20 @@ pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
 /// Shotgun. Individual pellets don't hit as hard and spread apart with time, but devastating at close range.
 pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
     projectile_spread_angle: PI / 6.,
-    projectile_damage: BULLET_DAMAGE * 0.2,
-    projectiles_per_shot: 36,
+    projectile_damage: BULLET_DAMAGE * 0.85,
+    projectiles_per_shot: 12,
     fire_cooldown: Duration::from_millis(600),
     ..GunPersistentStats::regular()
 };
 
-/// Discombobulate your surrounding foes with this. Spreads many projectiles in a circle.
+/// Discombobulate foes surrounding you with this. Spreads many projectiles in a circle.
 pub const TYPHOON: GunPersistentStats = GunPersistentStats {
     projectile_spread_angle: 2. * PI,
+    projectile_spawn_point: ProjectileSpawnPoint::Perimeter,
     projectile_damage: BULLET_DAMAGE * 0.4,
     projectiles_per_shot: 64,
+    projectile_elasticity: 1.0,
     fire_cooldown: Duration::from_millis(1800),
-    //friendly_fire: true, // todo spawn at equal distance from the character center for particular guns
     ..GunPersistentStats::regular()
 };
 
@@ -75,9 +74,11 @@ pub const RAIL_GUN: GunPersistentStats = GunPersistentStats {
     projectile_damage: BULLET_DAMAGE * 3.,
     projectile_speed: BULLET_SPEED * 3.,
     projectiles_per_shot: 5,
+    // forwarding message here: Elasticity of .5 or below will not trigger collision's Stopped events until another collision
     projectile_elasticity: 0.0,
     fire_cooldown: Duration::from_millis(1000),
     friendly_fire: true,
+    min_speed_to_live_multiplier: 0.33,
     ..GunPersistentStats::regular()
 };
 
@@ -90,5 +91,6 @@ pub const LASER_GUN: GunPersistentStats = GunPersistentStats {
     projectile_elasticity: 1.0,
     fire_cooldown: Duration::from_millis(10),
     friendly_fire: true,
+    min_speed_to_live_multiplier: 0.3,
     ..GunPersistentStats::regular()
 };

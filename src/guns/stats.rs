@@ -1,9 +1,12 @@
 use crate::characters::CHARACTER_SIZE;
-use crate::guns::{Gun, GUN_TRANSPARENCY, GUN_Z_LAYER, GUN_VELOCITY_DAMPING_RATIO};
+use crate::guns::{Gun, GUN_TRANSPARENCY, GUN_VELOCITY_DAMPING_RATIO, GUN_Z_LAYER};
 use crate::health::HitPoints;
 use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
+use crate::projectiles::BulletBundle;
+use crate::teams::Team;
+use crate::GunPreset;
 use bevy::math::{Quat, Vec3};
-use bevy::prelude::{Color, Transform};
+use bevy::prelude::{Color, GlobalTransform, Transform};
 use rand::Rng;
 use std::time::Duration;
 
@@ -13,11 +16,17 @@ const REGULAR_GUN_WIDTH: f32 = CHARACTER_SIZE * 0.25;
 const REGULAR_GUN_CENTER_X: f32 = 0.0;
 const REGULAR_GUN_CENTER_Y: f32 = CHARACTER_SIZE * -0.15 + REGULAR_GUN_LENGTH * 0.5;
 
-pub(crate) const REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS: u64 = 100;
+pub const REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS: u64 = 100;
 
-pub(crate) const BULLET_SIZE: f32 = 5.0;
-pub(crate) const BULLET_SPEED: f32 = 300.0;
-pub(crate) const BULLET_DAMAGE: HitPoints = 5.0;
+pub const BULLET_SIZE: f32 = 5.0;
+pub const BULLET_SPEED: f32 = 300.0;
+pub const BULLET_DAMAGE: HitPoints = 5.0;
+pub const BULLET_STOP_SPEED_MULTIPLIER: f32 = 0.67;
+
+pub enum ProjectileSpawnPoint {
+    Gunpoint,
+    Perimeter,
+}
 
 // todo projectile trajectory dotted lines. So many projectile types, though...
 // references: Brigador, PC billiard. Experiment!
@@ -54,12 +63,17 @@ pub struct GunPersistentStats {
     pub projectile_spread_angle: f32,
     /// Speed of each projectile.
     pub projectile_speed: f32,
+    /// Proportion of normal speed below which the projectile should disappear, her momentum now harmless.
+    pub min_speed_to_live_multiplier: f32,
     /// How bouncy the projectile is, where 0 is not bouncy at all, and 1 is perfect elasticity.
     pub projectile_elasticity: f32, // todo possibly replace with an 'extra component' for a physics layer
+
     /// Size of each projectile.
     pub projectile_size: f32,
     // projectile_sprite
     pub projectile_color: Color,
+    /// Where the projectile spawns, where the gun barrel ends, or around a character centered on its center
+    pub projectile_spawn_point: ProjectileSpawnPoint,
 
     /// Damage each projectile deals to the body it hits.
     pub projectile_damage: f32,
@@ -94,9 +108,13 @@ impl GunPersistentStats {
             projectiles_per_shot: 1,
             projectile_spread_angle: 0.0,
             projectile_speed: BULLET_SPEED,
-            projectile_elasticity: 0.5,
+            min_speed_to_live_multiplier: BULLET_STOP_SPEED_MULTIPLIER,
+            // Elasticity of .5 or below will not trigger collision's Stopped events until another collision!
+            // Projectiles will slide along. That means it will also not change its velocity until then.
+            projectile_elasticity: 0.51,
             projectile_size: BULLET_SIZE,
             projectile_color: Color::ALICE_BLUE,
+            projectile_spawn_point: ProjectileSpawnPoint::Gunpoint,
             projectile_damage: BULLET_DAMAGE,
             friendly_fire: false,
             //projectile_extra_components: Vec::new(),//vec![]
@@ -105,7 +123,7 @@ impl GunPersistentStats {
 
     /// Get the standard transform of a gun.
     pub fn get_transform(&self) -> Transform {
-        // todo
+        // todo non-standard guns -- in the future.
         Transform::from_translation(Vec3::new(self.gun_center_x, self.gun_center_y, GUN_Z_LAYER))
     }
 
@@ -118,9 +136,61 @@ impl GunPersistentStats {
             ),
             CollisionLayer::Gear,
             &[CollisionLayer::Character, CollisionLayer::Obstacle],
-        ).with_linear_damping(GUN_VELOCITY_DAMPING_RATIO)
+        )
+        .with_linear_damping(GUN_VELOCITY_DAMPING_RATIO)
         .with_angular_damping(GUN_VELOCITY_DAMPING_RATIO)
         //.with_rigidbody_type(heron::RigidBody::KinematicVelocityBased)
+    }
+
+    /// Get a round of projectiles that comes out of a gun when a trigger is pressed.
+    /// These still have to be spawned. The gun will change its state.
+    // possibly return here additional components to place on the spawned bundle
+    pub(crate) fn produce_projectiles(
+        &self,
+        gun_transform: &GlobalTransform,
+        gun_type: &GunPreset,
+        gun: &mut Gun,
+        team: &Team,
+    ) -> Vec<BulletBundle> {
+        let (gun_scale, _, gun_translation) = gun_transform.to_scale_rotation_translation();
+        let bullet_spawn_distance = self.get_bullet_spawn_offset(gun_scale);
+
+        // "Perimeter" does not have a set spawn point, so it will have to have another pass later.
+        let bullet_spawn_point = match self.projectile_spawn_point {
+            ProjectileSpawnPoint::Gunpoint => {
+                gun_translation + bullet_spawn_distance * gun_transform.up()
+            }
+            ProjectileSpawnPoint::Perimeter => {
+                gun_translation - self.gun_center_y * gun_transform.up()
+            }
+        };
+
+        let bullet_transform = gun_transform
+            .compute_transform()
+            .with_translation(bullet_spawn_point)
+            .with_scale(Vec3::ONE);
+
+        let mut bullets = vec![];
+
+        for _ in 0..self.projectiles_per_shot {
+            let facing_direction = self.get_spread_direction(gun) * gun_transform.up();
+
+            let bullet_transform = match self.projectile_spawn_point {
+                ProjectileSpawnPoint::Gunpoint => bullet_transform,
+                ProjectileSpawnPoint::Perimeter => bullet_transform.with_translation(
+                    bullet_transform.translation + bullet_spawn_distance * facing_direction,
+                ),
+            };
+
+            bullets.push(BulletBundle::new(
+                gun_type,
+                team.0,
+                bullet_transform,
+                facing_direction * self.projectile_speed,
+            ));
+        }
+
+        bullets
     }
 
     /// Calculate a possibly random vector of flight direction of a projectile.
@@ -135,9 +205,14 @@ impl GunPersistentStats {
         }
     }
 
-    /// Calculate the point where the bullet spawns (usually, at the tip of the gun barrel).
+    /// Calculate the y-offset where the bullet spawns (usually, at the tip of the gun barrel).
     pub fn get_bullet_spawn_offset(&self, scale: Vec3) -> f32 {
-        // todo account for Typhoon
         self.gun_length / 2.0 * scale.y + self.projectile_size / 2.0
+    }
+
+    /// Indicate whether the projectile has reached its threshold for being despawned,
+    /// as it is too slow to live and do damage.
+    pub fn is_projectile_busted(&self, projectile_speed: f32) -> bool {
+        projectile_speed <= self.projectile_speed * self.min_speed_to_live_multiplier
     }
 }

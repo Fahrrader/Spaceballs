@@ -69,24 +69,35 @@ pub fn handle_bullet_collision_events(
     mut commands: Commands,
     mut collision_events: EventReader<heron::CollisionEvent>,
     mut query_bodies: Query<(Option<&mut Health>, Option<&Team>)>,
-    query_bullets: Query<(&GunPreset, &Team), With<Bullet>>,
+    query_bullets: Query<(&GunPreset, &Team, &heron::Velocity), With<Bullet>>,
 ) {
     for event in collision_events.iter() {
+        // Most bullets do not register collision Stopping immediately
+        /*if let heron::CollisionEvent::Started(..) = event {
+            continue;
+        }*/
+
         let (entity_a, entity_b) = event.rigid_body_entities();
         if let Some((bullet_entity, body_entity)) =
             try_get_components_from_entities(&query_bullets, &query_bodies, entity_a, entity_b)
         {
-            let (gun_type, bullet_team) = query_bullets.get(bullet_entity).unwrap();
             let (body_health, body_team) = query_bodies.get_mut(body_entity).unwrap();
-            // commands.entity(bullet_entity).despawn(); todo uncomment after display
-            if let Some(body_team) = body_team {
-                if gun_type.stats().friendly_fire || bullet_team != body_team {
-                    if let Some(mut life) = body_health {
-                        if life.damage(gun_type.stats().projectile_damage) {
-                            commands.entity(body_entity).insert(Dying);
-                        }
-                    }
+            let (gun_type, bullet_team, bullet_velocity) =
+                query_bullets.get(bullet_entity).unwrap();
+            if let Some(mut life) = body_health {
+                let mut damaged = true;
+                if let Some(body_team) = body_team {
+                    damaged = gun_type.stats().friendly_fire || bullet_team != body_team;
                 }
+                if damaged && life.damage(gun_type.stats().projectile_damage) {
+                    commands.entity(body_entity).insert(Dying);
+                }
+            }
+            if gun_type
+                .stats()
+                .is_projectile_busted(bullet_velocity.linear.length())
+            {
+                commands.entity(bullet_entity).despawn();
             }
         }
     }
