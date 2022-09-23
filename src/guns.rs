@@ -1,6 +1,6 @@
 use crate::actions::CharacterActionInput;
 use crate::characters::{Character, CHARACTER_SPEED};
-use crate::guns::stats::REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS;
+use crate::guns::presets::REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS;
 use crate::physics::KinematicsBundle;
 use crate::teams::{team_color, Team, TeamNumber};
 use bevy::math::{Vec2, Vec3};
@@ -14,13 +14,13 @@ use rand::SeedableRng;
 use std::f32::consts::PI;
 use std::time::Duration;
 
+pub mod colours;
 mod presets;
 mod stats;
+
+pub use colours::GUN_TRANSPARENCY;
 pub use presets::GunPreset;
 
-/// The gun is slightly transparent to let the players see the projectiles and whatnot underneath,
-/// since the gun doesn't have a collider.
-const GUN_TRANSPARENCY: f32 = 0.95;
 /// The gun is slightly darker than the main color of the character body to be distinct.
 const GUN_COLOR_MULTIPLIER: f32 = 0.75;
 
@@ -60,7 +60,7 @@ impl Default for GunBundle {
             kinematics: stats.get_kinematics(transform.scale),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
-                    color: stats.gun_neutral_color,
+                    color: stats.gun_neutral_color.0,
                     custom_size: Some(Vec2::new(stats.gun_width, stats.gun_length)),
                     ..default()
                 },
@@ -77,7 +77,7 @@ impl GunBundle {
         let mut gun = Self::default();
         gun.preset = preset;
         gun.gun = Gun::new(&gun.preset, 0); // todo get new random u64 from the game's global random state
-        gun.sprite_bundle.sprite.color = gun.preset.stats().gun_neutral_color;
+        gun.sprite_bundle.sprite.color = gun.preset.stats().gun_neutral_color.0;
         if let Some(transform) = transform {
             gun.sprite_bundle.transform = transform;
         } else {
@@ -171,7 +171,7 @@ pub(crate) fn paint_gun(preset: &GunPreset, sprite: &mut Sprite, team_number: Op
             .set_a(GUN_TRANSPARENCY)
             .as_rgba();
     } else {
-        sprite.color = preset.stats().gun_neutral_color;
+        sprite.color = preset.stats().gun_neutral_color.0;
     }
 }
 

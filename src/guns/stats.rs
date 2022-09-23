@@ -1,27 +1,13 @@
-use crate::characters::CHARACTER_SIZE;
-use crate::guns::{Gun, GUN_TRANSPARENCY, GUN_VELOCITY_DAMPING_RATIO, GUN_Z_LAYER};
-use crate::health::HitPoints;
+use crate::guns::colours::GunColour;
+use crate::guns::{Gun, GUN_VELOCITY_DAMPING_RATIO, GUN_Z_LAYER};
 use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
 use crate::projectiles::BulletBundle;
 use crate::teams::Team;
 use crate::GunPreset;
 use bevy::math::{Quat, Vec3};
-use bevy::prelude::{Color, GlobalTransform, Transform};
+use bevy::prelude::{GlobalTransform, Transform};
 use rand::Rng;
 use std::time::Duration;
-
-const REGULAR_GUN_LENGTH: f32 = CHARACTER_SIZE * 1.25;
-const REGULAR_GUN_WIDTH: f32 = CHARACTER_SIZE * 0.25;
-
-const REGULAR_GUN_CENTER_X: f32 = 0.0;
-const REGULAR_GUN_CENTER_Y: f32 = CHARACTER_SIZE * -0.15 + REGULAR_GUN_LENGTH * 0.5;
-
-pub const REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS: u64 = 100;
-
-pub const BULLET_SIZE: f32 = 5.0;
-pub const BULLET_SPEED: f32 = 300.0;
-pub const BULLET_DAMAGE: HitPoints = 5.0;
-pub const BULLET_STOP_SPEED_MULTIPLIER: f32 = 0.67;
 
 pub enum ProjectileSpawnPoint {
     Gunpoint,
@@ -39,7 +25,7 @@ pub struct GunPersistentStats {
     pub gun_length: f32,
     // gun_sprite
     /// The gun color while it's unequipped.
-    pub gun_neutral_color: Color,
+    pub gun_neutral_color: GunColour,
     // pub adapts_to_player_color: bool,
     /// Standard offset (x-axis) of the gun's sprite's center from the character's center.
     pub gun_center_x: f32,
@@ -71,7 +57,7 @@ pub struct GunPersistentStats {
     /// Size of each projectile.
     pub projectile_size: f32,
     // projectile_sprite
-    pub projectile_color: Color,
+    pub projectile_color: GunColour,
     /// Where the projectile spawns, where the gun barrel ends, or around a character centered on its center
     pub projectile_spawn_point: ProjectileSpawnPoint,
 
@@ -89,38 +75,6 @@ pub struct GunPersistentStats {
 }
 
 impl GunPersistentStats {
-    pub(crate) const fn regular() -> Self {
-        Self {
-            gun_width: REGULAR_GUN_WIDTH,
-            gun_length: REGULAR_GUN_LENGTH,
-            gun_neutral_color: Color::Rgba {
-                red: 0.25,
-                green: 0.25,
-                blue: 0.25,
-                alpha: GUN_TRANSPARENCY,
-            }, // Color::DARK_GRAY
-            gun_center_x: REGULAR_GUN_CENTER_X,
-            gun_center_y: REGULAR_GUN_CENTER_Y,
-            fire_cooldown: Duration::from_millis(REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS),
-            shots_before_reload: 0,
-            reload_time: 0.0,
-            recoil: 0.0,
-            projectiles_per_shot: 1,
-            projectile_spread_angle: 0.0,
-            projectile_speed: BULLET_SPEED,
-            min_speed_to_live_multiplier: BULLET_STOP_SPEED_MULTIPLIER,
-            // Elasticity of .5 or below will not trigger collision's Stopped events until another collision!
-            // Projectiles will slide along. That means it will also not change its velocity until then.
-            projectile_elasticity: 0.51,
-            projectile_size: BULLET_SIZE,
-            projectile_color: Color::ALICE_BLUE,
-            projectile_spawn_point: ProjectileSpawnPoint::Gunpoint,
-            projectile_damage: BULLET_DAMAGE,
-            friendly_fire: false,
-            //projectile_extra_components: Vec::new(),//vec![]
-        }
-    }
-
     /// Get the standard transform of a gun.
     pub fn get_transform(&self) -> Transform {
         // todo non-standard guns -- in the future.

@@ -49,7 +49,7 @@ impl BulletBundle {
             .with_linear_velocity(velocity),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
-                    color: gun_type.stats().projectile_color,
+                    color: gun_type.stats().projectile_color.0,
                     ..default()
                 },
                 transform: bullet_transform,
