@@ -85,11 +85,11 @@ pub fn handle_bullet_collision_events(
             let (gun_type, bullet_team, bullet_velocity) =
                 query_bullets.get(bullet_entity).unwrap();
             if let Some(mut life) = body_health {
-                let mut damaged = true;
+                let mut should_be_damaged = true;
                 if let Some(body_team) = body_team {
-                    damaged = gun_type.stats().friendly_fire || bullet_team != body_team;
+                    should_be_damaged = gun_type.stats().friendly_fire || bullet_team != body_team;
                 }
-                if damaged && life.damage(gun_type.stats().projectile_damage) {
+                if should_be_damaged && life.damage(gun_type.stats().projectile_damage) {
                     commands.entity(body_entity).insert(Dying);
                 }
             }

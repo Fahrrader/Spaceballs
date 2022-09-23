@@ -180,12 +180,12 @@ pub fn handle_gunfire(
     mut commands: Commands,
     time: Res<Time>,
     mut query_weapons: Query<(&mut Gun, &GunPreset, &GlobalTransform, &Equipped)>,
-    query_characters: Query<(&CharacterActionInput, &Team), With<Character>>,
+    mut query_characters: Query<(&CharacterActionInput, &Team, &mut Transform), With<Character>>,
 ) {
     for (mut gun, gun_type, gun_transform, equipped) in query_weapons.iter_mut() {
-        let (is_firing, team) = query_characters
-            .get(equipped.by)
-            .map(|(input, team)| (input.fire, team))
+        let (is_firing, team, mut transform) = query_characters
+            .get_mut(equipped.by)
+            .map(|(input, team, transform)| (input.fire, team, transform))
             .unwrap();
 
         // todo fixed time increment and potentially spawning multiple projectiles with go-ahead distance if cooldown is small enough
@@ -209,6 +209,11 @@ pub fn handle_gunfire(
                         ..default()
                     });
                 }
+            }
+
+            if gun_stats.recoil != 0.0 {
+                let offset = transform.down() * gun_stats.recoil;
+                transform.translation += offset;
             }
 
             gun.reset_fire_cooldown();

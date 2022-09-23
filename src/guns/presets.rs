@@ -68,7 +68,7 @@ impl GunPreset {
             projectile_speed: BULLET_SPEED,
             min_speed_to_live_multiplier: BULLET_STOP_SPEED_MULTIPLIER,
             // Elasticity of .5 or below will not trigger collision's Stopped events until another collision!
-            // Projectiles will slide along. That means it will also not change its velocity until then.
+            // Projectiles will just slide along. That means it will also not change its velocity until then.
             projectile_elasticity: 0.51,
             projectile_size: BULLET_SIZE,
             projectile_color: GunColour::new(Color::ALICE_BLUE),
@@ -99,6 +99,7 @@ pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
     projectile_damage: BULLET_DAMAGE * 0.85,
     projectiles_per_shot: 12,
     fire_cooldown: Duration::from_millis(600),
+    recoil: 6.0,
     ..GunPreset::regular()
 };
 
@@ -124,6 +125,7 @@ pub const RAIL_GUN: GunPersistentStats = GunPersistentStats {
     projectile_elasticity: 0.0,
     fire_cooldown: Duration::from_millis(1000),
     friendly_fire: true,
+    recoil: 15.0,
     min_speed_to_live_multiplier: 0.33,
     ..GunPreset::regular()
 };

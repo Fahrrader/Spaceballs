@@ -39,7 +39,8 @@ pub struct GunPersistentStats {
     /// Time in ms to reload a gun and set [`shots_before_reload`] to 0.
     pub reload_time: f32, // todo
     /// Units of distance the character is pushed back when firing.
-    pub recoil: f32, // todo
+    // why'd I even want this // refactor later, when dodge is implemented, use the same principle
+    pub recoil: f32,
     // transparent? implant? have property that'd prevent gun dropping /
 
     // displace the following sections to ProjectilePreset if there's ever a gun that can shoot more than one type
@@ -51,15 +52,16 @@ pub struct GunPersistentStats {
     pub projectile_speed: f32,
     /// Proportion of normal speed below which the projectile should disappear, her momentum now harmless.
     pub min_speed_to_live_multiplier: f32,
+    // should inherit speed?
     /// How bouncy the projectile is, where 0 is not bouncy at all, and 1 is perfect elasticity.
     pub projectile_elasticity: f32, // todo possibly replace with an 'extra component' for a physics layer
+    /// Where the projectile spawns, where the gun barrel ends, or around a character centered on its center
+    pub projectile_spawn_point: ProjectileSpawnPoint,
 
     /// Size of each projectile.
     pub projectile_size: f32,
     // projectile_sprite
     pub projectile_color: GunColour,
-    /// Where the projectile spawns, where the gun barrel ends, or around a character centered on its center
-    pub projectile_spawn_point: ProjectileSpawnPoint,
 
     /// Damage each projectile deals to the body it hits.
     pub projectile_damage: f32,
@@ -71,13 +73,13 @@ pub struct GunPersistentStats {
     // ooh! get some extra components on bullets
     //pub projectile_extra_components: Vec<Box<dyn Component<Storage = bevy::ecs::component::TableStorage>>>,
 
-    // todo collision layers, time_to_live? or min_velocity_to_live, have everything despawn when colliding with arena borders
+    // collision layers, time_to_live? or min_velocity_to_live, have everything despawn when colliding with arena borders
 }
 
 impl GunPersistentStats {
     /// Get the standard transform of a gun.
     pub fn get_transform(&self) -> Transform {
-        // todo non-standard guns -- in the future.
+        // todo transforms of non-standard guns -- in the future.
         Transform::from_translation(Vec3::new(self.gun_center_x, self.gun_center_y, GUN_Z_LAYER))
     }
 

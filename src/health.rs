@@ -6,7 +6,7 @@ pub type HitPoints = f32;
 /// Holder component of an entity's hit points.
 #[derive(Component)]
 pub struct Health {
-    pub hp: HitPoints,
+    hp: HitPoints,
     // armor? max?
 }
 
@@ -21,6 +21,11 @@ impl Health {
         Self { hp: max_health }
     }
 
+    /// Get current hit points.
+    pub const fn hp(&self) -> HitPoints {
+        self.hp
+    }
+
     /// Take off (or add, if negative) some hit points.
     pub(crate) fn damage(&mut self, damage: HitPoints) -> bool {
         self.hp -= damage;
@@ -33,6 +38,7 @@ impl Health {
     }
 }
 
+/// Marker component indicating that the entity has reached zero hit points and is about to be despawned.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct Dying;
@@ -40,7 +46,7 @@ pub struct Dying;
 /// System to sift through events of taking damage and apply it to entities' health.
 pub fn handle_death(
     mut commands: Commands,
-    // todo joke on Gogol's Dead Souls
+    // joke on Gogol's Dead Souls
     mut query_lives: Query<(&Health, Entity), With<Dying>>,
 ) {
     for (life, entity) in query_lives.iter_mut() {
