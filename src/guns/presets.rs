@@ -134,10 +134,10 @@ pub const RAIL_GUN: GunPersistentStats = GunPersistentStats {
 pub const LASER_GUN: GunPersistentStats = GunPersistentStats {
     gun_neutral_color: GunColour::new(Color::AQUAMARINE),
     projectile_color: GunColour::new(Color::LIME_GREEN),
-    projectile_damage: BULLET_DAMAGE * 0.1,
+    projectile_damage: BULLET_DAMAGE * 0.025,
     projectile_speed: BULLET_SPEED * 4.,
     projectile_elasticity: 1.0,
-    fire_cooldown: Duration::from_millis(10),
+    fire_cooldown: Duration::from_millis(5),
     friendly_fire: true,
     min_speed_to_live_multiplier: 0.3,
     ..GunPreset::regular()

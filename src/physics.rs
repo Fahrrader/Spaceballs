@@ -88,11 +88,11 @@ impl KinematicsBundle {
 /// Uses [`OBSTACLE_CHUNK_SIZE`] to determine its dimensions in addition to the provided scale.
 #[derive(Bundle)]
 pub struct RectangularObstacleBundle {
-    rigidbody: RigidBody,
-    collider: CollisionShape,
-    collision_layers: CollisionLayers,
+    pub rigidbody: RigidBody,
+    pub collider: CollisionShape,
+    pub collision_layers: CollisionLayers,
     #[bundle]
-    sprite_bundle: SpriteBundle,
+    pub sprite_bundle: SpriteBundle,
 }
 
 impl Default for RectangularObstacleBundle {

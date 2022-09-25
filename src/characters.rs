@@ -34,14 +34,14 @@ pub const CHARACTER_MAX_HEALTH: HitPoints = 100.0;
 /// The Character base all other Character bundles should use and add to.
 #[derive(Bundle)]
 pub struct BaseCharacterBundle {
-    character: Character,
-    health: Health,
-    team: Team,
-    pub(crate) action_input: CharacterActionInput,
+    pub character: Character,
+    pub health: Health,
+    pub team: Team,
+    pub action_input: CharacterActionInput,
     #[bundle]
-    kinematics: KinematicsBundle,
+    pub kinematics: KinematicsBundle,
     #[bundle]
-    sprite_bundle: SpriteBundle,
+    pub sprite_bundle: SpriteBundle,
 }
 
 impl BaseCharacterBundle {
@@ -76,8 +76,8 @@ impl BaseCharacterBundle {
 #[derive(Bundle)]
 pub struct ControlledPlayerCharacterBundle {
     #[bundle]
-    character_bundle: BaseCharacterBundle,
-    player_controlled_marker: PlayerControlled,
+    pub character_bundle: BaseCharacterBundle,
+    pub player_controlled_marker: PlayerControlled,
 }
 
 impl ControlledPlayerCharacterBundle {

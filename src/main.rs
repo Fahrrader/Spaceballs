@@ -137,6 +137,7 @@ fn main() {
 
     App::new()
         .insert_resource(create_window_descriptor((WINDOW_WIDTH, WINDOW_HEIGHT)))
+        //.register_type::<CharacterActionInput>() // todo make plugins, register all respective types, will make development easier
         .add_plugins(DefaultPlugins)
         .add_plugin(PhysicsPlugin::default())
         /*.add_plugin(LogDiagnosticsPlugin::default())

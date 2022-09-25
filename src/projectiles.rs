@@ -13,13 +13,13 @@ use bevy::utils::default;
 /// Collection of components making up a projectile entity.
 #[derive(Bundle)]
 pub struct BulletBundle {
-    bullet: Bullet,
-    gun_type: GunPreset,
-    team: Team,
+    pub bullet: Bullet,
+    pub gun_type: GunPreset,
+    pub team: Team,
     #[bundle]
-    kinematics: KinematicsBundle,
+    pub kinematics: KinematicsBundle,
     #[bundle]
-    sprite_bundle: SpriteBundle,
+    pub sprite_bundle: SpriteBundle,
 }
 
 impl BulletBundle {

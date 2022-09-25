@@ -42,12 +42,12 @@ const GUN_Z_LAYER: f32 = 5.0;
 // rename to weapon? nah dude this is spaceballs
 #[derive(Bundle)]
 pub struct GunBundle {
-    preset: GunPreset,
-    gun: Gun,
+    pub preset: GunPreset,
+    pub gun: Gun,
     #[bundle]
-    kinematics: KinematicsBundle,
+    pub kinematics: KinematicsBundle,
     #[bundle]
-    sprite_bundle: SpriteBundle,
+    pub sprite_bundle: SpriteBundle,
 }
 
 impl Default for GunBundle {
@@ -188,35 +188,45 @@ pub fn handle_gunfire(
             .map(|(input, team, transform)| (input.fire, team, transform))
             .unwrap();
 
-        // todo fixed time increment and potentially spawning multiple projectiles with go-ahead distance if cooldown is small enough
-        // that is, fix shot skipping if cooldown is close to the frame time
-
+        let cooldown_time_previously_elapsed = gun.fire_cooldown.elapsed().as_nanos();
         if gun.tick_fire_cooldown(time.delta()) && is_firing {
+            let cooldown_time_elapsed = cooldown_time_previously_elapsed + time.delta().as_nanos();
+            let cooldown_duration = gun.fire_cooldown.duration().as_nanos();
+            let cooldown_times_over = cooldown_time_elapsed / cooldown_duration;
+
             let gun_stats = gun_type.stats();
 
             // todo add a ray cast from the body to the gun barrel to check for collisions
             // but currently it's kinda like shooting from cover / over shoulder, fun
 
-            let bullets = gun_stats.produce_projectiles(gun_transform, gun_type, &mut gun, team);
+            // any spawn point displacement causes artifacts in reflection angle (thanks, heron) -- look into elasticity
+            for cd in 0..cooldown_times_over {
+                let bullets = gun_stats.produce_projectiles(gun_transform, gun_type, &mut gun, team);
 
-            for bullet in bullets {
-                let mut bullet_commands = commands.spawn_bundle(bullet);
+                for mut bullet in bullets {
+                    let linear_velocity = bullet.kinematics.velocity.linear;
+                    bullet.sprite_bundle.transform.translation += (cd * cooldown_duration) as f32 * linear_velocity / 1_000_000_000.0;
 
-                // 0.5 is applied as the default restitution when no PhysicMaterial is present
-                if gun_stats.projectile_elasticity != 0.5 {
-                    bullet_commands.insert(heron::PhysicMaterial {
-                        restitution: gun_stats.projectile_elasticity,
-                        ..default()
-                    });
+                    // todo batch
+                    let mut bullet_commands = commands.spawn_bundle(bullet);
+
+                    // 0.5 is applied as the default restitution when no PhysicMaterial is present
+                    if gun_stats.projectile_elasticity != 0.5 {
+                        bullet_commands.insert(heron::PhysicMaterial {
+                            restitution: gun_stats.projectile_elasticity,
+                            ..default()
+                        });
+                    }
+                }
+
+                if gun_stats.recoil != 0.0 {
+                    let offset = transform.down() * gun_stats.recoil;
+                    transform.translation += offset;
                 }
             }
 
-            if gun_stats.recoil != 0.0 {
-                let offset = transform.down() * gun_stats.recoil;
-                transform.translation += offset;
-            }
-
             gun.reset_fire_cooldown();
+            gun.tick_fire_cooldown(Duration::from_nanos((cooldown_time_elapsed % cooldown_duration) as u64));
         }
     }
 }
