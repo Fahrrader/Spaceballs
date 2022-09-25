@@ -73,10 +73,10 @@ impl Default for GunBundle {
 }
 
 impl GunBundle {
-    pub fn new(preset: GunPreset, transform: Option<Transform>) -> Self {
+    pub fn new(preset: GunPreset, transform: Option<Transform>, random_seed: u64) -> Self {
         let mut gun = Self::default();
         gun.preset = preset;
-        gun.gun = Gun::new(&gun.preset, 0); // todo get new random u64 from the game's global random state
+        gun.gun = Gun::new(&gun.preset, random_seed);
         gun.sprite_bundle.sprite.color = gun.preset.stats().gun_neutral_color.0;
         if let Some(transform) = transform {
             gun.sprite_bundle.transform = transform;

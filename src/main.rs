@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 use heron::PhysicsPlugin;
+use rand::prelude::StdRng;
+use rand::{Rng, SeedableRng};
 use std::f32::consts::PI;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -31,7 +33,7 @@ use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 pub const WINDOW_WIDTH: f32 = 800.0;
 pub const WINDOW_HEIGHT: f32 = 800.0;
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, mut random_state: ResMut<StdRng>) {
     commands.spawn_bundle(Camera2dBundle::default());
 
     // ----- The walls of the arena
@@ -73,14 +75,17 @@ fn setup(mut commands: Commands) {
     commands.spawn_bundle(GunBundle::new(
         GunPreset::LaserGun,
         Some(Transform::from_translation(Vec3::new(-120.0, 50.0, 0.0))),
+        random_state.gen(),
     ));
     commands.spawn_bundle(GunBundle::new(
         GunPreset::RailGun,
         Some(Transform::from_translation(Vec3::new(-180.0, 50.0, 0.0))),
+        random_state.gen(),
     ));
     commands.spawn_bundle(GunBundle::new(
         GunPreset::Typhoon,
         Some(Transform::from_translation(Vec3::new(-240.0, 50.0, 0.0))),
+        random_state.gen(),
     ));
 
     let ai_char = commands
@@ -93,7 +98,10 @@ fn setup(mut commands: Commands) {
         .id();
     let ai_gun_preset = GunPreset::RailGun;
     let gun_2 = commands
-        .spawn_bundle(GunBundle::new(ai_gun_preset.clone(), None).with_paint_job(AI_DEFAULT_TEAM))
+        .spawn_bundle(
+            GunBundle::new(ai_gun_preset.clone(), None, random_state.gen())
+                .with_paint_job(AI_DEFAULT_TEAM),
+        )
         .id();
     equip_gear(&mut commands, ai_char, gun_2, &ai_gun_preset, None, None);
 
@@ -134,6 +142,7 @@ fn main() {
         /*.add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())*/
         .insert_resource(ClearColor(Color::BLACK))
+        .insert_resource(StdRng::seed_from_u64(42)) // probably refactor for async
         .add_startup_system(setup)
         .add_system(handle_player_input)
         .add_system(handle_ai_input)
