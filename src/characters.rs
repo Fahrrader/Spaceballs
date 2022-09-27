@@ -1,5 +1,5 @@
 use crate::actions::CharacterActionInput;
-use crate::guns::{paint_gun, reset_gun_transform, Equipped, GunPreset, Thrown};
+use crate::guns::{paint_gun, reset_gun_transform, Equipped, Gun, GunPreset, Thrown};
 use crate::health::{Health, HitPoints};
 use crate::physics::{
     try_get_components_from_entities, CollisionLayer, KinematicsBundle, PopularCollisionShape,
@@ -103,7 +103,7 @@ pub(crate) fn equip_gear(
     commands: &mut Commands,
     char_entity: Entity,
     gear_entity: Entity,
-    gun_preset: &GunPreset,
+    gun_preset: GunPreset,
     gear_properties: Option<&mut Transform>,
     gear_paint_job: Option<(&mut Sprite, Option<TeamNumber>)>,
 ) {
@@ -129,7 +129,7 @@ pub(crate) fn unequip_gear(
     commands: &mut Commands,
     gear_entity: Entity,
     kinematics: KinematicsBundle,
-    gun_type: &GunPreset,
+    gun_type: GunPreset,
     gear_sprite: &mut Sprite,
     gear_transform: &mut Transform,
 ) {
@@ -149,7 +149,7 @@ pub(crate) fn throw_away_gear(
     commands: &mut Commands,
     gear_entity: Entity,
     gear_linear_velocity: Vec3,
-    gun_type: &GunPreset,
+    gun_type: GunPreset,
     gear_sprite: &mut Sprite,
     gear_transform: &mut Transform,
     char_transform: &Transform,
@@ -190,7 +190,7 @@ pub fn handle_gun_picking(
     mut commands: Commands,
     mut collision_events: EventReader<CollisionEvent>,
     query_characters: Query<(&CharacterActionInput, &Team)>,
-    mut query_weapons: Query<(&GunPreset, &mut Sprite, &mut Transform)>,
+    mut query_weapons: Query<(&Gun, &mut Sprite, &mut Transform)>,
 ) {
     for event in collision_events.iter() {
         let (entity_a, entity_b) = event.rigid_body_entities();
@@ -203,8 +203,9 @@ pub fn handle_gun_picking(
                 continue;
             }
 
-            let (weapon_preset, mut weapon_sprite, mut weapon_transform) =
+            let (weapon, mut weapon_sprite, mut weapon_transform) =
                 query_weapons.get_mut(weapon_entity).unwrap();
+            let weapon_preset = weapon.preset;
 
             equip_gear(
                 &mut commands,
@@ -233,10 +234,7 @@ pub fn handle_letting_gear_go(
         ),
         Without<Equipped>,
     >,
-    mut query_gear: Query<
-        (&GunPreset, &mut Sprite, &mut Transform, &GlobalTransform),
-        With<Equipped>,
-    >,
+    mut query_gear: Query<(&Gun, &mut Sprite, &mut Transform, &GlobalTransform), With<Equipped>>,
 ) {
     for (action_input, velocity, transform, children, health, entity) in query_characters.iter_mut()
     {
@@ -248,9 +246,10 @@ pub fn handle_letting_gear_go(
         let mut equipped_gears = Vec::<Entity>::new();
         for child in children.iter() {
             let child = *child;
-            if let Ok((gun_type, mut gun_sprite, mut gun_transform, gun_g_transform)) =
+            if let Ok((gun, mut gun_sprite, mut gun_transform, gun_g_transform)) =
                 query_gear.get_mut(child)
             {
+                let gun_type = gun.preset;
                 equipped_gears.push(child);
                 let gun_velocity = velocity.linear + gun_g_transform.up() * GUN_THROW_SPEED;
                 throw_away_gear(

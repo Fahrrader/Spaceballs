@@ -1,6 +1,5 @@
 use crate::actions::CharacterActionInput;
 use crate::characters::{Character, CHARACTER_SPEED};
-use crate::guns::presets::REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS;
 use crate::physics::KinematicsBundle;
 use crate::teams::{team_color, Team, TeamNumber};
 use bevy::math::{Vec2, Vec3};
@@ -42,7 +41,6 @@ const GUN_Z_LAYER: f32 = 5.0;
 // rename to weapon? nah dude this is spaceballs
 #[derive(Bundle)]
 pub struct GunBundle {
-    pub preset: GunPreset,
     pub gun: Gun,
     #[bundle]
     pub kinematics: KinematicsBundle,
@@ -52,11 +50,11 @@ pub struct GunBundle {
 
 impl Default for GunBundle {
     fn default() -> Self {
-        let preset = GunPreset::default();
-        let stats = preset.stats();
+        let gun = Gun::default();
+        let stats = gun.preset.stats();
         let transform = stats.get_transform();
         Self {
-            gun: Gun::default(),
+            gun,
             kinematics: stats.get_kinematics(transform.scale),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
@@ -67,29 +65,27 @@ impl Default for GunBundle {
                 transform,
                 ..default()
             },
-            preset,
         }
     }
 }
 
 impl GunBundle {
     pub fn new(preset: GunPreset, transform: Option<Transform>, random_seed: u64) -> Self {
-        let mut gun = Self::default();
-        gun.preset = preset;
-        gun.gun = Gun::new(&gun.preset, random_seed);
-        gun.sprite_bundle.sprite.color = gun.preset.stats().gun_neutral_color.0;
+        let mut gun_bundle = Self::default();
+        gun_bundle.gun = Gun::new(preset, random_seed);
+        gun_bundle.sprite_bundle.sprite.color = preset.stats().gun_neutral_color.0;
         if let Some(transform) = transform {
-            gun.sprite_bundle.transform = transform;
+            gun_bundle.sprite_bundle.transform = transform;
         } else {
-            gun.sprite_bundle.transform = gun.preset.stats().get_transform();
+            gun_bundle.sprite_bundle.transform = preset.stats().get_transform();
         }
-        gun
+        gun_bundle
     }
 
     /// Change the bundled gun's color from neutral to that in line with the team.
     pub fn with_paint_job(mut self, team_number: TeamNumber) -> Self {
         paint_gun(
-            &self.preset,
+            self.gun.preset,
             &mut self.sprite_bundle.sprite,
             Some(team_number),
         );
@@ -100,47 +96,88 @@ impl GunBundle {
 /// Holder of all non-constant properties of a weapon.
 #[derive(Component)]
 pub struct Gun {
+    pub(crate) preset: GunPreset,
     fire_cooldown: Timer,
+    shots_before_reload: u32,
+    reload_progress: Timer,
     random_state: StdRng,
 }
 
 impl Default for Gun {
     fn default() -> Self {
+        let preset = GunPreset::Regular;
+        let stats = preset.stats();
         Self {
-            fire_cooldown: Timer::new(
-                Duration::from_millis(REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS),
-                false,
-            ),
+            preset,
+            fire_cooldown: Timer::new(stats.fire_cooldown, false),
+            shots_before_reload: stats.shots_before_reload,
+            reload_progress: Timer::new(stats.reload_time, false),
             random_state: StdRng::seed_from_u64(0),
         }
     }
 }
 
 impl Gun {
-    pub fn new(preset: &GunPreset, random_seed: u64) -> Self {
-        let cooldown = preset.stats().fire_cooldown;
-        let mut timer = Timer::new(cooldown, false);
+    pub fn new(preset: GunPreset, random_seed: u64) -> Self {
+        let stats = preset.stats();
+
+        let mut fire_cooldown = Timer::new(stats.fire_cooldown, false);
         // Mark cooldown after firing as finished, the player shouldn't wait for the gun to recover when first picking it up
-        timer.tick(cooldown);
+        fire_cooldown.tick(stats.fire_cooldown);
+
+        let mut reload_progress = Timer::new(stats.reload_time, false);
+        // Reloading is not active at the start, firing cooldown and reloading must be mutually exclusive
+        reload_progress.pause();
+
         Self {
-            fire_cooldown: timer,
+            preset,
+            fire_cooldown,
+            shots_before_reload: stats.shots_before_reload,
+            reload_progress,
             random_state: StdRng::seed_from_u64(random_seed),
         }
     }
 
-    /// Check if the cooldown timer has finished, and the gun can be fired again.
-    pub fn check_fire_cooldown(&self) -> bool {
-        self.fire_cooldown.finished()
+    /// Check if the cooldown timers have finished, and the gun can be fired.
+    pub fn can_fire(&self) -> bool {
+        self.fire_cooldown.finished() && self.reload_progress.paused()
     }
 
-    /// Tick some time off the cooldown timer and optionally check if finished.
-    fn tick_fire_cooldown(&mut self, time_delta: Duration) -> bool {
-        self.fire_cooldown.tick(time_delta).finished()
+    /// Tick some time on the cooldown timers and return if the gun is able to fire.
+    fn tick_cooldown(&mut self, time_delta: Duration) -> bool {
+        let was_reloading = !self.reload_progress.paused();
+        if was_reloading {
+            if self.reload_progress.tick(time_delta).finished() {
+                self.shots_before_reload = self.preset.stats().shots_before_reload;
+                self.reload_progress.reset();
+                self.reload_progress.pause();
+                self.fire_cooldown.unpause();
+            }
+            false
+        } else {
+            self.fire_cooldown.tick(time_delta).finished()
+            // Reloading is triggered separately
+        }
+    }
+
+    fn eject_shot_and_check_if_empty(&mut self) -> bool {
+        if self.preset.stats().shots_before_reload > 0 {
+            self.shots_before_reload -= 1;
+            self.shots_before_reload <= 0
+        } else {
+            false
+        }
     }
 
     /// Set the cooldown timer to run anew. To be used usually when making a shot.
     fn reset_fire_cooldown(&mut self) {
         self.fire_cooldown.reset();
+    }
+
+    /// Change the behaviour of the gun to reloading. Only when the reloading has finished, can the gun resume firing.
+    fn start_reloading(&mut self) {
+        self.fire_cooldown.pause();
+        self.reload_progress.unpause();
     }
 }
 
@@ -156,7 +193,7 @@ pub struct Equipped {
 pub struct Thrown;
 
 /// Reset everything about the gun's transform, replacing the component's parts with their default state.
-pub(crate) fn reset_gun_transform(preset: &GunPreset, transform: &mut Transform) {
+pub(crate) fn reset_gun_transform(preset: GunPreset, transform: &mut Transform) {
     let preset_transform = preset.stats().get_transform();
     transform.translation = preset_transform.translation;
     transform.rotation = preset_transform.rotation;
@@ -164,7 +201,7 @@ pub(crate) fn reset_gun_transform(preset: &GunPreset, transform: &mut Transform)
 }
 
 /// Make a gun look in line with a team's color or neutral (usually when not equipped by anybody).
-pub(crate) fn paint_gun(preset: &GunPreset, sprite: &mut Sprite, team_number: Option<TeamNumber>) {
+pub(crate) fn paint_gun(preset: GunPreset, sprite: &mut Sprite, team_number: Option<TeamNumber>) {
     if let Some(team_number) = team_number {
         // todo decide how to discern equipped weapons, just sprite/mesh shape or color, too
         sprite.color = (team_color(team_number) * GUN_COLOR_MULTIPLIER)
@@ -179,21 +216,26 @@ pub(crate) fn paint_gun(preset: &GunPreset, sprite: &mut Sprite, team_number: Op
 pub fn handle_gunfire(
     mut commands: Commands,
     time: Res<Time>,
-    mut query_weapons: Query<(&mut Gun, &GunPreset, &GlobalTransform, &Equipped)>,
+    mut query_weapons: Query<(&mut Gun, &GlobalTransform, &Equipped)>,
     mut query_characters: Query<(&CharacterActionInput, &Team, &mut Transform), With<Character>>,
 ) {
-    for (mut gun, gun_type, gun_transform, equipped) in query_weapons.iter_mut() {
-        let (is_firing, team, mut transform) = query_characters
+    for (mut gun, gun_transform, equipped) in query_weapons.iter_mut() {
+        let (wants_to_fire, wants_to_reload, team, mut transform) = query_characters
             .get_mut(equipped.by)
-            .map(|(input, team, transform)| (input.fire, team, transform))
+            .map(|(input, team, transform)| (input.fire, input.reload, team, transform))
             .unwrap();
 
+        if wants_to_reload {
+            gun.start_reloading();
+        }
+
         let cooldown_time_previously_elapsed = gun.fire_cooldown.elapsed().as_nanos();
-        if gun.tick_fire_cooldown(time.delta()) && is_firing {
+        if gun.tick_cooldown(time.delta()) && wants_to_fire {
             let cooldown_time_elapsed = cooldown_time_previously_elapsed + time.delta().as_nanos();
             let cooldown_duration = gun.fire_cooldown.duration().as_nanos();
             let cooldown_times_over = cooldown_time_elapsed / cooldown_duration;
 
+            let gun_type = gun.preset;
             let gun_stats = gun_type.stats();
 
             // todo add a ray cast from the body to the gun barrel to check for collisions
@@ -201,11 +243,15 @@ pub fn handle_gunfire(
 
             // any spawn point displacement causes artifacts in reflection angle (thanks, heron) -- look into elasticity
             for cd in 0..cooldown_times_over {
-                let bullets = gun_stats.produce_projectiles(gun_transform, gun_type, &mut gun, team);
+                let bullets =
+                    gun_stats.produce_projectiles(gun_transform, gun_type, &mut gun, team);
 
                 for mut bullet in bullets {
                     let linear_velocity = bullet.kinematics.velocity.linear;
-                    bullet.sprite_bundle.transform.translation += (cd * cooldown_duration) as f32 * linear_velocity / 1_000_000_000.0;
+                    bullet.sprite_bundle.transform.translation +=
+                        ((cd + 1) * cooldown_duration - cooldown_time_previously_elapsed) as f32
+                            * linear_velocity
+                            / 1_000_000_000.0;
 
                     // todo batch
                     let mut bullet_commands = commands.spawn_bundle(bullet);
@@ -223,10 +269,17 @@ pub fn handle_gunfire(
                     let offset = transform.down() * gun_stats.recoil;
                     transform.translation += offset;
                 }
+
+                if gun.eject_shot_and_check_if_empty() {
+                    gun.start_reloading();
+                    break;
+                }
             }
 
             gun.reset_fire_cooldown();
-            gun.tick_fire_cooldown(Duration::from_nanos((cooldown_time_elapsed % cooldown_duration) as u64));
+            gun.tick_cooldown(Duration::from_nanos(
+                (cooldown_time_elapsed % cooldown_duration) as u64,
+            ));
         }
     }
 }

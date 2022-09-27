@@ -35,9 +35,9 @@ pub struct GunPersistentStats {
     /// Time before the next shot after one is taken.
     pub fire_cooldown: Duration,
     /// Number of shots before the "magazine" is depleted, and the gun must be reloaded. Leave at 0 for no reload.
-    pub shots_before_reload: u32, // todo
-    /// Time in ms to reload a gun and set [`shots_before_reload`] to 0.
-    pub reload_time: f32, // todo
+    pub shots_before_reload: u32,
+    /// Time to reload a gun and set [`shots_before_reload`] back to full.
+    pub reload_time: Duration,
     /// Units of distance the character is pushed back when firing.
     // why'd I even want this // refactor later, when dodge is implemented, use the same principle
     pub recoil: f32,
@@ -104,7 +104,7 @@ impl GunPersistentStats {
     pub(crate) fn produce_projectiles(
         &self,
         gun_transform: &GlobalTransform,
-        gun_type: &GunPreset,
+        gun_type: GunPreset,
         gun: &mut Gun,
         team: &Team,
     ) -> Vec<BulletBundle> {

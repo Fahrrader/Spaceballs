@@ -14,7 +14,6 @@ use bevy::utils::default;
 #[derive(Bundle)]
 pub struct BulletBundle {
     pub bullet: Bullet,
-    pub gun_type: GunPreset,
     pub team: Team,
     #[bundle]
     pub kinematics: KinematicsBundle,
@@ -24,15 +23,16 @@ pub struct BulletBundle {
 
 impl BulletBundle {
     pub fn new(
-        gun_type: &GunPreset,
+        gun_type: GunPreset,
         team: TeamNumber,
         transform: Transform,
         velocity: Vec3,
     ) -> Self {
         let bullet_transform = transform.with_scale(Vec3::ONE * gun_type.stats().projectile_size);
         Self {
-            bullet: Bullet,
-            gun_type: gun_type.clone(),
+            bullet: Bullet {
+                gun_type: gun_type.clone(),
+            },
             team: Team(team),
             kinematics: KinematicsBundle::new(
                 PopularCollisionShape::get(
@@ -40,11 +40,7 @@ impl BulletBundle {
                     Vec3::ONE,
                 ),
                 CollisionLayer::Projectile,
-                &[
-                    CollisionLayer::Character,
-                    //CollisionLayer::Projectile, // todo remove (but leave on for showcase)
-                    CollisionLayer::Obstacle,
-                ],
+                &[CollisionLayer::Character, CollisionLayer::Obstacle],
             )
             .with_linear_velocity(velocity),
             sprite_bundle: SpriteBundle {
@@ -61,7 +57,9 @@ impl BulletBundle {
 
 /// Marker component signifying that this is indeed a bullet / projectile.
 #[derive(Component)]
-pub struct Bullet;
+pub struct Bullet {
+    gun_type: GunPreset,
+}
 
 /// System to read collision events and apply their effects to the respective bodies.
 /// In particular, damage.
@@ -69,7 +67,7 @@ pub fn handle_bullet_collision_events(
     mut commands: Commands,
     mut collision_events: EventReader<heron::CollisionEvent>,
     mut query_bodies: Query<(Option<&mut Health>, Option<&Team>)>,
-    query_bullets: Query<(&GunPreset, &Team, &heron::Velocity), With<Bullet>>,
+    query_bullets: Query<(&Bullet, &Team, &heron::Velocity)>,
 ) {
     for event in collision_events.iter() {
         // Most bullets do not register collision Stopping immediately
@@ -82,8 +80,10 @@ pub fn handle_bullet_collision_events(
             try_get_components_from_entities(&query_bullets, &query_bodies, entity_a, entity_b)
         {
             let (body_health, body_team) = query_bodies.get_mut(body_entity).unwrap();
-            let (gun_type, bullet_team, bullet_velocity) =
-                query_bullets.get(bullet_entity).unwrap();
+            let (gun_type, bullet_team, bullet_velocity) = query_bullets
+                .get(bullet_entity)
+                .map(|(bullet, team, velocity)| (bullet.gun_type, team, velocity))
+                .unwrap();
             if let Some(mut life) = body_health {
                 let mut should_be_damaged = true;
                 if let Some(body_team) = body_team {

@@ -78,7 +78,7 @@ fn setup(mut commands: Commands, mut random_state: ResMut<StdRng>) {
         random_state.gen(),
     ));
     commands.spawn_bundle(GunBundle::new(
-        GunPreset::RailGun,
+        GunPreset::Imprecise,
         Some(Transform::from_translation(Vec3::new(-180.0, 50.0, 0.0))),
         random_state.gen(),
     ));
@@ -103,7 +103,7 @@ fn setup(mut commands: Commands, mut random_state: ResMut<StdRng>) {
                 .with_paint_job(AI_DEFAULT_TEAM),
         )
         .id();
-    equip_gear(&mut commands, ai_char, gun_2, &ai_gun_preset, None, None);
+    equip_gear(&mut commands, ai_char, gun_2, ai_gun_preset, None, None);
 
     commands.spawn_bundle(RectangularObstacleBundle::new(Transform::from_scale(
         Vec3::new(1.0, 2.0, 1.0),

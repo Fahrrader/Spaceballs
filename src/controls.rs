@@ -14,6 +14,7 @@ pub fn handle_player_input(
         player_actions.left = keys.pressed(KeyCode::A) || keys.pressed(KeyCode::Left);
         player_actions.right = keys.pressed(KeyCode::D) || keys.pressed(KeyCode::Right);
         player_actions.fire = keys.pressed(KeyCode::Space);
+        player_actions.reload = keys.pressed(KeyCode::R);
         player_actions.use_environment_1 = keys.pressed(KeyCode::F);
         player_actions.use_environment_2 = keys.pressed(KeyCode::C);
     }

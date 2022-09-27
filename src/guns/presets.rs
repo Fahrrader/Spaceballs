@@ -3,7 +3,6 @@ use crate::guns::colours::GunColour;
 use crate::guns::stats::{GunPersistentStats, ProjectileSpawnPoint};
 use crate::health::HitPoints;
 use crate::Color;
-use bevy::prelude::Component;
 use std::f32::consts::PI;
 use std::time::Duration;
 
@@ -13,7 +12,7 @@ const REGULAR_GUN_WIDTH: f32 = CHARACTER_SIZE * 0.25;
 const REGULAR_GUN_CENTER_X: f32 = 0.0;
 const REGULAR_GUN_CENTER_Y: f32 = CHARACTER_SIZE * -0.15 + REGULAR_GUN_LENGTH * 0.5;
 
-pub const REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS: u64 = 100;
+pub const REGULAR_FIRE_COOLDOWN_TIME_MILLIS: u64 = 100;
 
 pub const BULLET_SIZE: f32 = 5.0;
 pub const BULLET_SPEED: f32 = 300.0;
@@ -21,7 +20,7 @@ pub const BULLET_DAMAGE: HitPoints = 5.0;
 pub const BULLET_STOP_SPEED_MULTIPLIER: f32 = 0.67;
 
 /// Array of guns for your taste and pleasure. All fixed variables per type are found via a look-up table by a value of this enum.
-#[derive(Component, Clone)]
+#[derive(Copy, Clone)]
 pub enum GunPreset {
     Regular,
     Imprecise,
@@ -59,9 +58,9 @@ impl GunPreset {
             gun_neutral_color: GunColour::new(Color::DARK_GRAY),
             gun_center_x: REGULAR_GUN_CENTER_X,
             gun_center_y: REGULAR_GUN_CENTER_Y,
-            fire_cooldown: Duration::from_millis(REGULAR_GUN_FIRE_COOLDOWN_TIME_MILLIS),
+            fire_cooldown: Duration::from_millis(REGULAR_FIRE_COOLDOWN_TIME_MILLIS),
             shots_before_reload: 0,
-            reload_time: 0.0,
+            reload_time: Duration::from_millis(0),
             recoil: 0.0,
             projectiles_per_shot: 1,
             projectile_spread_angle: 0.0,
@@ -89,6 +88,8 @@ pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
     projectile_spread_angle: PI / 12.,
     projectile_damage: BULLET_DAMAGE * 1.1,
     projectile_speed: BULLET_SPEED * 2.,
+    reload_time: Duration::from_millis(500),
+    shots_before_reload: 15,
     ..GunPreset::regular()
 };
 
