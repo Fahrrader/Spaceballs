@@ -6,7 +6,6 @@ use crate::teams::Team;
 use crate::GunPreset;
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{GlobalTransform, Transform};
-use heron::RigidBody;
 use rand::Rng;
 use std::time::Duration;
 
@@ -111,7 +110,6 @@ impl GunPersistentStats {
 
     /// Get a round of projectiles that comes out of a gun when a trigger is pressed.
     /// These still have to be spawned. The gun will change its state.
-    // possibly return here additional components to place on the spawned bundle
     pub(crate) fn produce_projectiles(
         &self,
         gun_transform: &GlobalTransform,
@@ -149,15 +147,13 @@ impl GunPersistentStats {
                 ),
             };
 
-            let mut bullet = BulletBundle::new(
+            let bullet = BulletBundle::new(
                 gun_type,
                 team.0,
                 bullet_transform,
                 facing_direction * self.projectile_speed,
             );
-            if gun_type == GunPreset::RailGun {
-                bullet.kinematics.rigidbody = RigidBody::Sensor;
-            }
+
             bullets.push(bullet);
         }
 

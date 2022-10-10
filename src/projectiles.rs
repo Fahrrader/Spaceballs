@@ -6,8 +6,8 @@ use crate::teams::{Team, TeamNumber};
 use crate::{GunPreset, WINDOW_HEIGHT, WINDOW_WIDTH};
 use bevy::math::Vec3;
 use bevy::prelude::{
-    Bundle, Commands, Component, Entity, EventReader, Query, Res, Sprite, SpriteBundle, Time,
-    Transform, With,
+    Added, Bundle, Commands, Component, Entity, EventReader, Query, Res, Sprite, SpriteBundle,
+    Time, Transform, With,
 };
 use bevy::utils::default;
 
@@ -77,6 +77,15 @@ pub fn handle_railgun_things(
             up * bullet.gun_type.stats().projectile_speed * time.delta_seconds();
     }
     // todo check time/distance travelled and do damage accordingly
+}
+
+/// System to groom a newly spawned rail gun projectile.
+pub fn handle_railgun_things_newly_spawned(
+    mut query_bullets: Query<&mut heron::RigidBody, Added<RailGunThing>>,
+) {
+    for mut rigidbody in query_bullets.iter_mut() {
+        *rigidbody = heron::RigidBody::Sensor;
+    }
 }
 
 /// System to read collision events and apply their effects to the respective bodies.

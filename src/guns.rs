@@ -267,6 +267,13 @@ pub fn handle_gunfire(
                     for component in gun_type.extra_components() {
                         bullet_commands.insert(component);
                     }
+                    /*for combundle in gun_type.extra_components_and_bundles() {
+                        if let ExtraCombundle::Component(component) = combundle {
+                            bullet_commands.insert(*component);
+                        } else if let ExtraCombundle::Bundle(bundle) = combundle {
+                            //bullet_commands.insert_bundle(*bundle);
+                        }
+                    }*/
                 }
 
                 if gun_stats.recoil != 0.0 {
