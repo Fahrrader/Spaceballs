@@ -18,8 +18,8 @@ pub mod teams;
 
 use crate::ai::handle_ai_input;
 use crate::characters::{
-    calculate_character_velocity, equip_gear, handle_gun_picking, handle_letting_gear_go,
-    BaseCharacterBundle, ControlledPlayerCharacterBundle,
+    calculate_character_velocity, equip_gear, handle_gun_picking, handle_inventory_layout_change,
+    handle_letting_gear_go, BaseCharacterBundle, ControlledPlayerCharacterBundle,
 }; //, handle_dead_men_walking};
 use crate::controls::handle_player_input;
 use crate::guns::{
@@ -27,7 +27,9 @@ use crate::guns::{
 };
 use crate::health::handle_death;
 use crate::physics::{RectangularObstacleBundle, OBSTACLE_CHUNK_SIZE};
-use crate::projectiles::{handle_bullet_collision_events, handle_bullets_out_of_bounds};
+use crate::projectiles::{
+    handle_bullet_collision_events, handle_bullets_out_of_bounds, handle_railgun_things,
+};
 use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 
 pub const WINDOW_WIDTH: f32 = 800.0;
@@ -65,6 +67,7 @@ fn setup(mut commands: Commands, mut random_state: ResMut<StdRng>) {
             1.0,
         )),
     ));
+    // todo some special perfectly elastic obstacles and deflective armors
     // -----
 
     commands.spawn_bundle(ControlledPlayerCharacterBundle::new(
@@ -83,7 +86,7 @@ fn setup(mut commands: Commands, mut random_state: ResMut<StdRng>) {
         random_state.gen(),
     ));
     commands.spawn_bundle(GunBundle::new(
-        GunPreset::Typhoon,
+        GunPreset::RailGun,
         Some(Transform::from_translation(Vec3::new(-240.0, 50.0, 0.0))),
         random_state.gen(),
     ));
@@ -154,10 +157,11 @@ fn main() {
         )
         .add_system(handle_gunfire.after(calculate_character_velocity))
         .add_system(handle_bullets_out_of_bounds.after(handle_gunfire))
+        .add_system(handle_railgun_things)
         .add_system(handle_bullet_collision_events)
         .add_system(handle_gun_picking)
         .add_system(handle_letting_gear_go)
-        .add_system(handle_gun_picking)
+        .add_system(handle_inventory_layout_change)
         .add_system(handle_gun_idle_bobbing)
         .add_system(handle_gun_arriving_at_rest)
         // probably execute latest

@@ -8,7 +8,7 @@ use crate::teams::{team_color, Team, TeamNumber};
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
-    Bundle, Commands, Component, Entity, EventReader, GlobalTransform, Query, Sprite, SpriteBundle,
+    Bundle, Changed, Commands, Component, Entity, EventReader, Query, Sprite, SpriteBundle,
     Transform, With, Without,
 };
 use bevy::utils::default;
@@ -120,7 +120,6 @@ pub(crate) fn equip_gear(
     if let Some(such) = gear_paint_job {
         paint_gun(gun_preset, such.0, such.1);
     }
-    // ooh! have multiple guns on a body
 }
 
 /// Un-attach something equipped on some entity and give it physics.
@@ -131,7 +130,6 @@ pub(crate) fn unequip_gear(
     kinematics: KinematicsBundle,
     gun_type: GunPreset,
     gear_sprite: &mut Sprite,
-    gear_transform: &mut Transform,
 ) {
     commands
         .entity(gear_entity)
@@ -139,7 +137,7 @@ pub(crate) fn unequip_gear(
         .insert_bundle(kinematics)
         .insert(Thrown);
 
-    reset_gun_transform(gun_type, gear_transform);
+    // reset_gun_transform(gun_type, gear_transform);
     paint_gun(gun_type, gear_sprite, None);
 }
 
@@ -160,18 +158,15 @@ pub(crate) fn throw_away_gear(
         .with_linear_velocity(gear_linear_velocity)
         .with_angular_velocity_in_rads(Vec3::Z, GUN_THROW_SPIN_SPEED);
 
-    unequip_gear(
-        commands,
-        gear_entity,
-        kinematics,
-        gun_type,
-        gear_sprite,
-        gear_transform,
-    );
+    unequip_gear(commands, gear_entity, kinematics, gun_type, gear_sprite);
 
-    let gear_offset_forward = char_transform.up() * char_transform.scale.y * CHARACTER_SIZE / 2.0;
-    gear_transform.translation = char_transform.translation + gear_offset_forward;
-    gear_transform.rotation = char_transform.rotation;
+    let gear_offset_forward = char_transform.up() * char_transform.scale.y * CHARACTER_SIZE / 2.;
+    *gear_transform = Transform::from_translation(
+        char_transform.translation
+            + gear_offset_forward
+            + char_transform.rotation * gear_transform.translation,
+    )
+    .with_rotation(char_transform.rotation);
 }
 
 /// System to convert a character's action input (human or not) to linear and angular velocities.
@@ -234,24 +229,22 @@ pub fn handle_letting_gear_go(
         ),
         Without<Equipped>,
     >,
-    mut query_gear: Query<(&Gun, &mut Sprite, &mut Transform, &GlobalTransform), With<Equipped>>,
+    mut query_gear: Query<(&Gun, &mut Sprite, &mut Transform), With<Equipped>>,
 ) {
     for (action_input, velocity, transform, children, health, entity) in query_characters.iter_mut()
     {
         // Only proceed with the throwing away if either the drop-gear button is pressed, or if the guy's wasted.
-        if !(action_input.use_environment_2 || health.is_dead()) {
+        if !(action_input.use_environment_2 || health.is_dead()) || children.is_empty() {
             continue;
         }
 
         let mut equipped_gears = Vec::<Entity>::new();
         for child in children.iter() {
             let child = *child;
-            if let Ok((gun, mut gun_sprite, mut gun_transform, gun_g_transform)) =
-                query_gear.get_mut(child)
-            {
+            if let Ok((gun, mut gun_sprite, mut gun_transform)) = query_gear.get_mut(child) {
                 let gun_type = gun.preset;
                 equipped_gears.push(child);
-                let gun_velocity = velocity.linear + gun_g_transform.up() * GUN_THROW_SPEED;
+                let gun_velocity = velocity.linear + transform.up() * GUN_THROW_SPEED;
                 throw_away_gear(
                     &mut commands,
                     child,
@@ -265,6 +258,31 @@ pub fn handle_letting_gear_go(
         }
 
         commands.entity(entity).remove_children(&equipped_gears);
+    }
+}
+
+/// System to distribute guns around a character's face whenever a new one is added or an old one removed.
+pub fn handle_inventory_layout_change(
+    query_characters: Query<
+        (&Transform, &Children),
+        (With<CharacterActionInput>, Changed<Children>, Without<Gun>),
+    >,
+    mut query_gear: Query<(&Gun, &mut Transform), With<Equipped>>,
+) {
+    for (char_transform, children) in query_characters.iter() {
+        let step_size = (CHARACTER_SIZE / (children.len() as f32 + 1.0)) * char_transform.scale.x;
+        let far_left_x = -CHARACTER_SIZE * char_transform.scale.x / 2.0;
+        for (i, child) in children.iter().enumerate() {
+            if let Ok((gun, mut gun_transform)) = query_gear.get_mut(*child) {
+                let original_transform = gun
+                    .preset
+                    .stats()
+                    .get_transform_with_scale(char_transform.scale);
+
+                gun_transform.translation.x =
+                    original_transform.translation.x + far_left_x + step_size * (i + 1) as f32;
+            }
+        }
     }
 }
 

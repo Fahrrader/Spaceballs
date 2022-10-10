@@ -1,8 +1,10 @@
 use crate::characters::CHARACTER_SIZE;
 use crate::guns::colours::GunColour;
-use crate::guns::stats::{GunPersistentStats, ProjectileSpawnPoint};
+use crate::guns::stats::{GunPersistentStats, ProjectileSpawnSpace};
 use crate::health::HitPoints;
+use crate::projectiles::RailGunThing;
 use crate::Color;
+use bevy::ecs::component::{Component, TableStorage};
 use std::f32::consts::PI;
 use std::time::Duration;
 
@@ -17,10 +19,10 @@ pub const REGULAR_FIRE_COOLDOWN_TIME_MILLIS: u64 = 100;
 pub const BULLET_SIZE: f32 = 5.0;
 pub const BULLET_SPEED: f32 = 300.0;
 pub const BULLET_DAMAGE: HitPoints = 5.0;
-pub const BULLET_STOP_SPEED_MULTIPLIER: f32 = 0.67;
+pub const BULLET_STOP_SPEED_MULTIPLIER: f32 = 0.8;
 
 /// Array of guns for your taste and pleasure. All fixed variables per type are found via a look-up table by a value of this enum.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum GunPreset {
     Regular,
     Imprecise,
@@ -28,8 +30,15 @@ pub enum GunPreset {
     Scattershot,
     Typhoon,
     LaserGun,
-    // EMPCannon, SmokeCannon, RocketLauncher, RemoteShrapnelLauncher, Termite, PortalGun, MechSword?,
+    // EMPCannon, SmokeCannon, RocketLauncher, RemoteShrapnelLauncher, Termite, PortalGun, MechSword?, -MechScythe?
     // NanoSwarmLauncher, AssemblyNanoSwarmLauncher, MinePlanter, TeslaCoilLauncher, ArtilleryBattery,
+    // Flammenwerfer, Vulkan, Boomerang, HookMineLauncher, TurretAssembler, ScorpionStinger, HackTaser,
+    // IncendiaryBeam, WallRaiser, AcidTrailer, OneWayShield (better used for coop), BombardmentBeacon,
+    // SonicBoomer (push enemies into traps!), TunnelDrillClaws (make tunnels in the second plane!),
+    // some melee attack always available, ram forward kinda like dodge?, parry to increase bullet speed?,
+    // WMDs? Something that would sufficiently impact the game as to make a zone unlivable. Craters. But need penalties...
+
+    // not really a gun, but why not -- TRAVEL THROUGH TIME?? (forward, like do some stuff in advance) - also, reverse entropy
 }
 
 impl Default for GunPreset {
@@ -39,8 +48,9 @@ impl Default for GunPreset {
 }
 
 impl GunPreset {
-    /// Look-up table, mapping an enum of a weapon to its constant stats.
-    pub fn stats(&self) -> GunPersistentStats {
+    /// Map of an enum of a weapon to its constant stats, hopefully converted to a look-up table on compilation.
+    #[inline]
+    pub const fn stats(&self) -> GunPersistentStats {
         match self {
             GunPreset::Regular => REGULAR,
             GunPreset::Imprecise => IMPRECISE,
@@ -51,6 +61,14 @@ impl GunPreset {
         }
     }
 
+    pub fn extra_components(&self) -> Vec<impl Component<Storage = TableStorage>> {
+        match self {
+            GunPreset::RailGun => vec![RailGunThing],
+            _ => vec![],
+        }
+    }
+
+    /// Stats of the base, default weapon, which others might base off.
     pub(crate) const fn regular() -> GunPersistentStats {
         GunPersistentStats {
             gun_width: REGULAR_GUN_WIDTH,
@@ -66,12 +84,11 @@ impl GunPreset {
             projectile_spread_angle: 0.0,
             projectile_speed: BULLET_SPEED,
             min_speed_to_live_multiplier: BULLET_STOP_SPEED_MULTIPLIER,
-            // Elasticity of .5 or below will not trigger collision's Stopped events until another collision!
-            // Projectiles will just slide along. That means it will also not change its velocity until then.
-            projectile_elasticity: 0.51,
+            // Elasticity of 0 or below will not trigger collision's Stopped events until another collision!
+            projectile_elasticity: 0.10,
             projectile_size: BULLET_SIZE,
             projectile_color: GunColour::new(Color::ALICE_BLUE),
-            projectile_spawn_point: ProjectileSpawnPoint::Gunpoint,
+            projectile_spawn_point: ProjectileSpawnSpace::Gunpoint,
             projectile_damage: BULLET_DAMAGE,
             friendly_fire: false,
             //projectile_extra_components: Vec::new(),//vec![]
@@ -108,7 +125,7 @@ pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
 pub const TYPHOON: GunPersistentStats = GunPersistentStats {
     gun_neutral_color: GunColour::new(GunColour::CORAL),
     projectile_spread_angle: 2. * PI,
-    projectile_spawn_point: ProjectileSpawnPoint::Perimeter,
+    projectile_spawn_point: ProjectileSpawnSpace::Perimeter,
     projectile_damage: BULLET_DAMAGE * 0.4,
     projectiles_per_shot: 64,
     projectile_elasticity: 1.0,
@@ -119,15 +136,13 @@ pub const TYPHOON: GunPersistentStats = GunPersistentStats {
 /// Fast and furious. Penetrates foes, walls, and lusty Argonian maids like butter.
 pub const RAIL_GUN: GunPersistentStats = GunPersistentStats {
     gun_neutral_color: GunColour::new(Color::SILVER),
+    // due to the gun's penetrative abilities, this could be the damage for distance travelled through the
     projectile_damage: BULLET_DAMAGE * 3.,
     projectile_speed: BULLET_SPEED * 3.,
-    projectiles_per_shot: 5,
-    // forwarding message here: Elasticity of .5 or below will not trigger collision's Stopped events until another collision
     projectile_elasticity: 0.0,
     fire_cooldown: Duration::from_millis(1000),
     friendly_fire: true,
     recoil: 15.0,
-    min_speed_to_live_multiplier: 0.33,
     ..GunPreset::regular()
 };
 

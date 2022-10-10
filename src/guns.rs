@@ -147,6 +147,7 @@ impl Gun {
     fn tick_cooldown(&mut self, time_delta: Duration) -> bool {
         let was_reloading = !self.reload_progress.paused();
         if was_reloading {
+            // todo only if equipped and on display (in case of gun switching)
             if self.reload_progress.tick(time_delta).finished() {
                 self.shots_before_reload = self.preset.stats().shots_before_reload;
                 self.reload_progress.reset();
@@ -203,7 +204,6 @@ pub(crate) fn reset_gun_transform(preset: GunPreset, transform: &mut Transform) 
 /// Make a gun look in line with a team's color or neutral (usually when not equipped by anybody).
 pub(crate) fn paint_gun(preset: GunPreset, sprite: &mut Sprite, team_number: Option<TeamNumber>) {
     if let Some(team_number) = team_number {
-        // todo decide how to discern equipped weapons, just sprite/mesh shape or color, too
         sprite.color = (team_color(team_number) * GUN_COLOR_MULTIPLIER)
             .set_a(GUN_TRANSPARENCY)
             .as_rgba();
@@ -248,20 +248,24 @@ pub fn handle_gunfire(
 
                 for mut bullet in bullets {
                     let linear_velocity = bullet.kinematics.velocity.linear;
-                    bullet.sprite_bundle.transform.translation +=
-                        ((cd + 1) * cooldown_duration - cooldown_time_previously_elapsed) as f32
+                    bullet.sprite_bundle.transform.translation += ((cd + 1) * cooldown_duration - cooldown_time_previously_elapsed) as f32
                             * linear_velocity
+                            // nanos per second
                             / 1_000_000_000.0;
 
-                    // todo batch
                     let mut bullet_commands = commands.spawn_bundle(bullet);
 
                     // 0.5 is applied as the default restitution when no PhysicMaterial is present
-                    if gun_stats.projectile_elasticity != 0.5 {
+                    if gun_stats.projectile_elasticity != 0.0 {
                         bullet_commands.insert(heron::PhysicMaterial {
                             restitution: gun_stats.projectile_elasticity,
                             ..default()
                         });
+                    }
+
+                    // Add any extra components that a bullet should have
+                    for component in gun_type.extra_components() {
+                        bullet_commands.insert(component);
                     }
                 }
 
@@ -319,6 +323,7 @@ pub fn handle_gun_arriving_at_rest(
         if GUN_MAX_BOBBING_VELOCITY_SQR > velocity.linear.length_squared() {
             //transform.scale = Vec3::ONE;
             commands.entity(entity).remove::<Thrown>();
+            // todo replace resting guns' collision components with sensors
             // also possibly kinematics, or replace with sensors instead of rigidbodies. but first do projectiles to find a universal solution.
         }
     }

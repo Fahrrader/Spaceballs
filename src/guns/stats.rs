@@ -6,11 +6,15 @@ use crate::teams::Team;
 use crate::GunPreset;
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{GlobalTransform, Transform};
+use heron::RigidBody;
 use rand::Rng;
 use std::time::Duration;
 
-pub enum ProjectileSpawnPoint {
+/// Enum listing the possibilities where the projectile should spawn when shot out of a gun.
+pub enum ProjectileSpawnSpace {
+    /// Should spawn at the tip of the gun barrel.
     Gunpoint,
+    /// Should spawn around the character, centered on it.
     Perimeter,
 }
 
@@ -34,9 +38,10 @@ pub struct GunPersistentStats {
 
     /// Time before the next shot after one is taken.
     pub fire_cooldown: Duration,
+    // windup? // should also be some indicator, some special effect
     /// Number of shots before the "magazine" is depleted, and the gun must be reloaded. Leave at 0 for no reload.
     pub shots_before_reload: u32,
-    /// Time to reload a gun and set [`shots_before_reload`] back to full.
+    /// Time to reload a gun and set [`shots_before_reload`] back to full. // todo place a UI indicator
     pub reload_time: Duration,
     /// Units of distance the character is pushed back when firing.
     // why'd I even want this // refactor later, when dodge is implemented, use the same principle
@@ -52,11 +57,11 @@ pub struct GunPersistentStats {
     pub projectile_speed: f32,
     /// Proportion of normal speed below which the projectile should disappear, her momentum now harmless.
     pub min_speed_to_live_multiplier: f32,
-    // should inherit speed?
+    // inherits_speed?
     /// How bouncy the projectile is, where 0 is not bouncy at all, and 1 is perfect elasticity.
-    pub projectile_elasticity: f32, // todo possibly replace with an 'extra component' for a physics layer
-    /// Where the projectile spawns, where the gun barrel ends, or around a character centered on its center
-    pub projectile_spawn_point: ProjectileSpawnPoint,
+    pub projectile_elasticity: f32,
+    /// Where the projectile spawns: where the gun barrel ends, or around a character centered on its center
+    pub projectile_spawn_point: ProjectileSpawnSpace,
 
     /// Size of each projectile.
     pub projectile_size: f32,
@@ -81,6 +86,12 @@ impl GunPersistentStats {
     pub fn get_transform(&self) -> Transform {
         // todo transforms of non-standard guns -- in the future.
         Transform::from_translation(Vec3::new(self.gun_center_x, self.gun_center_y, GUN_Z_LAYER))
+    }
+
+    /// Get the standard transform of a gun with some arbitrary scale applied.
+    pub fn get_transform_with_scale(&self, scale: Vec3) -> Transform {
+        let transform = self.get_transform();
+        transform.with_scale(transform.scale * scale)
     }
 
     /// Get the standard physics components for a gun.
@@ -113,10 +124,10 @@ impl GunPersistentStats {
 
         // "Perimeter" does not have a set spawn point, so it will have to have another pass later.
         let bullet_spawn_point = match self.projectile_spawn_point {
-            ProjectileSpawnPoint::Gunpoint => {
+            ProjectileSpawnSpace::Gunpoint => {
                 gun_translation + bullet_spawn_distance * gun_transform.up()
             }
-            ProjectileSpawnPoint::Perimeter => {
+            ProjectileSpawnSpace::Perimeter => {
                 gun_translation - self.gun_center_y * gun_transform.up()
             }
         };
@@ -132,18 +143,22 @@ impl GunPersistentStats {
             let facing_direction = self.get_spread_direction(gun) * gun_transform.up();
 
             let bullet_transform = match self.projectile_spawn_point {
-                ProjectileSpawnPoint::Gunpoint => bullet_transform,
-                ProjectileSpawnPoint::Perimeter => bullet_transform.with_translation(
+                ProjectileSpawnSpace::Gunpoint => bullet_transform,
+                ProjectileSpawnSpace::Perimeter => bullet_transform.with_translation(
                     bullet_transform.translation + bullet_spawn_distance * facing_direction,
                 ),
             };
 
-            bullets.push(BulletBundle::new(
+            let mut bullet = BulletBundle::new(
                 gun_type,
                 team.0,
                 bullet_transform,
                 facing_direction * self.projectile_speed,
-            ));
+            );
+            if gun_type == GunPreset::RailGun {
+                bullet.kinematics.rigidbody = RigidBody::Sensor;
+            }
+            bullets.push(bullet);
         }
 
         bullets
