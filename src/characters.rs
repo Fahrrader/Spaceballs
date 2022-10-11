@@ -1,18 +1,16 @@
 use crate::actions::CharacterActionInput;
 use crate::guns::{paint_gun, reset_gun_transform, Equipped, Gun, GunPreset, Thrown};
 use crate::health::{Health, HitPoints};
-use crate::physics::{
-    try_get_components_from_entities, CollisionLayer, KinematicsBundle, PopularCollisionShape,
-};
+use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
 use crate::teams::{team_color, Team, TeamNumber};
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
-    Bundle, Changed, Commands, Component, Entity, EventReader, Query, Sprite, SpriteBundle,
-    Transform, With, Without,
+    Bundle, Changed, Commands, Component, Entity, Query, Sprite, SpriteBundle, Transform, With,
+    Without,
 };
 use bevy::utils::default;
-use heron::{AxisAngle, CollisionEvent, Velocity};
+use heron::{AxisAngle, Velocity};
 use std::f32::consts::PI;
 
 /// Standard size for a character body in the prime time of their life.
@@ -185,12 +183,27 @@ pub fn calculate_character_velocity(
 pub fn handle_gun_picking(
     mut commands: Commands,
     query_characters: Query<(&CharacterActionInput, &Team, Entity)>,
-    mut query_weapons: Query<(&Gun, &heron::Collisions, &mut Sprite, &mut Transform, Entity), With<heron::RigidBody>>,
+    mut query_weapons: Query<
+        (
+            &Gun,
+            &heron::Collisions,
+            &mut Sprite,
+            &mut Transform,
+            Entity,
+        ),
+        With<heron::RigidBody>,
+    >,
 ) {
-    for (weapon, collisions, mut weapon_sprite, mut weapon_transform, weapon_entity) in query_weapons.iter_mut() {
-        if collisions.len() == 0 { continue; }
+    for (weapon, collisions, mut weapon_sprite, mut weapon_transform, weapon_entity) in
+        query_weapons.iter_mut()
+    {
+        if collisions.len() == 0 {
+            continue;
+        }
         for (char_input, char_team, char_entity) in query_characters.iter() {
-            if !char_input.use_environment_1 || !collisions.contains(&char_entity) { continue; }
+            if !char_input.use_environment_1 || !collisions.contains(&char_entity) {
+                continue;
+            }
 
             let weapon_preset = weapon.preset;
 
