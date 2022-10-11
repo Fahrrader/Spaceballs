@@ -22,7 +22,7 @@ pub const BULLET_DAMAGE: HitPoints = 5.0;
 pub const BULLET_STOP_SPEED_MULTIPLIER: f32 = 0.8;
 
 /// Array of guns for your taste and pleasure. All fixed variables per type are found via a look-up table by a value of this enum.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum GunPreset {
     Regular,
     Imprecise,

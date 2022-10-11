@@ -32,7 +32,7 @@ impl BulletBundle {
         let bullet_transform = transform.with_scale(Vec3::ONE * gun_type.stats().projectile_size);
         Self {
             bullet: Bullet {
-                gun_type: gun_type.clone(),
+                gun_type,
             },
             team: Team(team),
             kinematics: KinematicsBundle::new(

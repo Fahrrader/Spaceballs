@@ -197,7 +197,7 @@ pub fn handle_gun_picking(
     for (weapon, collisions, mut weapon_sprite, mut weapon_transform, weapon_entity) in
         query_weapons.iter_mut()
     {
-        if collisions.len() == 0 {
+        if collisions.is_empty() {
             continue;
         }
         for (char_input, char_team, char_entity) in query_characters.iter() {
@@ -257,7 +257,7 @@ pub fn handle_letting_gear_go(
                     gun_type,
                     &mut gun_sprite,
                     &mut gun_transform,
-                    &transform,
+                    transform,
                 );
             }
         }

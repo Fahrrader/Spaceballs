@@ -73,8 +73,10 @@ impl Default for GunBundle {
 
 impl GunBundle {
     pub fn new(preset: GunPreset, transform: Option<Transform>, random_seed: u64) -> Self {
-        let mut gun_bundle = Self::default();
-        gun_bundle.gun = Gun::new(preset, random_seed);
+        let mut gun_bundle = Self {
+            gun: Gun::new(preset, random_seed),
+            ..default()
+        };
         gun_bundle.sprite_bundle.sprite.color = preset.stats().gun_neutral_color.0;
         if let Some(transform) = transform {
             gun_bundle.sprite_bundle.transform = transform;
@@ -166,7 +168,7 @@ impl Gun {
     fn eject_shot_and_check_if_empty(&mut self) -> bool {
         if self.preset.stats().shots_before_reload > 0 {
             self.shots_before_reload -= 1;
-            self.shots_before_reload <= 0
+            self.shots_before_reload == 0
         } else {
             false
         }

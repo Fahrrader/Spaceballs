@@ -103,7 +103,7 @@ fn setup(mut commands: Commands, mut random_state: ResMut<StdRng>) {
     let ai_gun_preset = GunPreset::RailGun;
     let gun_2 = commands
         .spawn_bundle(
-            GunBundle::new(ai_gun_preset.clone(), None, random_state.gen())
+            GunBundle::new(ai_gun_preset, None, random_state.gen())
                 .with_paint_job(AI_DEFAULT_TEAM),
         )
         .id();

@@ -62,7 +62,7 @@ impl GunColour {
     pub const NEON_PINK: Color = Color::rgb(0.984, 0.282, 0.769);
     /// <div style="background-color:rgb(100%, 89.8%, 67.8%); width: 10px; padding: 10px; border: 1px solid;"></div>
     pub const PEACH: Color = Color::rgb(1.0, 0.898, 0.678);
-    /// <div style="background-color:rgb(10.98%	22.35%	73.33%); width: 10px; padding: 10px; border: 1px solid;"></div>
+    /// <div style="background-color:rgb(10.98%, 22.35%, 73.33%); width: 10px; padding: 10px; border: 1px solid;"></div>
     pub const PERSIAN_BLUE: Color = Color::rgb(0.1098, 0.2235, 0.7333);
     /// <div style="background-color:rgb(0%, 12.9%, 27.8%); width: 10px; padding: 10px; border: 1px solid;"></div>
     pub const OXFORD_BLUE: Color = Color::rgb(0., 0.129, 0.278);
