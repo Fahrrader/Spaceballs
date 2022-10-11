@@ -105,7 +105,7 @@ impl GunPersistentStats {
         )
         .with_linear_damping(GUN_VELOCITY_DAMPING_RATIO)
         .with_angular_damping(GUN_VELOCITY_DAMPING_RATIO)
-        //.with_rigidbody_type(heron::RigidBody::KinematicVelocityBased)
+        .with_rigidbody_type(heron::RigidBody::Sensor)
     }
 
     /// Get a round of projectiles that comes out of a gun when a trigger is pressed.

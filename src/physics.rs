@@ -29,6 +29,7 @@ impl Default for KinematicsBundle {
     }
 }
 
+// todo look into transitioning to rapier from heron for more precise control once more abilities and guns are added
 impl KinematicsBundle {
     /// Create a new kinematic bundle.
     ///

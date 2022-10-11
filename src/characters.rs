@@ -156,7 +156,8 @@ pub(crate) fn throw_away_gear(
         .stats()
         .get_kinematics(gear_transform.scale)
         .with_linear_velocity(gear_linear_velocity)
-        .with_angular_velocity_in_rads(Vec3::Z, GUN_THROW_SPIN_SPEED);
+        .with_angular_velocity_in_rads(Vec3::Z, GUN_THROW_SPIN_SPEED)
+        .with_rigidbody_type(heron::RigidBody::Dynamic);
 
     unequip_gear(commands, gear_entity, kinematics, gun_type, gear_sprite);
 
@@ -183,23 +184,14 @@ pub fn calculate_character_velocity(
 /// System to, according to a character's input, pick up and equip guns off the ground.
 pub fn handle_gun_picking(
     mut commands: Commands,
-    mut collision_events: EventReader<CollisionEvent>,
-    query_characters: Query<(&CharacterActionInput, &Team)>,
-    mut query_weapons: Query<(&Gun, &mut Sprite, &mut Transform)>,
+    query_characters: Query<(&CharacterActionInput, &Team, Entity)>,
+    mut query_weapons: Query<(&Gun, &heron::Collisions, &mut Sprite, &mut Transform, Entity), With<heron::RigidBody>>,
 ) {
-    for event in collision_events.iter() {
-        let (entity_a, entity_b) = event.rigid_body_entities();
-        if let Some((char_entity, weapon_entity)) =
-            try_get_components_from_entities(&query_characters, &query_weapons, entity_a, entity_b)
-        {
-            let (char_input, char_team) = query_characters.get(char_entity).unwrap();
+    for (weapon, collisions, mut weapon_sprite, mut weapon_transform, weapon_entity) in query_weapons.iter_mut() {
+        if collisions.len() == 0 { continue; }
+        for (char_input, char_team, char_entity) in query_characters.iter() {
+            if !char_input.use_environment_1 || !collisions.contains(&char_entity) { continue; }
 
-            if !char_input.use_environment_1 {
-                continue;
-            }
-
-            let (weapon, mut weapon_sprite, mut weapon_transform) =
-                query_weapons.get_mut(weapon_entity).unwrap();
             let weapon_preset = weapon.preset;
 
             equip_gear(

@@ -30,7 +30,7 @@ const GUN_BOBBING_TIME: f32 = 1.0;
 /// Gun bobbing tempo, multiplier to the cosine.
 const GUN_BOBBING_TEMPO: f64 = (2.0 * PI / GUN_BOBBING_TIME) as f64;
 /// Gun's maximum velocity to start bobbing when it's below it.
-const GUN_MAX_BOBBING_VELOCITY: f32 = CHARACTER_SPEED / 10.0;
+const GUN_MAX_BOBBING_VELOCITY: f32 = CHARACTER_SPEED / 8.0;
 /// Convenience. See [`GUN_MAX_BOBBING_VELOCITY`]
 const GUN_MAX_BOBBING_VELOCITY_SQR: f32 = GUN_MAX_BOBBING_VELOCITY * GUN_MAX_BOBBING_VELOCITY;
 /// The velocity-damping ratio of the gun, in effect when pushed or thrown.
@@ -44,6 +44,7 @@ pub struct GunBundle {
     pub gun: Gun,
     #[bundle]
     pub kinematics: KinematicsBundle,
+    pub collisions: heron::Collisions,
     #[bundle]
     pub sprite_bundle: SpriteBundle,
 }
@@ -56,6 +57,7 @@ impl Default for GunBundle {
         Self {
             gun,
             kinematics: stats.get_kinematics(transform.scale),
+            collisions: heron::Collisions::default(),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: stats.gun_neutral_color.0,
@@ -190,7 +192,6 @@ pub struct Equipped {
 
 /// Marker signifying that the gun has been thrown away from the player, has some velocity, and shouldn't idle-bob yet.
 #[derive(Component)]
-#[component(storage = "SparseSet")]
 pub struct Thrown;
 
 /// Reset everything about the gun's transform, replacing the component's parts with their default state.
@@ -322,16 +323,14 @@ pub fn handle_gun_idle_bobbing(
 pub fn handle_gun_arriving_at_rest(
     mut commands: Commands,
     mut query_weapons: Query<
-        (&heron::Velocity, Entity),
+        (&heron::Velocity, &mut heron::RigidBody, Entity),
         (With<Gun>, With<Thrown>, Without<Equipped>),
     >,
 ) {
-    for (velocity, entity) in query_weapons.iter_mut() {
+    for (velocity, mut body_type, entity) in query_weapons.iter_mut() {
         if GUN_MAX_BOBBING_VELOCITY_SQR > velocity.linear.length_squared() {
-            //transform.scale = Vec3::ONE;
             commands.entity(entity).remove::<Thrown>();
-            // todo replace resting guns' collision components with sensors
-            // also possibly kinematics, or replace with sensors instead of rigidbodies. but first do projectiles to find a universal solution.
+            *body_type = heron::RigidBody::Sensor;
         }
     }
 }
