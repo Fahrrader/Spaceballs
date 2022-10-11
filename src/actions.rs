@@ -1,7 +1,7 @@
 use bevy::prelude::Component;
 
 /// Inputs for characters to act on during the next frame.
-#[derive(Component, Default)]
+#[derive(Component, Clone, Copy, Default)]
 pub struct CharacterActionInput {
     pub up: bool,
     pub down: bool,
@@ -38,18 +38,5 @@ impl CharacterActionInput {
             angle += 1.0
         }
         angle
-    }
-
-    /// Copy data from other input data (used primarily for components).
-    pub fn replace_from(&mut self, another: &Self) -> &mut Self {
-        self.up = another.up;
-        self.down = another.down;
-        self.left = another.left;
-        self.right = another.right;
-        self.fire = another.fire;
-        self.reload = another.reload;
-        self.use_environment_1 = another.use_environment_1;
-        self.use_environment_2 = another.use_environment_2;
-        self
     }
 }

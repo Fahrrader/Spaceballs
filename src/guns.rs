@@ -38,7 +38,6 @@ const GUN_VELOCITY_DAMPING_RATIO: f32 = 1.15;
 
 const GUN_Z_LAYER: f32 = 5.0;
 
-// rename to weapon? nah dude this is spaceballs
 #[derive(Bundle)]
 pub struct GunBundle {
     pub gun: Gun,
@@ -244,7 +243,7 @@ pub fn handle_gunfire(
             // todo add a ray cast from the body to the gun barrel to check for collisions
             // but currently it's kinda like shooting from cover / over shoulder, fun
 
-            // any spawn point displacement causes artifacts in reflection angle (thanks, heron) -- look into elasticity
+            // Any spawn point displacement causes artifacts in reflection angle (thanks, heron) - look into elasticity - or switch to Rapier
             for cd in 0..cooldown_times_over {
                 let bullets =
                     gun_stats.produce_projectiles(gun_transform, gun_type, &mut gun, team);
@@ -258,7 +257,7 @@ pub fn handle_gunfire(
 
                     let mut bullet_commands = commands.spawn_bundle(bullet);
 
-                    // 0.5 is applied as the default restitution when no PhysicMaterial is present
+                    // 0.0 is considered the default restitution when no PhysicMaterial is present
                     if gun_stats.projectile_elasticity != 0.0 {
                         bullet_commands.insert(heron::PhysicMaterial {
                             restitution: gun_stats.projectile_elasticity,
@@ -267,16 +266,9 @@ pub fn handle_gunfire(
                     }
 
                     // Add any extra components that a bullet should have
-                    for component in gun_type.extra_components() {
+                    for component in gun_type.extra_projectile_components() {
                         bullet_commands.insert(component);
                     }
-                    /*for combundle in gun_type.extra_components_and_bundles() {
-                        if let ExtraCombundle::Component(component) = combundle {
-                            bullet_commands.insert(*component);
-                        } else if let ExtraCombundle::Bundle(bundle) = combundle {
-                            //bullet_commands.insert_bundle(*bundle);
-                        }
-                    }*/
                 }
 
                 if gun_stats.recoil != 0.0 {

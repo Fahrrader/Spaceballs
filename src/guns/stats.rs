@@ -26,10 +26,8 @@ pub struct GunPersistentStats {
     pub gun_width: f32,
     /// Length (y-axis) of the gun's sprite.
     pub gun_length: f32,
-    // gun_sprite
     /// The gun color while it's unequipped.
     pub gun_neutral_color: GunColour,
-    // pub adapts_to_player_color: bool,
     /// Standard offset (x-axis) of the gun's sprite's center from the character's center.
     pub gun_center_x: f32,
     /// Standard offset (y-axis) of the gun's sprite's center from the character's center.
@@ -71,19 +69,11 @@ pub struct GunPersistentStats {
     pub projectile_damage: f32,
     /// Does the gun deal damage to the bodies it hits that share the team with the shooter?
     pub friendly_fire: bool,
-    // special behavior with certain objects (termite should destroy walls, portals, rail gun doesn't doesn't collide but leaves collision events)
-    // closure projectile_special_collision_behavior (collision layer hit)?
-    // closure projectile_special_flight_behavior (sparks from flying tesla coils)?
-    // ooh! get some extra components on bullets
-    //pub projectile_extra_components: Vec<Box<dyn Component<Storage = bevy::ecs::component::TableStorage>>>,
-
-    // collision layers, time_to_live? or min_velocity_to_live, have everything despawn when colliding with arena borders
 }
 
 impl GunPersistentStats {
     /// Get the standard transform of a gun.
     pub fn get_transform(&self) -> Transform {
-        // todo transforms of non-standard guns -- in the future.
         Transform::from_translation(Vec3::new(self.gun_center_x, self.gun_center_y, GUN_Z_LAYER))
     }
 

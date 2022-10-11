@@ -61,7 +61,8 @@ impl GunPreset {
         }
     }
 
-    pub fn extra_components(&self) -> Vec<impl Component<Storage = TableStorage>> {
+    /// Get a vector of extra components that should end up on projectiles when first shot.
+    pub fn extra_projectile_components(&self) -> Vec<impl Component<Storage = TableStorage>> {
         match self {
             GunPreset::RailGun => vec![RailGunThing],
             _ => vec![],
@@ -91,7 +92,6 @@ impl GunPreset {
             projectile_spawn_point: ProjectileSpawnSpace::Gunpoint,
             projectile_damage: BULLET_DAMAGE,
             friendly_fire: false,
-            //projectile_extra_components: Vec::new(),//vec![]
         }
     }
 }
@@ -146,6 +146,8 @@ pub const RAIL_GUN: GunPersistentStats = GunPersistentStats {
     ..GunPreset::regular()
 };
 
+// todo have a point momentarily travel with an extra Component, bouncing off walls (have distinction in material?),
+// making up a series of lines dealing damage on intersection. problem arises in calculating it every frame. also, add warm-up
 /// Make a light show! Reflects off walls, your equivalent of a magic missile.
 pub const LASER_GUN: GunPersistentStats = GunPersistentStats {
     gun_neutral_color: GunColour::new(Color::AQUAMARINE),

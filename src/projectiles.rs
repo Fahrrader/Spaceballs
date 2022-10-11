@@ -31,9 +31,7 @@ impl BulletBundle {
     ) -> Self {
         let bullet_transform = transform.with_scale(Vec3::ONE * gun_type.stats().projectile_size);
         Self {
-            bullet: Bullet {
-                gun_type,
-            },
+            bullet: Bullet { gun_type },
             team: Team(team),
             kinematics: KinematicsBundle::new(
                 PopularCollisionShape::get(
@@ -77,6 +75,7 @@ pub fn handle_railgun_things(
             up * bullet.gun_type.stats().projectile_speed * time.delta_seconds();
     }
     // todo check time/distance travelled and do damage accordingly
+    // place a Collisions component, track time spent inside a body / cut dynamically later
 }
 
 /// System to groom a newly spawned rail gun projectile.
@@ -97,11 +96,6 @@ pub fn handle_bullet_collision_events(
     query_bullets: Query<(&Bullet, &Team, &heron::Velocity)>,
 ) {
     for event in collision_events.iter() {
-        // Most bullets do not register collision Stopping immediately
-        /*if let heron::CollisionEvent::Started(..) = event {
-            continue;
-        }*/
-
         let (entity_a, entity_b) = event.rigid_body_entities();
         if let Some((bullet_entity, body_entity)) =
             try_get_components_from_entities(&query_bullets, &query_bodies, entity_a, entity_b)
@@ -112,8 +106,8 @@ pub fn handle_bullet_collision_events(
                 .map(|(bullet, team, velocity)| (bullet.gun_type, team, velocity))
                 .unwrap();
             // todo deal damage proportionate to the momentum transferred, armor changes restitution of the body - deal less damage if a bullet is deflected
-            // There'd be double damage if we don't pick a type of events
-            // Most bullets do not register collision Stopping immediately
+            // There'd be double damage if we don't pick a type of events.
+            // Most bullets do not register collision Stopping immediately due to perfect inelasticity.
             if event.is_started() {
                 if let Some(mut life) = body_health {
                     let mut should_be_damaged = true;
