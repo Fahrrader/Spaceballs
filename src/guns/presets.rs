@@ -1,10 +1,10 @@
-use crate::characters::CHARACTER_SIZE;
+use crate::characters::{CHARACTER_MAX_HEALTH, CHARACTER_SIZE};
 use crate::guns::colours::GunColour;
 use crate::guns::stats::{GunPersistentStats, ProjectileSpawnSpace};
 use crate::health::HitPoints;
 use crate::projectiles::RailGunThing;
 use crate::Color;
-use bevy::ecs::component::{Component, TableStorage};
+use bevy::ecs::system::EntityCommands;
 use std::f32::consts::PI;
 use std::time::Duration;
 
@@ -17,8 +17,8 @@ const REGULAR_GUN_CENTER_Y: f32 = CHARACTER_SIZE * -0.15 + REGULAR_GUN_LENGTH * 
 pub const REGULAR_FIRE_COOLDOWN_TIME_MILLIS: u64 = 100;
 
 pub const BULLET_SIZE: f32 = 5.0;
-pub const BULLET_SPEED: f32 = 300.0;
-pub const BULLET_DAMAGE: HitPoints = 5.0;
+pub const BULLET_SPEED: f32 = CHARACTER_SIZE * 6.0; // 300.0
+pub const BULLET_DAMAGE: HitPoints = CHARACTER_MAX_HEALTH / 20.0; // 5.0 - 20 direct hits
 pub const BULLET_STOP_SPEED_MULTIPLIER: f32 = 0.8;
 
 /// Array of guns for your taste and pleasure. All fixed variables per type are found via a look-up table by a value of this enum.
@@ -34,7 +34,7 @@ pub enum GunPreset {
     // NanoSwarmLauncher, AssemblyNanoSwarmLauncher, MinePlanter, TeslaCoilLauncher, ArtilleryBattery,
     // Flammenwerfer, Vulkan, Boomerang, HookMineLauncher, TurretAssembler, ScorpionStinger, HackTaser,
     // IncendiaryBeam, WallRaiser, AcidTrailer, OneWayShield (better used for coop), BombardmentBeacon,
-    // SonicBoomer (push enemies into traps!), TunnelDrillClaws (make tunnels in the second plane!),
+    // SonicBoomer (push enemies into traps!), TunnelDrillClaws (make tunnels in the second plane!), NitrogenSpewer (ice skates and flash freeze),
     // some melee attack always available, ram forward kinda like dodge?, parry to increase bullet speed?,
     // WMDs? Something that would sufficiently impact the game as to make a zone unlivable. Craters. But need penalties...
 
@@ -62,11 +62,23 @@ impl GunPreset {
     }
 
     /// Get a vector of extra components that should end up on projectiles when first shot.
-    pub fn extra_projectile_components(&self) -> Vec<impl Component<Storage = TableStorage>> {
-        match self {
-            GunPreset::RailGun => vec![RailGunThing],
-            _ => vec![],
+    pub fn add_projectile_components(&self, projectile_commands: &mut EntityCommands) {
+        /// Inserts components onto a projectile repeatedly.
+        macro_rules! add_projectile_components {
+            ($commands:ident, [$($e:expr),*]) => {
+                $($commands.insert($e));*
+            }
         }
+
+        match self {
+            GunPreset::RailGun => {
+                add_projectile_components!(
+                    projectile_commands,
+                    [RailGunThing, heron::Collisions::default()]
+                );
+            }
+            _ => {}
+        };
     }
 
     /// Stats of the base, default weapon, which others might base off.
@@ -133,12 +145,17 @@ pub const TYPHOON: GunPersistentStats = GunPersistentStats {
     ..GunPreset::regular()
 };
 
+/// Due to the rail gun's penetrative properties, damage is applied per second of travel inside a body. Correlates heavily with projectile speed.
+pub const RAIL_GUN_DAMAGE_PER_SECOND: HitPoints = CHARACTER_MAX_HEALTH / 5.0 // under a normal angle and fully crossing the body, should kill in [5] hits
+    * RAIL_GUN.projectile_speed
+    / CHARACTER_SIZE;
+
 /// Fast and furious. Penetrates foes, walls, and lusty Argonian maids like butter.
 pub const RAIL_GUN: GunPersistentStats = GunPersistentStats {
     gun_neutral_color: GunColour::new(Color::SILVER),
-    // due to the gun's penetrative abilities, this could be the damage for distance travelled through the
-    projectile_damage: BULLET_DAMAGE * 3.,
-    projectile_speed: BULLET_SPEED * 3.,
+    // Impact damage is nullified. See [`RAIL_GUN_DAMAGE_PER_SECOND`] for penetration damage.
+    projectile_damage: 0.0,
+    projectile_speed: CHARACTER_SIZE * 15.0,
     projectile_elasticity: 0.0,
     fire_cooldown: Duration::from_millis(1000),
     friendly_fire: true,

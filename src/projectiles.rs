@@ -1,4 +1,5 @@
-use crate::health::{Dying, Health};
+use crate::guns::GunPersistentStats;
+use crate::health::{Dying, Health, HitPoints};
 use crate::physics::{
     try_get_components_from_entities, CollisionLayer, KinematicsBundle, PopularCollisionShape,
 };
@@ -74,8 +75,6 @@ pub fn handle_railgun_things(
         transform.translation +=
             up * bullet.gun_type.stats().projectile_speed * time.delta_seconds();
     }
-    // todo check time/distance travelled and do damage accordingly
-    // place a Collisions component, track time spent inside a body / cut dynamically later
 }
 
 /// System to groom a newly spawned rail gun projectile.
@@ -87,11 +86,59 @@ pub fn handle_railgun_things_newly_spawned(
     }
 }
 
-/// System to read collision events and apply their effects to the respective bodies.
+/// Apply damage to a body affected by a projectile. If the remaining health happens to be below 0, marks it Dying.
+fn do_projectile_damage(
+    commands: &mut Commands,
+    projectile: (&GunPersistentStats, &Team),
+    body: (Entity, &mut Health, Option<&Team>),
+    damage_substitute: Option<HitPoints>,
+) {
+    if body.1.is_dead() {
+        // uncouth, but since we still don't have healing, return to this later when panicking is solved
+        return;
+    }
+    let mut should_be_damaged = true;
+    if let Some(body_team) = body.2 {
+        should_be_damaged = projectile.0.friendly_fire || projectile.1 != body_team;
+    }
+    if should_be_damaged
+        && body
+            .1
+            .damage(damage_substitute.unwrap_or(projectile.0.projectile_damage))
+    {
+        // todo panics if an entity is already despawned. issues on bevy are still open.
+        commands.entity(body.0).insert(Dying);
+    }
+}
+
+/// System to continually deal damage to bodies that rail gun slugs travel through.
+pub fn handle_damage_from_railgun_things(
+    mut commands: Commands,
+    time: Res<Time>,
+    query_bullets: Query<(&heron::Collisions, &Bullet, &Team), With<RailGunThing>>,
+    mut query_bodies: Query<(&mut Health, Option<&Team>)>,
+) {
+    for (collisions, bullet, bullet_team) in query_bullets.iter() {
+        let gun_stats = &bullet.gun_type.stats();
+        for body_entity in collisions.entities() {
+            if let Ok(mut body) = query_bodies.get_mut(body_entity) {
+                do_projectile_damage(
+                    &mut commands,
+                    (gun_stats, bullet_team),
+                    (body_entity, &mut body.0, body.1),
+                    Some(crate::guns::RAIL_GUN_DAMAGE_PER_SECOND * time.delta_seconds()),
+                );
+            }
+        }
+    }
+}
+
+/// System to read collision events from bullets and apply their effects to the respective bodies.
 /// In particular, damage.
 pub fn handle_bullet_collision_events(
     mut commands: Commands,
     mut collision_events: EventReader<heron::CollisionEvent>,
+    // todo change this function to only damage if projectile dampening is done, health would be a given
     mut query_bodies: Query<(Option<&mut Health>, Option<&Team>)>,
     query_bullets: Query<(&Bullet, &Team, &heron::Velocity)>,
 ) {
@@ -101,29 +148,24 @@ pub fn handle_bullet_collision_events(
             try_get_components_from_entities(&query_bullets, &query_bodies, entity_a, entity_b)
         {
             let (body_health, body_team) = query_bodies.get_mut(body_entity).unwrap();
-            let (gun_type, bullet_team, bullet_velocity) = query_bullets
+            let (gun_stats, bullet_team, bullet_velocity) = query_bullets
                 .get(bullet_entity)
-                .map(|(bullet, team, velocity)| (bullet.gun_type, team, velocity))
+                .map(|(bullet, team, velocity)| (bullet.gun_type.stats(), team, velocity))
                 .unwrap();
             // todo deal damage proportionate to the momentum transferred, armor changes restitution of the body - deal less damage if a bullet is deflected
             // There'd be double damage if we don't pick a type of events.
             // Most bullets do not register collision Stopping immediately due to perfect inelasticity.
             if event.is_started() {
                 if let Some(mut life) = body_health {
-                    let mut should_be_damaged = true;
-                    if let Some(body_team) = body_team {
-                        should_be_damaged =
-                            gun_type.stats().friendly_fire || bullet_team != body_team;
-                    }
-                    if should_be_damaged && life.damage(gun_type.stats().projectile_damage) {
-                        commands.entity(body_entity).insert(Dying);
-                    }
+                    do_projectile_damage(
+                        &mut commands,
+                        (&gun_stats, bullet_team),
+                        (body_entity, &mut life, body_team),
+                        None,
+                    );
                 }
             }
-            if gun_type
-                .stats()
-                .is_projectile_busted(bullet_velocity.linear.length())
-            {
+            if gun_stats.is_projectile_busted(bullet_velocity.linear.length()) {
                 commands.entity(bullet_entity).despawn();
             }
         }

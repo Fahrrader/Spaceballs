@@ -28,8 +28,8 @@ use crate::guns::{
 use crate::health::handle_death;
 use crate::physics::{RectangularObstacleBundle, OBSTACLE_CHUNK_SIZE};
 use crate::projectiles::{
-    handle_bullet_collision_events, handle_bullets_out_of_bounds, handle_railgun_things,
-    handle_railgun_things_newly_spawned,
+    handle_bullet_collision_events, handle_bullets_out_of_bounds,
+    handle_damage_from_railgun_things, handle_railgun_things, handle_railgun_things_newly_spawned,
 };
 use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 
@@ -159,6 +159,7 @@ fn main() {
         .add_system(handle_bullets_out_of_bounds.after(handle_gunfire))
         .add_system(handle_railgun_things)
         .add_system(handle_railgun_things_newly_spawned.before(handle_railgun_things))
+        .add_system(handle_damage_from_railgun_things)
         .add_system(handle_bullet_collision_events)
         .add_system(handle_gun_picking)
         .add_system(handle_letting_gear_go)

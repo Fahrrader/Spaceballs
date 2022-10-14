@@ -18,7 +18,8 @@ mod presets;
 mod stats;
 
 pub use colours::GUN_TRANSPARENCY;
-pub use presets::GunPreset;
+pub use presets::{GunPreset, RAIL_GUN_DAMAGE_PER_SECOND};
+pub use stats::GunPersistentStats;
 
 /// The gun is slightly darker than the main color of the character body to be distinct.
 const GUN_COLOR_MULTIPLIER: f32 = 0.75;
@@ -251,9 +252,9 @@ pub fn handle_gunfire(
                 for mut bullet in bullets {
                     let linear_velocity = bullet.kinematics.velocity.linear;
                     bullet.sprite_bundle.transform.translation += ((cd + 1) * cooldown_duration - cooldown_time_previously_elapsed) as f32
-                            * linear_velocity
-                            // nanos per second
-                            / 1_000_000_000.0;
+                        * linear_velocity
+                        // nanos per second
+                        / 1_000_000_000.0;
 
                     let mut bullet_commands = commands.spawn_bundle(bullet);
 
@@ -266,9 +267,7 @@ pub fn handle_gunfire(
                     }
 
                     // Add any extra components that a bullet should have
-                    for component in gun_type.extra_projectile_components() {
-                        bullet_commands.insert(component);
-                    }
+                    gun_type.add_projectile_components(&mut bullet_commands);
                 }
 
                 if gun_stats.recoil != 0.0 {
