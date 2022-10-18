@@ -70,6 +70,7 @@ pub fn calculate_projection_scale(
 
 // todo add this optionally to a system set
 pub fn handle_browser_window_resizing(
+    #[cfg(target_arch = "wasm32")]
     mut windows: ResMut<Windows>,
 ) {
     #[cfg(target_arch = "wasm32")]
