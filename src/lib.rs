@@ -13,7 +13,9 @@ pub use crate::characters::{
     calculate_character_velocity, handle_gunfire, BaseCharacterBundle,
     ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
 };
-pub use crate::controls::handle_player_input;
+pub use crate::controls::{
+    handle_gamepad_connections, handle_gamepad_input, handle_keyboard_input, reset_input,
+};
 pub use crate::health::{handle_damage, EntityDamagedEvent};
 pub use crate::physics::{
     handle_bullet_collision_events, RectangularObstacleBundle, OBSTACLE_STEP_SIZE,
