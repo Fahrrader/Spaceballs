@@ -28,6 +28,7 @@ fn main() {
         .add_system(handle_bullets_out_of_bounds.after(handle_gunfire))
         .add_system(handle_bullet_collision_events)
         .add_system(handle_damage.after(handle_bullet_collision_events))
+        .add_system(handle_browser_window_resizing)
         .add_system_to_stage(
             CoreStage::PostUpdate,
             calculate_projection_scale.before(camera_system::<OrthographicProjection>),

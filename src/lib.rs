@@ -59,12 +59,25 @@ pub fn calculate_projection_scale(
             RenderTarget::Image(_) => continue,
         };
         if changed_window_ids.contains(&window_id) {
-            if let Some(size) = windows
+            if let Some(window) = windows
                 .get(window_id)
-                .map(|window| Vec2::new(window.width(), window.height()))
             {
-                projection.scale = SCREEN_SPAN / (size.x).max(size.y);
+                projection.scale = SCREEN_SPAN / (window.width()).min(window.height());
             }
+        }
+    }
+}
+
+// todo add this optionally to a system set
+pub fn handle_browser_window_resizing(
+    mut windows: ResMut<Windows>,
+) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if !detect_window_resize_from_js() { return; }
+        let size = get_new_window_size_from_js();
+        for window in windows.iter_mut() {
+            window.set_resolution(size[0].into(), size[1].into());
         }
     }
 }
@@ -73,9 +86,10 @@ pub fn calculate_projection_scale(
 pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
     let (width, height) = resolution;
     WindowDescriptor {
+        title: "Cosmic Spaceball Tactical Action Arena".to_string(),
         width,
         height,
-        scale_factor_override: Some(1.0),
+        // scale_factor_override: Some(1.0),
         ..default()
     }
 }
@@ -84,6 +98,7 @@ pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
 pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
     let (width, height) = resolution;
     WindowDescriptor {
+        title: "Cosmic Spaceball Tactical Action Arena".to_string(),
         width,
         height,
         // todo uncomment if window size must be fixed (events of resizing at the window creation still apply)
@@ -139,4 +154,10 @@ extern "C" {
 extern "C" {
     #[wasm_bindgen(js_name = getSceneFromUrl)]
     fn get_scene_from_js() -> String;
+
+    #[wasm_bindgen(js_name = detectWindowResize)]
+    fn detect_window_resize_from_js() -> bool;
+
+    #[wasm_bindgen(js_name = getNewWindowSize)]
+    fn get_new_window_size_from_js() -> Vec<f32>;
 }

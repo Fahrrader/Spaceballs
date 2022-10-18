@@ -1,4 +1,4 @@
-export {detectMob, getSceneFromUrl, setupCanvasSize, setupControls};
+export {detectMob, detectWindowResize, getNewWindowSize, getSceneFromUrl, setupCanvasSize, setupControls};
 
 function getUrlParam(param) {
     const paramString = window.location.search.slice(1);
@@ -9,6 +9,16 @@ function getUrlParam(param) {
 
 function getSceneFromUrl() {
     return getUrlParam("scene");
+}
+
+function detectWindowResize() {
+    return window.playAreaSide !== undefined;
+}
+
+function getNewWindowSize() {
+    const size = [window.playAreaSide, window.playAreaSide];
+    window.playAreaSide = undefined;
+    return size;
 }
 
 function detectMob() {
@@ -54,11 +64,19 @@ let setupCanvasSize = (c) => {
 
     let ratio = c.width / c.height;
 
-    if (wid/hei > ratio)
-        wid = ratio * hei;
+    if (ratio > 1)
+        wid /= ratio;
     else
-        hei = wid / ratio;
+        hei *= ratio;
 
-    c.style.width = wid + "px";
-    c.style.height = hei + "px";
+    ratio = wid / hei;
+    if (ratio > 1) {
+        window.playAreaSide = hei;
+        c.style.height = '100%';
+        c.style.width = 100 / ratio + '%';
+    } else {
+        window.playAreaSide = wid;
+        c.style.width = '100%';
+        c.style.height = 100 * ratio + '%';
+    }
 };
