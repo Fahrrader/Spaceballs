@@ -1,11 +1,11 @@
 use crate::actions::CharacterActionInput;
 use crate::characters::PlayerControlled;
-use crate::teams::Team;
+use crate::teams::TeamNumber;
 use crate::Without;
 use bevy::prelude::Query;
 use rand::prelude::random;
 
-pub const AI_DEFAULT_TEAM: Team = 8;
+pub const AI_DEFAULT_TEAM: TeamNumber = 8;
 
 pub fn handle_ai_input(mut query: Query<&mut CharacterActionInput, Without<PlayerControlled>>) {
     // I heard spinning is a good trick

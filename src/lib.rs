@@ -1,10 +1,9 @@
 mod actions;
 mod ai;
 mod characters;
-mod collisions;
 mod controls;
 mod health;
-mod movement;
+mod physics;
 mod projectiles;
 mod scenes;
 mod teams;
@@ -14,17 +13,23 @@ pub use crate::characters::{
     calculate_character_velocity, handle_gunfire, BaseCharacterBundle,
     ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
 };
-pub use crate::collisions::{handle_collision, CollisionEvent};
 pub use crate::controls::handle_player_input;
 pub use crate::health::{handle_damage, EntityDamagedEvent};
-pub use crate::movement::handle_movement;
-pub use crate::projectiles::{handle_bullet_collision_events, handle_bullet_flight};
+pub use crate::physics::{
+    handle_bullet_collision_events, RectangularObstacleBundle, OBSTACLE_STEP_SIZE,
+};
+pub use crate::projectiles::handle_bullets_out_of_bounds;
 pub use crate::scenes::{summon_scene, SceneArg};
 
 pub use bevy::prelude::*;
+pub use heron::PhysicsPlugin;
+
 use clap::Parser;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+
+pub const WINDOW_WIDTH: f32 = 800.0;
+pub const WINDOW_HEIGHT: f32 = 800.0;
 
 #[cfg(target_arch = "wasm32")]
 pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {

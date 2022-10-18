@@ -1,15 +1,11 @@
-use crate::characters::Character;
-use crate::collisions::{Collider, CollisionEvent};
-use crate::health::EntityDamagedEvent;
 use crate::health::HitPoints;
-use crate::movement::Velocity;
-use crate::teams::Team;
-use bevy::math::{Vec2, Vec3};
+use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
+use crate::teams::{Team, TeamNumber};
+use crate::{WINDOW_HEIGHT, WINDOW_WIDTH};
+use bevy::math::Vec3;
 use bevy::prelude::{
-    Bundle, Camera, Color, Commands, Component, DespawnRecursiveExt, Entity, EventReader,
-    EventWriter, Query, Sprite, SpriteBundle, Transform, With,
+    Bundle, Color, Commands, Component, Entity, Query, Sprite, SpriteBundle, Transform, With,
 };
-use bevy::render::primitives::{Frustum, Sphere};
 use bevy::utils::default;
 
 pub const BULLET_SIZE: f32 = 5.0;
@@ -19,80 +15,64 @@ pub const BULLET_DAMAGE: HitPoints = 5.0;
 #[derive(Bundle)]
 pub struct BulletBundle {
     bullet: Bullet,
-    velocity: Velocity,
+    team: Team,
+    #[bundle]
+    kinematics: KinematicsBundle,
     #[bundle]
     sprite_bundle: SpriteBundle,
-    collider: Collider,
 }
 
 impl BulletBundle {
-    pub fn new(team: Team, transform: Transform, velocity: Vec3) -> Self {
+    pub fn new(team: TeamNumber, transform: Transform, velocity: Vec3) -> Self {
+        let bullet_transform = transform.with_scale(Vec3::ONE * BULLET_SIZE);
         Self {
-            bullet: Bullet { team },
-            velocity: Velocity {
-                linear: velocity,
-                ..default()
-            },
+            bullet: Bullet,
+            team: Team(team),
+            kinematics: KinematicsBundle::new(
+                PopularCollisionShape::get(PopularCollisionShape::Disc(BULLET_SIZE), Vec3::ONE),
+                CollisionLayer::Projectile,
+                &[
+                    CollisionLayer::Character,
+                    CollisionLayer::Projectile, // todo remove (but leave on for showcase)
+                    CollisionLayer::Obstacle,
+                ],
+            )
+            .with_linear_velocity(velocity),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: Color::ALICE_BLUE,
-                    custom_size: Some(Vec2::new(BULLET_SIZE, BULLET_SIZE)),
                     ..default()
                 },
-                transform,
+                transform: bullet_transform,
                 ..default()
             },
-            collider: Collider,
         }
     }
 }
 
 #[derive(Component)]
-pub struct Bullet {
-    pub team: Team,
-}
+pub struct Bullet;
 
-// todo remove soon, there will be no more need for frustum -- despawn on collide with arena bounds
-pub fn handle_bullet_flight(
-    mut commands: Commands,
-    mut query_bullets: Query<(&Transform, Entity), With<Bullet>>,
-    query_frustum: Query<&Frustum, With<Camera>>,
-) {
-    let frustum = query_frustum.single();
-
-    for (transform, entity) in query_bullets.iter_mut() {
-        let model_sphere = Sphere {
-            center: transform.translation.into(),
-            radius: BULLET_SIZE,
-        };
-
-        if !frustum.intersects_sphere(&model_sphere, false) {
-            commands.entity(entity).despawn_recursive();
-        }
+impl Bullet {
+    // adjust for guns
+    pub fn get_damage(&self) -> HitPoints {
+        BULLET_DAMAGE
     }
 }
 
-pub fn handle_bullet_collision_events(
+// fallback if anyone gets out of the arena?
+pub fn handle_bullets_out_of_bounds(
     mut commands: Commands,
-    mut collision_events: EventReader<CollisionEvent>,
-    query_characters: Query<&Character>,
-    query_bullets: Query<&Bullet>, // velocity?
-    mut ew_damage: EventWriter<EntityDamagedEvent>,
+    mut query_bullets: Query<(&Transform, Entity), With<Bullet>>,
 ) {
-    for event in collision_events.iter() {
-        let bullet = query_bullets.get(event.entity_a);
-        let character = query_characters.get(event.entity_b);
-        // perhaps send damage to bullets as well to handle multiple types / buffs?
-        if let (Ok(bullet), Ok(character)) = (bullet, character) {
-            commands.entity(event.entity_a).despawn_recursive();
-            if bullet.team != character.team {
-                ew_damage.send(EntityDamagedEvent {
-                    entity: event.entity_b,
-                    damage: BULLET_DAMAGE,
-                })
-            } else {
-                // friendly fire!
-            }
+    for (transform, entity) in query_bullets.iter_mut() {
+        if transform.translation.x < WINDOW_WIDTH * -0.5
+            || transform.translation.x > WINDOW_WIDTH * 0.5
+            || transform.translation.y < WINDOW_HEIGHT * -0.5
+            || transform.translation.y > WINDOW_HEIGHT * 0.5
+        {
+            bevy::log::warn!("An entity {} got out of bounds!", entity.id());
+            commands.entity(entity).despawn();
         }
     }
 }

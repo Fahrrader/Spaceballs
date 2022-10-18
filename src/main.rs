@@ -7,21 +7,23 @@ fn main() {
     console_error_panic_hook::set_once();
 
     App::new()
-        .insert_resource(create_window_descriptor((800.0, 800.0)))
+        .insert_resource(create_window_descriptor((WINDOW_WIDTH, WINDOW_HEIGHT)))
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(scene_arg)
         .add_plugins(DefaultPlugins)
-        .add_event::<CollisionEvent>()
+        .add_plugin(PhysicsPlugin::default())
         .add_event::<EntityDamagedEvent>()
         .add_startup_system(summon_scene)
         .add_system(handle_player_input)
         .add_system(handle_ai_input)
-        .add_system(calculate_character_velocity.after(handle_player_input))
-        .add_system(handle_movement.after(calculate_character_velocity))
-        .add_system(handle_gunfire.after(handle_player_input))
-        .add_system(handle_bullet_flight.after(handle_gunfire))
-        .add_system(handle_collision.after(handle_bullet_flight))
-        .add_system(handle_bullet_collision_events.after(handle_collision))
+        .add_system(
+            calculate_character_velocity
+                .after(handle_player_input)
+                .after(handle_ai_input),
+        ) // todo plugin?
+        .add_system(handle_gunfire.after(calculate_character_velocity))
+        .add_system(handle_bullets_out_of_bounds.after(handle_gunfire))
+        .add_system(handle_bullet_collision_events)
         .add_system(handle_damage.after(handle_bullet_collision_events))
         .run();
 }
