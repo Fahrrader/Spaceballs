@@ -60,77 +60,32 @@
   <div class="loader"></div>
 
   <script type="module">
-    import init from './cosmic_spaceball_tactical_action_arena.js'
+    import init from './cosmic-spaceball-tactical-action-arena.js';
+    import {detectMob, setupControls, setupCanvasSize} from './main.js';
 
-    function detectMob() {
-        const toMatch = [
-            /Android/i,
-            /webOS/i,
-            /iPhone/i,
-            /iPad/i,
-            /iPod/i,
-            /BlackBerry/i,
-            /Windows Phone/i
-        ];
-
-        return toMatch.some((toMatchItem) => {
-            return navigator.userAgent.match(toMatchItem);
-        });
-    }
     if (!detectMob()) {
       for (let controls of document.getElementsByClassName("controls_panel")) {
         controls.remove()
       }
     }
 
-    let setup_controls = (function(c) {
-      let fake_press = function(key, code, type) {
-        c.dispatchEvent(new KeyboardEvent(type, {'key': key, 'code': code}));
-      }
-      let setup_one_button = function(button, key, code) {
-        button.onmousedown   = (e) => { fake_press(key, code, 'keydown') }
-        button.onmouseup     = (e) => { fake_press(key, code, 'keyup') }
-        button.ontouchstart  = (e) => { fake_press(key, code, 'keydown'); return false; }
-        button.ontouchend    = (e) => { fake_press(key, code, 'keyup'); return false; }
-        button.ontouchcancel = (e) => { fake_press(key, code, 'keyup'); return false; }
-      }
+    init()
+      .catch((e) => {
+        console.error(e, e.stack);
+      })
+      .finally(() => {
+        for (let loader of document.getElementsByClassName("loader")) {
+          loader.remove()
+        }
+        let c = document.getElementsByTagName("canvas")[0];
 
-      setup_one_button(key_w, 'w', 'KeyW');
-      setup_one_button(key_a, 'a', 'KeyA');
-      setup_one_button(key_s, 's', 'KeyS');
-      setup_one_button(key_d, 'd', 'KeyD');
-
-      setup_one_button(key_space, ' ', 'Space');
-    });
-
-
-    let setup_canvas_size = (c) => {
-      let wid = document.body.clientWidth;
-      let hei = document.body.clientHeight;
-
-      let ratio = c.width / c.height;
-
-      if (wid/hei > ratio)
-        wid = ratio * hei;
-      else
-        hei = wid / ratio;
-
-      c.style.width = wid + "px";
-      c.style.height = hei + "px";
-    };
-
-    init().finally(() => {
-      for (let loader of document.getElementsByClassName("loader")) {
-        loader.remove()
-      }
-      let c = document.getElementsByTagName("canvas")[0];
-
-      if (detectMob()) {
-        setup_controls(c);
-      }
-      setup_canvas_size(c);
-      c.focus();
-    });
+        if (detectMob()) {
+          setupControls(c);
+        }
+        setupCanvasSize(c);
+        c.focus();
+        onresize = () => setupCanvasSize(c);
+      });
   </script>
 
 
@@ -141,7 +96,7 @@
     <button id='key_d' class='controls'></button>
 
     <button id='key_space' class='controls'></button>
-  <div/>
+  </div>
 
 </html>
 

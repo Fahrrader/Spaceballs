@@ -1,5 +1,6 @@
 [package]
-name = "cosmic_spaceball_tactical_action_arena"
+name = "cosmic-spaceball-tactical-action-arena"
+description = "High-concept, extremely fun and varied in level selection arcade to keep you and yer friends entertained for days/minutes of high-hell action! It's COSMIC SPACEBALL TACTICAL ACTION ARENA!"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,7 +10,9 @@ bevy = {features = ["dynamic"], version = "0.8"}
 [dependencies]
 bevy = "0.8"
 heron = { version = "4", features = ["2d", "enhanced-determinism"] }
-rand = "0.7.3"
+rand = "0.8.5"
+getrandom = { version = "0.2", features = ["js"] }
+clap = { version = "4.0.15", features = ["derive"] }
 console_error_panic_hook = "0.1"
 wasm-bindgen = "*"
 

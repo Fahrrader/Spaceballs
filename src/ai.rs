@@ -25,15 +25,15 @@ pub fn handle_ai_input(
 fn advanced_action_routine(step: u8) -> CharacterActionInput {
     match step {
         0 => CharacterActionInput {
-            up: true,
+            up: 1.0,
             ..default()
         },
         1 => CharacterActionInput {
-            down: true,
+            up: -1.0,
             ..default()
         },
         _ => CharacterActionInput {
-            left: true,
+            right: -1.0,
             fire: true,
             ..default()
         },

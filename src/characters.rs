@@ -13,6 +13,7 @@ use bevy::utils::default;
 use heron::{AxisAngle, Velocity};
 use std::f32::consts::PI;
 
+// todo resize all sizes and speeds as percentages of screen-range
 /// Standard size for a character body in the prime time of their life.
 pub const CHARACTER_SIZE: f32 = 50.0;
 
@@ -97,7 +98,7 @@ pub struct PlayerControlled;
 
 /// Attach some equippable gear to a character and allow it to be interacted with.
 /// Unchecked if actually equippable, or if the equipping entity is a character!
-pub(crate) fn equip_gear(
+pub fn equip_gear(
     commands: &mut Commands,
     char_entity: Entity,
     gear_entity: Entity,

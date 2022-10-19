@@ -3,40 +3,41 @@ use bevy::prelude::Component;
 /// Inputs for characters to act on during the next frame.
 #[derive(Component, Clone, Copy, Default)]
 pub struct CharacterActionInput {
-    pub up: bool,
-    pub down: bool,
-    pub left: bool,
-    pub right: bool,
-
+    /// Forward movement. Clamp to 1.0!
+    pub up: f32,
+    /// Right-hand movement. Clamp to 1.0!
+    pub right: f32,
+    /// To shoot or not to shoot? That is the question.
     pub fire: bool,
+    /// Whether a reload must be triggered this frame.
     pub reload: bool,
 
+    /// Whether an environmental interactive action must be triggered this frame,
+    /// such as picking guns up from the ground.
     pub use_environment_1: bool,
+    /// Whether an auxiliary environmental interactive action must be triggered this frame,
+    /// such as throwing equipped guns away.
     pub use_environment_2: bool,
 }
 
 impl CharacterActionInput {
+    /// Bring every input to the default state.
+    pub fn reset(&mut self) {
+        self.up = 0.0;
+        self.right = 0.0;
+        self.fire = false;
+        self.reload = false;
+        self.use_environment_1 = false;
+        self.use_environment_2 = false;
+    }
+
     /// Get direction of linear speed.
     pub fn speed(&self) -> f32 {
-        let mut speed = 0.0;
-        if self.up {
-            speed += 1.0;
-        }
-        if self.down {
-            speed -= 1.0;
-        }
-        speed
+        self.up.clamp(-1.0, 1.0)
     }
 
     /// Get direction of rotational speed.
     pub fn angular_speed(&self) -> f32 {
-        let mut angle = 0.0;
-        if self.left {
-            angle -= 1.0
-        }
-        if self.right {
-            angle += 1.0
-        }
-        angle
+        self.right.clamp(-1.0, 1.0)
     }
 }
