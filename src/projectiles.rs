@@ -1,7 +1,7 @@
 use crate::health::HitPoints;
 use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
 use crate::teams::{Team, TeamNumber};
-use crate::{WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::SCREEN_SPAN;
 use bevy::math::Vec3;
 use bevy::prelude::{
     Bundle, Color, Commands, Component, Entity, Query, Sprite, SpriteBundle, Transform, With,
@@ -65,11 +65,10 @@ pub fn handle_bullets_out_of_bounds(
     mut commands: Commands,
     mut query_bullets: Query<(&Transform, Entity), With<Bullet>>,
 ) {
+    const HALF_SCREEN_SPAN: f32 = SCREEN_SPAN * 0.5;
     for (transform, entity) in query_bullets.iter_mut() {
-        if transform.translation.x < WINDOW_WIDTH * -0.5
-            || transform.translation.x > WINDOW_WIDTH * 0.5
-            || transform.translation.y < WINDOW_HEIGHT * -0.5
-            || transform.translation.y > WINDOW_HEIGHT * 0.5
+        if transform.translation.x.abs() > HALF_SCREEN_SPAN
+            || transform.translation.y.abs() > HALF_SCREEN_SPAN
         {
             bevy::log::warn!("An entity {} got out of bounds!", entity.id());
             commands.entity(entity).despawn();

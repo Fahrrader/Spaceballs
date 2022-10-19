@@ -7,7 +7,7 @@ fn main() {
     console_error_panic_hook::set_once();
 
     App::new()
-        .insert_resource(create_window_descriptor((WINDOW_WIDTH, WINDOW_HEIGHT)))
+        .insert_resource(create_window_descriptor((800.0, 800.0)))
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(scene_arg)
         .add_plugins(DefaultPlugins)
@@ -28,5 +28,10 @@ fn main() {
         .add_system(handle_bullets_out_of_bounds.after(handle_gunfire))
         .add_system(handle_bullet_collision_events)
         .add_system(handle_damage.after(handle_bullet_collision_events))
+        .add_system(handle_browser_window_resizing)
+        .add_system_to_stage(
+            CoreStage::PostUpdate,
+            calculate_projection_scale.before(camera_system::<OrthographicProjection>),
+        )
         .run();
 }

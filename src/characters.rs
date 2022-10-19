@@ -10,6 +10,7 @@ use bevy::prelude::{Bundle, Commands, Component, Query, Res, Sprite, SpriteBundl
 use bevy::utils::default;
 use std::time::Duration;
 
+// todo resize all sizes and speeds as percentages of screen-range
 pub const CHARACTER_SIZE: f32 = 50.0;
 
 pub const CHARACTER_SPEED: f32 = 200.0;

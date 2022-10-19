@@ -1,6 +1,6 @@
 use crate::{
     BaseCharacterBundle, ControlledPlayerCharacterBundle, RectangularObstacleBundle,
-    AI_DEFAULT_TEAM, OBSTACLE_STEP_SIZE, PLAYER_DEFAULT_TEAM, WINDOW_HEIGHT, WINDOW_WIDTH,
+    AI_DEFAULT_TEAM, OBSTACLE_STEP_SIZE, PLAYER_DEFAULT_TEAM, SCREEN_SPAN,
 };
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{Commands, OrthographicCameraBundle, Res, Transform};
@@ -69,29 +69,29 @@ pub fn setup_lite(mut commands: Commands) {
 fn setup_base_arena(commands: &mut Commands) {
     // ----- Walls of the arena
     commands.spawn_bundle(RectangularObstacleBundle::new(
-        Transform::from_translation(Vec3::X * -WINDOW_WIDTH / 2.0).with_scale(Vec3::new(
+        Transform::from_translation(Vec3::X * -SCREEN_SPAN / 2.0).with_scale(Vec3::new(
             1.0,
-            WINDOW_HEIGHT / OBSTACLE_STEP_SIZE + 1.0,
-            1.0,
-        )),
-    ));
-    commands.spawn_bundle(RectangularObstacleBundle::new(
-        Transform::from_translation(Vec3::X * WINDOW_WIDTH / 2.0).with_scale(Vec3::new(
-            1.0,
-            WINDOW_HEIGHT / OBSTACLE_STEP_SIZE + 1.0,
+            SCREEN_SPAN / OBSTACLE_STEP_SIZE + 1.0,
             1.0,
         )),
     ));
     commands.spawn_bundle(RectangularObstacleBundle::new(
-        Transform::from_translation(Vec3::Y * WINDOW_HEIGHT / 2.0).with_scale(Vec3::new(
-            WINDOW_WIDTH / OBSTACLE_STEP_SIZE + 1.0,
+        Transform::from_translation(Vec3::X * SCREEN_SPAN / 2.0).with_scale(Vec3::new(
+            1.0,
+            SCREEN_SPAN / OBSTACLE_STEP_SIZE + 1.0,
+            1.0,
+        )),
+    ));
+    commands.spawn_bundle(RectangularObstacleBundle::new(
+        Transform::from_translation(Vec3::Y * SCREEN_SPAN / 2.0).with_scale(Vec3::new(
+            SCREEN_SPAN / OBSTACLE_STEP_SIZE + 1.0,
             1.0,
             1.0,
         )),
     ));
     commands.spawn_bundle(RectangularObstacleBundle::new(
-        Transform::from_translation(Vec3::Y * -WINDOW_HEIGHT / 2.0).with_scale(Vec3::new(
-            WINDOW_WIDTH / OBSTACLE_STEP_SIZE + 1.0,
+        Transform::from_translation(Vec3::Y * -SCREEN_SPAN / 2.0).with_scale(Vec3::new(
+            SCREEN_SPAN / OBSTACLE_STEP_SIZE + 1.0,
             1.0,
             1.0,
         )),
