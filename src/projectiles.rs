@@ -4,11 +4,10 @@ use crate::physics::{
     try_get_components_from_entities, CollisionLayer, KinematicsBundle, PopularCollisionShape,
 };
 use crate::teams::{Team, TeamNumber};
-use crate::SCREEN_SPAN;
 use bevy::math::Vec3;
 use bevy::prelude::{
-    Added, Bundle, Commands, Component, Entity, EventReader, Query, Res, Sprite, SpriteBundle,
-    Time, Transform, With,
+    Bundle, Commands, Component, Entity, EventReader, Query, Res, Sprite, SpriteBundle, Time,
+    Transform, With,
 };
 use bevy::utils::default;
 
@@ -30,22 +29,25 @@ impl BulletBundle {
         transform: Transform,
         velocity: Vec3,
     ) -> Self {
-        let bullet_transform = transform.with_scale(Vec3::ONE * gun_type.stats().projectile_size);
+        let gun_stats = gun_type.stats();
+        let bullet_transform = transform.with_scale(Vec3::ONE * gun_stats.projectile_size);
         Self {
             bullet: Bullet { gun_type },
             team: Team(team),
             kinematics: KinematicsBundle::new(
                 PopularCollisionShape::get(
-                    PopularCollisionShape::Disc(gun_type.stats().projectile_size),
+                    PopularCollisionShape::Disc(gun_stats.projectile_size),
                     Vec3::ONE,
                 ),
                 CollisionLayer::Projectile,
                 &[CollisionLayer::Character, CollisionLayer::Obstacle],
             )
-            .with_linear_velocity(velocity),
+            .with_linear_velocity(velocity)
+            .with_restitution(gun_stats.projectile_elasticity)
+            .with_density(gun_stats.projectile_density),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
-                    color: gun_type.stats().projectile_color.0,
+                    color: gun_stats.projectile_color.0,
                     ..default()
                 },
                 transform: bullet_transform,
@@ -74,15 +76,6 @@ pub fn handle_railgun_things(
         let up = transform.up();
         transform.translation +=
             up * bullet.gun_type.stats().projectile_speed * time.delta_seconds();
-    }
-}
-
-/// System to groom a newly spawned rail gun projectile.
-pub fn handle_railgun_things_newly_spawned(
-    mut query_bullets: Query<&mut heron::RigidBody, Added<RailGunThing>>,
-) {
-    for mut rigidbody in query_bullets.iter_mut() {
-        *rigidbody = heron::RigidBody::Sensor;
     }
 }
 
@@ -119,7 +112,7 @@ pub fn handle_damage_from_railgun_things(
     mut query_bodies: Query<(&mut Health, Option<&Team>)>,
 ) {
     for (collisions, bullet, bullet_team) in query_bullets.iter() {
-        let gun_stats = &bullet.gun_type.stats();
+        let gun_stats = bullet.gun_type.stats();
         for body_entity in collisions.entities() {
             if let Ok(mut body) = query_bodies.get_mut(body_entity) {
                 do_projectile_damage(
@@ -168,24 +161,6 @@ pub fn handle_bullet_collision_events(
             if gun_stats.is_projectile_busted(bullet_velocity.linear.length()) {
                 commands.entity(bullet_entity).despawn();
             }
-        }
-    }
-}
-
-/// System to despawn entities (bullets, in particular) that get out of bounds.
-/// Temporary fallback measurement, possibly, since normally it shouldn't happen.
-pub fn handle_bullets_out_of_bounds(
-    mut commands: Commands,
-    mut query_bullets: Query<(&Transform, Entity), With<Bullet>>,
-) {
-    const HALF_SCREEN_SPAN: f32 = SCREEN_SPAN * 0.5;
-    // todo projectile velocity dampening
-    for (transform, entity) in query_bullets.iter_mut() {
-        if transform.translation.x.abs() > HALF_SCREEN_SPAN
-            || transform.translation.y.abs() > HALF_SCREEN_SPAN
-        {
-            bevy::log::warn!("An entity {} got out of bounds!", entity.id());
-            commands.entity(entity).despawn();
         }
     }
 }

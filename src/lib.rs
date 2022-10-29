@@ -21,10 +21,11 @@ pub use crate::guns::{
     handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gunfire, GunBundle, GunPreset,
 };
 pub use crate::health::handle_death;
-pub use crate::physics::{RectangularObstacleBundle, OBSTACLE_CHUNK_SIZE};
+pub use crate::physics::{
+    handle_entities_out_of_bounds, RectangularObstacleBundle, OBSTACLE_CHUNK_SIZE,
+};
 pub use crate::projectiles::{
-    handle_bullet_collision_events, handle_bullets_out_of_bounds,
-    handle_damage_from_railgun_things, handle_railgun_things, handle_railgun_things_newly_spawned,
+    handle_bullet_collision_events, handle_damage_from_railgun_things, handle_railgun_things,
 };
 pub use crate::scenes::{summon_scene, SceneArg};
 pub use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};

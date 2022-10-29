@@ -23,12 +23,7 @@ pub struct CharacterActionInput {
 impl CharacterActionInput {
     /// Bring every input to the default state.
     pub fn reset(&mut self) {
-        self.up = 0.0;
-        self.right = 0.0;
-        self.fire = false;
-        self.reload = false;
-        self.use_environment_1 = false;
-        self.use_environment_2 = false;
+        *self = Self::default();
     }
 
     /// Get direction of linear speed.

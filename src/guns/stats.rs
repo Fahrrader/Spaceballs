@@ -1,12 +1,8 @@
 use crate::guns::colours::GunColour;
-use crate::guns::{Gun, GUN_VELOCITY_DAMPING_RATIO, GUN_Z_LAYER};
+use crate::guns::{GUN_VELOCITY_DAMPING_RATIO, GUN_Z_LAYER};
 use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
-use crate::projectiles::BulletBundle;
-use crate::teams::Team;
-use crate::GunPreset;
-use bevy::math::{Quat, Vec3};
-use bevy::prelude::{GlobalTransform, Transform};
-use rand::Rng;
+use bevy::math::Vec3;
+use bevy::prelude::Transform;
 use std::time::Duration;
 
 /// Enum listing the possibilities where the projectile should spawn when shot out of a gun.
@@ -57,6 +53,8 @@ pub struct GunPersistentStats {
     // inherits_speed?
     /// How bouncy the projectile is, where 0 is not bouncy at all, and 1 is perfect elasticity.
     pub projectile_elasticity: f32,
+    /// How heavy the projectile is, where 0 is massless (must be above), and 1 is the standard density.
+    pub projectile_density: f32,
     /// Where the projectile spawns: where the gun barrel ends, or around a character centered on its center
     pub projectile_spawn_point: ProjectileSpawnSpace,
 
@@ -96,70 +94,6 @@ impl GunPersistentStats {
         .with_linear_damping(GUN_VELOCITY_DAMPING_RATIO)
         .with_angular_damping(GUN_VELOCITY_DAMPING_RATIO)
         .with_rigidbody_type(heron::RigidBody::Sensor)
-    }
-
-    /// Get a round of projectiles that comes out of a gun when a trigger is pressed.
-    /// These still have to be spawned. The gun will change its state.
-    pub(crate) fn produce_projectiles(
-        &self,
-        gun_transform: &GlobalTransform,
-        gun_type: GunPreset,
-        gun: &mut Gun,
-        team: &Team,
-    ) -> Vec<BulletBundle> {
-        let (gun_scale, _, gun_translation) = gun_transform.to_scale_rotation_translation();
-        let bullet_spawn_distance = self.get_bullet_spawn_offset(gun_scale);
-
-        // "Perimeter" does not have a set spawn point, so it will have to have another pass later.
-        let bullet_spawn_point = match self.projectile_spawn_point {
-            ProjectileSpawnSpace::Gunpoint => {
-                gun_translation + bullet_spawn_distance * gun_transform.up()
-            }
-            ProjectileSpawnSpace::Perimeter => {
-                gun_translation - self.gun_center_y * gun_transform.up()
-            }
-        };
-
-        let bullet_transform = gun_transform
-            .compute_transform()
-            .with_translation(bullet_spawn_point)
-            .with_scale(Vec3::ONE);
-
-        let mut bullets = vec![];
-
-        for _ in 0..self.projectiles_per_shot {
-            let facing_direction = self.get_spread_direction(gun) * gun_transform.up();
-
-            let bullet_transform = match self.projectile_spawn_point {
-                ProjectileSpawnSpace::Gunpoint => bullet_transform,
-                ProjectileSpawnSpace::Perimeter => bullet_transform.with_translation(
-                    bullet_transform.translation + bullet_spawn_distance * facing_direction,
-                ),
-            };
-
-            let bullet = BulletBundle::new(
-                gun_type,
-                team.0,
-                bullet_transform,
-                facing_direction * self.projectile_speed,
-            );
-
-            bullets.push(bullet);
-        }
-
-        bullets
-    }
-
-    /// Calculate a possibly random vector of flight direction of a projectile.
-    pub fn get_spread_direction(&self, gun: &mut Gun) -> Quat {
-        if self.projectile_spread_angle == 0.0 {
-            Quat::IDENTITY
-        } else {
-            Quat::from_axis_angle(
-                -Vec3::Z,
-                (gun.random_state.gen::<f32>() - 0.5) * self.projectile_spread_angle,
-            )
-        }
     }
 
     /// Calculate the y-offset where the bullet spawns (usually, at the tip of the gun barrel).

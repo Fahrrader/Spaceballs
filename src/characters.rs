@@ -1,16 +1,18 @@
 use crate::actions::CharacterActionInput;
-use crate::guns::{paint_gun, reset_gun_transform, Equipped, Gun, GunPreset, Thrown};
+use crate::guns::{paint_gun, reset_gun_transform, Equipped, Gun, GunBundle, GunPreset, Thrown};
 use crate::health::{Health, HitPoints};
 use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
 use crate::teams::{team_color, Team, TeamNumber};
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
-    Bundle, Changed, Commands, Component, Entity, Query, Sprite, SpriteBundle, Transform, With,
-    Without,
+    Bundle, Changed, Commands, Component, Entity, Query, ResMut, Sprite, SpriteBundle, Transform,
+    With, Without,
 };
 use bevy::utils::default;
 use heron::{AxisAngle, Velocity};
+use rand::prelude::StdRng;
+use rand::Rng;
 use std::f32::consts::PI;
 
 // todo resize all sizes and speeds as percentages of screen-range
@@ -18,7 +20,7 @@ use std::f32::consts::PI;
 pub const CHARACTER_SIZE: f32 = 50.0;
 
 /// Standard linear speed per second at full capacity in floating point units.
-pub const CHARACTER_SPEED: f32 = 200.0;
+pub const CHARACTER_SPEED: f32 = CHARACTER_SIZE * 4.0;
 /// Standard rotational speed at full capacity per second in radians.
 pub const CHARACTER_RAD_SPEED: f32 = PI;
 
@@ -43,8 +45,20 @@ pub struct BaseCharacterBundle {
     pub sprite_bundle: SpriteBundle,
 }
 
-impl BaseCharacterBundle {
-    pub fn new(team: TeamNumber, transform: Transform) -> Self {
+pub trait BuildCharacterBundle {
+    /// Make a new character bundle yet to be spawned, with a team assigned and some transform.
+    fn new(team: TeamNumber, transform: Transform) -> Self;
+    /// Spawn a character bundle and attach equipment to it, returning spawned entities, character first.
+    fn spawn_with_equipment(
+        self,
+        commands: &mut Commands,
+        random_state: &mut ResMut<StdRng>,
+        equipment: Vec<GunPreset>,
+    ) -> Vec<Entity>;
+}
+
+impl BuildCharacterBundle for BaseCharacterBundle {
+    fn new(team: TeamNumber, transform: Transform) -> Self {
         Self {
             character: Character,
             health: Health::new(CHARACTER_MAX_HEALTH),
@@ -69,6 +83,55 @@ impl BaseCharacterBundle {
             },
         }
     }
+
+    fn spawn_with_equipment(
+        self,
+        commands: &mut Commands,
+        random_state: &mut ResMut<StdRng>,
+        equipment: Vec<GunPreset>,
+    ) -> Vec<Entity> {
+        let team = self.team.0;
+        let char_id = commands.spawn_bundle(self).id();
+
+        let mut result = vec![char_id];
+        result.append(&mut BaseCharacterBundle::spawn_equipment(
+            commands,
+            random_state,
+            char_id,
+            team,
+            equipment,
+        ));
+
+        return result;
+    }
+}
+
+impl BaseCharacterBundle {
+    /// Create and insert some guns into the hands of a character.
+    /// Universal for all character types, private and should be used by other, public spawners.
+    fn spawn_equipment(
+        commands: &mut Commands,
+        random_state: &mut ResMut<StdRng>,
+        character_id: Entity,
+        team: TeamNumber,
+        equipment: Vec<GunPreset>,
+    ) -> Vec<Entity> {
+        let mut result = Vec::with_capacity(equipment.len());
+
+        for equipment_type in equipment {
+            let gun_id = commands
+                .spawn_bundle(
+                    GunBundle::new(equipment_type, None, random_state.gen()).with_paint_job(team),
+                )
+                .id();
+
+            equip_gear(commands, character_id, gun_id, equipment_type, None, None);
+
+            result.push(gun_id);
+        }
+
+        return result;
+    }
 }
 
 /// Bundle for a Player Character, controlled locally
@@ -79,12 +142,33 @@ pub struct ControlledPlayerCharacterBundle {
     pub player_controlled_marker: PlayerControlled,
 }
 
-impl ControlledPlayerCharacterBundle {
-    pub fn new(team: TeamNumber, transform: Transform) -> Self {
+impl BuildCharacterBundle for ControlledPlayerCharacterBundle {
+    fn new(team: TeamNumber, transform: Transform) -> Self {
         Self {
             character_bundle: BaseCharacterBundle::new(team, transform),
             player_controlled_marker: PlayerControlled,
         }
+    }
+
+    fn spawn_with_equipment(
+        self,
+        commands: &mut Commands,
+        random_state: &mut ResMut<StdRng>,
+        equipment: Vec<GunPreset>,
+    ) -> Vec<Entity> {
+        let team = self.character_bundle.team.0;
+        let char_id = commands.spawn_bundle(self).id();
+
+        let mut result = vec![char_id];
+        result.append(&mut BaseCharacterBundle::spawn_equipment(
+            commands,
+            random_state,
+            char_id,
+            team,
+            equipment,
+        ));
+
+        return result;
     }
 }
 

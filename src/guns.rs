@@ -2,14 +2,14 @@ use crate::actions::CharacterActionInput;
 use crate::characters::{Character, CHARACTER_SPEED};
 use crate::physics::KinematicsBundle;
 use crate::teams::{team_color, Team, TeamNumber};
-use bevy::math::{Vec2, Vec3};
+use bevy::math::{Quat, Vec2, Vec3};
 use bevy::prelude::{
     Bundle, Commands, Component, Entity, GlobalTransform, Query, Res, Sprite, SpriteBundle, Time,
     Timer, Transform, With, Without,
 };
 use bevy::utils::default;
 use rand::prelude::StdRng;
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 use std::f32::consts::PI;
 use std::time::Duration;
 
@@ -17,6 +17,8 @@ pub mod colours;
 mod presets;
 mod stats;
 
+use crate::guns::stats::ProjectileSpawnSpace;
+use crate::projectiles::BulletBundle;
 pub use colours::GUN_TRANSPARENCY;
 pub use presets::{GunPreset, RAIL_GUN_DAMAGE_PER_SECOND};
 pub use stats::GunPersistentStats;
@@ -29,7 +31,7 @@ const GUN_BOBBING_AMPLITUDE: f32 = 0.2;
 /// Gun full-cycle pulse (bobbing) time.
 const GUN_BOBBING_TIME: f32 = 1.0;
 /// Gun bobbing tempo, multiplier to the cosine.
-const GUN_BOBBING_TEMPO: f64 = (2.0 * PI / GUN_BOBBING_TIME) as f64;
+const GUN_BOBBING_TEMPO: f32 = 2.0 * PI / GUN_BOBBING_TIME;
 /// Gun's maximum velocity to start bobbing when it's below it.
 const GUN_MAX_BOBBING_VELOCITY: f32 = CHARACTER_SPEED / 8.0;
 /// Convenience. See [`GUN_MAX_BOBBING_VELOCITY`]
@@ -148,7 +150,7 @@ impl Gun {
     }
 
     /// Tick some time on the cooldown timers and return if the gun is able to fire.
-    fn tick_cooldown(&mut self, time_delta: Duration) -> bool {
+    fn tick_cooldowns(&mut self, time_delta: Duration) -> bool {
         let was_reloading = !self.reload_progress.paused();
         if was_reloading {
             // todo only if equipped and on display (in case of gun switching)
@@ -183,6 +185,111 @@ impl Gun {
     fn start_reloading(&mut self) {
         self.fire_cooldown.pause();
         self.reload_progress.unpause();
+    }
+
+    /// Calculate a possibly random vector of flight direction of a projectile. The gun will change its state.
+    pub fn choose_spread_direction(&mut self) -> Quat {
+        if self.preset.stats().projectile_spread_angle == 0.0 {
+            Quat::IDENTITY
+        } else {
+            Quat::from_axis_angle(
+                -Vec3::Z,
+                (self.random_state.gen::<f32>() - 0.5)
+                    * self.preset.stats().projectile_spread_angle,
+            )
+        }
+    }
+
+    /// Get a round (optionally, several more ahead) of projectiles that comes out of a gun when a trigger is pressed.
+    /// These still have to be spawned. The gun will change its state.
+    fn fire_and_produce_projectiles(
+        &mut self,
+        gun_transform: &GlobalTransform,
+        team: &Team,
+        character_transform: &mut Transform,
+        fast_forward_rounds: Option<(u128, u128)>,
+    ) -> (Vec<BulletBundle>, u128) {
+        let gun_stats = self.preset.stats();
+        let (gun_scale, _, gun_translation) = gun_transform.to_scale_rotation_translation();
+        let bullet_spawn_distance = gun_stats.get_bullet_spawn_offset(gun_scale);
+        let cooldown_duration = self.fire_cooldown.duration().as_nanos();
+
+        // "Perimeter" does not have a set spawn point, so it will have to have another pass later.
+        let bullet_spawn_point = match gun_stats.projectile_spawn_point {
+            // Set at the gun barrel exit.
+            ProjectileSpawnSpace::Gunpoint => {
+                gun_translation + bullet_spawn_distance * gun_transform.up()
+            }
+            // For now, set at the character center - change the offset individually.
+            ProjectileSpawnSpace::Perimeter => {
+                gun_translation - gun_stats.gun_center_y * gun_transform.up()
+            }
+        };
+
+        let bullet_transform = gun_transform
+            .compute_transform()
+            .with_translation(bullet_spawn_point)
+            .with_scale(Vec3::ONE);
+
+        let mut bullets = vec![];
+
+        let mut rounds_fired = 0;
+        let (rounds_to_fire, time_elapsed_since_latest_cooldown) =
+            if let Some(fast_forward) = fast_forward_rounds {
+                fast_forward
+            } else {
+                (1, 0)
+            };
+        while rounds_fired < rounds_to_fire {
+            for _ in 0..gun_stats.projectiles_per_shot {
+                let facing_direction = self.choose_spread_direction() * gun_transform.up();
+
+                // Adjust spawn points for "Perimeter" individually around the perimeter according to the established random direction.
+                let bullet_transform = match gun_stats.projectile_spawn_point {
+                    ProjectileSpawnSpace::Gunpoint => bullet_transform,
+                    ProjectileSpawnSpace::Perimeter => bullet_transform.with_translation(
+                        bullet_transform.translation + bullet_spawn_distance * facing_direction,
+                    ),
+                };
+
+                let mut bullet = BulletBundle::new(
+                    self.preset,
+                    team.0,
+                    bullet_transform,
+                    facing_direction * gun_stats.projectile_speed,
+                );
+
+                let linear_velocity = bullet.kinematics.velocity.linear;
+                bullet.sprite_bundle.transform.translation += (rounds_fired * cooldown_duration + time_elapsed_since_latest_cooldown) as f32 / cooldown_duration as f32
+                    * linear_velocity
+                    // nanos per second
+                    / 1_000_000_000.0;
+
+                bullets.push(bullet);
+            }
+
+            // not clean. but the guy has to be moved in between shots and frame-skips, and it's better than to repeat calculations.
+            // oh -- gun's global transform will probably not manage to change in time anyway?
+            if gun_stats.recoil != 0.0 {
+                let offset = character_transform.down() * gun_stats.recoil;
+                character_transform.translation += offset;
+            }
+
+            rounds_fired += 1;
+
+            if self.eject_shot_and_check_if_empty() {
+                self.start_reloading();
+                break;
+            }
+        }
+
+        self.reset_fire_cooldown();
+        self.tick_cooldowns(Duration::from_nanos(
+            ((rounds_to_fire - rounds_fired) * cooldown_duration
+                + time_elapsed_since_latest_cooldown) as u64,
+        ));
+
+        (bullets, rounds_fired)
     }
 }
 
@@ -233,58 +340,33 @@ pub fn handle_gunfire(
         }
 
         let cooldown_time_previously_elapsed = gun.fire_cooldown.elapsed().as_nanos();
-        if gun.tick_cooldown(time.delta()) && wants_to_fire {
+        if gun.tick_cooldowns(time.delta()) && wants_to_fire {
             let cooldown_time_elapsed = cooldown_time_previously_elapsed + time.delta().as_nanos();
             let cooldown_duration = gun.fire_cooldown.duration().as_nanos();
             let cooldown_times_over = cooldown_time_elapsed / cooldown_duration;
+            let cooldown_latest_time_elapsed = cooldown_time_elapsed % cooldown_duration;
 
             let gun_type = gun.preset;
-            let gun_stats = gun_type.stats();
 
             // todo add a ray cast from the body to the gun barrel to check for collisions
             // but currently it's kinda like shooting from cover / over shoulder, fun
 
-            // Any spawn point displacement causes artifacts in reflection angle (thanks, heron) - look into elasticity - or switch to Rapier
-            for cd in 0..cooldown_times_over {
-                let bullets =
-                    gun_stats.produce_projectiles(gun_transform, gun_type, &mut gun, team);
+            let (bullets, _rounds_fired) = gun.fire_and_produce_projectiles(
+                gun_transform,
+                team,
+                &mut transform,
+                Some((cooldown_times_over, cooldown_latest_time_elapsed)),
+            );
 
-                for mut bullet in bullets {
-                    let linear_velocity = bullet.kinematics.velocity.linear;
-                    bullet.sprite_bundle.transform.translation += ((cd + 1) * cooldown_duration - cooldown_time_previously_elapsed) as f32
-                        * linear_velocity
-                        // nanos per second
-                        / 1_000_000_000.0;
-
+            if gun_type.has_extra_projectile_components() {
+                for bullet in bullets {
                     let mut bullet_commands = commands.spawn_bundle(bullet);
-
-                    // 0.0 is considered the default restitution when no PhysicMaterial is present
-                    if gun_stats.projectile_elasticity != 0.0 {
-                        bullet_commands.insert(heron::PhysicMaterial {
-                            restitution: gun_stats.projectile_elasticity,
-                            ..default()
-                        });
-                    }
-
                     // Add any extra components that a bullet should have
                     gun_type.add_projectile_components(&mut bullet_commands);
                 }
-
-                if gun_stats.recoil != 0.0 {
-                    let offset = transform.down() * gun_stats.recoil;
-                    transform.translation += offset;
-                }
-
-                if gun.eject_shot_and_check_if_empty() {
-                    gun.start_reloading();
-                    break;
-                }
+            } else {
+                commands.spawn_batch(bullets);
             }
-
-            gun.reset_fire_cooldown();
-            gun.tick_cooldown(Duration::from_nanos(
-                (cooldown_time_elapsed % cooldown_duration) as u64,
-            ));
         }
     }
 }
@@ -295,12 +377,18 @@ pub fn handle_gun_idle_bobbing(
     mut query_weapons: Query<&mut Transform, (With<Gun>, Without<Thrown>, Without<Equipped>)>,
 ) {
     fn eval_bobbing(a: f32, cos_dt: f32) -> f32 {
-        a + cos_dt
+        // a crutch for the time being. if frame time is too low (as when the window is not focused on),
+        // cos_dt gets so big that it breaks the function. todo think for a couple of minutes on an appropriate formula
+        (a + cos_dt).clamp(1. - GUN_BOBBING_AMPLITUDE, 1. + GUN_BOBBING_AMPLITUDE)
     }
 
-    let time_cos_dt = -(GUN_BOBBING_TEMPO
-        * (GUN_BOBBING_TEMPO * time.seconds_since_startup()).sin()) as f32
+    if query_weapons.is_empty() {
+        return;
+    }
+
+    let time_cos_dt = -GUN_BOBBING_TEMPO
         * GUN_BOBBING_AMPLITUDE
+        * (GUN_BOBBING_TEMPO as f64 * time.seconds_since_startup()).sin() as f32
         * time.delta_seconds();
 
     for mut transform in query_weapons.iter_mut() {

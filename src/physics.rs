@@ -1,6 +1,10 @@
+use crate::SCREEN_SPAN;
 use bevy::ecs::query::WorldQuery;
 use bevy::math::Vec3;
-use bevy::prelude::{default, Bundle, Color, Entity, Query, Sprite, SpriteBundle, Transform};
+use bevy::prelude::{
+    default, Bundle, Color, Commands, DespawnRecursiveExt, Entity, Query, Sprite, SpriteBundle,
+    Transform, With,
+};
 use heron::prelude::*;
 
 /// The size of an obstacle chunk. Useful to keep about the same as a character's body size to configure the terrain easier.
@@ -13,6 +17,7 @@ pub struct KinematicsBundle {
     pub rigidbody: RigidBody,
     pub velocity: Velocity,
     pub damping: Damping,
+    pub physic_material: PhysicMaterial,
     pub collider: CollisionShape,
     pub collision_layers: CollisionLayers,
 }
@@ -23,6 +28,7 @@ impl Default for KinematicsBundle {
             rigidbody: RigidBody::Dynamic,
             velocity: Velocity::default(),
             damping: Damping::default(),
+            physic_material: PhysicMaterial::default(),
             collider: CollisionShape::default(),
             collision_layers: CollisionLayers::none(),
         }
@@ -83,6 +89,16 @@ impl KinematicsBundle {
         self.damping.angular = damping;
         self
     }
+
+    pub fn with_restitution(mut self, restitution: f32) -> Self {
+        self.physic_material.restitution = restitution;
+        self
+    }
+
+    pub fn with_density(mut self, density: f32) -> Self {
+        self.physic_material.density = density;
+        self
+    }
 }
 
 /// Standard rectangular obstacle, stopping characters and bullets alike.
@@ -119,6 +135,7 @@ impl Default for RectangularObstacleBundle {
 }
 
 impl RectangularObstacleBundle {
+    /// Make a thing that stuff can't pass through. Warning: calculates its size based on the scale given and the normal obstacle size.
     pub fn new(transform: Transform) -> Self {
         Self {
             collider: PopularCollisionShape::get(
@@ -203,5 +220,24 @@ pub(crate) fn try_get_components_from_entities<
         Some((entity_b, entity_a))
     } else {
         None
+    }
+}
+
+/// System to despawn entities (bullets, in particular) that get out of bounds.
+/// Temporary fallback measurement, possibly, since normally it shouldn't happen.
+pub fn handle_entities_out_of_bounds(
+    mut commands: Commands,
+    mut query_bodies: Query<(&Transform, Entity), With<Velocity>>,
+) {
+    const HALF_SCREEN_SPAN: f32 = SCREEN_SPAN * 0.5;
+    // todo projectile velocity dampening
+    for (transform, entity) in query_bodies.iter_mut() {
+        if transform.translation.x.abs() > HALF_SCREEN_SPAN
+            || transform.translation.y.abs() > HALF_SCREEN_SPAN
+        {
+            bevy::log::warn!("An entity {} got out of bounds!", entity.id());
+            commands.entity(entity).despawn_recursive();
+            // todo kill procedure first, probably
+        }
     }
 }

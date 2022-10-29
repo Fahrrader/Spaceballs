@@ -1,4 +1,4 @@
-use crate::characters::{CHARACTER_MAX_HEALTH, CHARACTER_SIZE};
+use crate::characters::{CHARACTER_MAX_HEALTH, CHARACTER_SIZE, CHARACTER_SPEED};
 use crate::guns::colours::GunColour;
 use crate::guns::stats::{GunPersistentStats, ProjectileSpawnSpace};
 use crate::health::HitPoints;
@@ -17,7 +17,7 @@ const REGULAR_GUN_CENTER_Y: f32 = CHARACTER_SIZE * -0.15 + REGULAR_GUN_LENGTH * 
 pub const REGULAR_FIRE_COOLDOWN_TIME_MILLIS: u64 = 100;
 
 pub const BULLET_SIZE: f32 = 5.0;
-pub const BULLET_SPEED: f32 = CHARACTER_SIZE * 6.0; // 300.0
+pub const BULLET_SPEED: f32 = CHARACTER_SPEED * 1.5; // 300.0
 pub const BULLET_DAMAGE: HitPoints = CHARACTER_MAX_HEALTH / 20.0; // 5.0 - 20 direct hits
 pub const BULLET_STOP_SPEED_MULTIPLIER: f32 = 0.8;
 
@@ -50,35 +50,45 @@ impl Default for GunPreset {
 impl GunPreset {
     /// Map of an enum of a weapon to its constant stats, hopefully converted to a look-up table on compilation.
     #[inline]
-    pub const fn stats(&self) -> GunPersistentStats {
+    pub const fn stats(&self) -> &'static GunPersistentStats {
         match self {
-            GunPreset::Regular => REGULAR,
-            GunPreset::Imprecise => IMPRECISE,
-            GunPreset::Scattershot => SCATTERSHOT,
-            GunPreset::Typhoon => TYPHOON,
-            GunPreset::RailGun => RAIL_GUN,
-            GunPreset::LaserGun => LASER_GUN,
+            GunPreset::Regular => &REGULAR,
+            GunPreset::Imprecise => &IMPRECISE,
+            GunPreset::Scattershot => &SCATTERSHOT,
+            GunPreset::Typhoon => &TYPHOON,
+            GunPreset::RailGun => &RAIL_GUN,
+            GunPreset::LaserGun => &LASER_GUN,
         }
     }
 
-    /// Get a vector of extra components that should end up on projectiles when first shot.
+    /// Insert extra components into a projectile that should be there, determined by its preset.
     pub fn add_projectile_components(&self, projectile_commands: &mut EntityCommands) {
         /// Inserts components onto a projectile repeatedly.
         macro_rules! add_projectile_components {
-            ($commands:ident, [$($e:expr),*]) => {
-                $($commands.insert($e));*
+            ($($e:expr),*) => {
+                $(projectile_commands.insert($e));*
             }
         }
 
         match self {
             GunPreset::RailGun => {
                 add_projectile_components!(
-                    projectile_commands,
-                    [RailGunThing, heron::Collisions::default()]
+                    RailGunThing,
+                    heron::RigidBody::Sensor,
+                    heron::Collisions::default()
                 );
             }
             _ => {}
         };
+    }
+
+    /// Does a projectile need to have extra components inserted into it, according to its gun preset?
+    // todo probably use a macro to generate the two functions together, if the number of guns becomes too many
+    pub fn has_extra_projectile_components(&self) -> bool {
+        match self {
+            GunPreset::RailGun => true,
+            _ => false,
+        }
     }
 
     /// Stats of the base, default weapon, which others might base off.
@@ -99,6 +109,7 @@ impl GunPreset {
             min_speed_to_live_multiplier: BULLET_STOP_SPEED_MULTIPLIER,
             // Elasticity of 0 or below will not trigger collision's Stopped events until another collision!
             projectile_elasticity: 0.10,
+            projectile_density: 1.0,
             projectile_size: BULLET_SIZE,
             projectile_color: GunColour::new(Color::ALICE_BLUE),
             projectile_spawn_point: ProjectileSpawnSpace::Gunpoint,
@@ -172,6 +183,7 @@ pub const LASER_GUN: GunPersistentStats = GunPersistentStats {
     projectile_damage: BULLET_DAMAGE * 0.025,
     projectile_speed: BULLET_SPEED * 4.,
     projectile_elasticity: 1.0,
+    projectile_density: 0.01,
     fire_cooldown: Duration::from_millis(5),
     friendly_fire: true,
     min_speed_to_live_multiplier: 0.3,
