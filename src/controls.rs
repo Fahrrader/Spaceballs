@@ -21,7 +21,6 @@ pub fn handle_keyboard_input(
 ) {
     let set_flag_if_keys_changed = |action: &mut bool, action_keys: Vec<KeyCode>| {
         let any_key_pressed = keys.any_pressed(action_keys);
-
         if any_key_pressed {
             *action |= any_key_pressed;
         }
@@ -55,8 +54,10 @@ pub fn handle_keyboard_input(
     }
 }
 
+/// To-be resource holding the connected gamepad ID.
 pub struct GamepadWrapper(Gamepad);
 
+/// System to convert gamepad input to a player's character action input.
 pub fn handle_gamepad_input(
     axes: Res<Axis<GamepadAxis>>,
     buttons: Res<Input<GamepadButton>>,
@@ -90,20 +91,30 @@ pub fn handle_gamepad_input(
             }
         }
 
-        let fire_button_main = GamepadButton {
-            gamepad,
-            button_type: GamepadButtonType::RightTrigger2,
-        };
-        let fire_button_aux = GamepadButton {
-            gamepad,
-            button_type: GamepadButtonType::South,
-        };
+        macro_rules! buttons_pressed {
+            ($($e:expr),*) => {{
+                let mut pressed = false;
+                $(
+                    let button = GamepadButton {
+                        gamepad,
+                        button_type: $e,
+                    };
+                    pressed |= buttons.pressed(button);
+                )*
+                pressed
+            }
+        }}
 
         player_actions.fire |=
-            buttons.pressed(fire_button_main) || buttons.pressed(fire_button_aux);
+            buttons_pressed!(GamepadButtonType::RightTrigger2, GamepadButtonType::South);
+        player_actions.reload |=
+            buttons_pressed!(GamepadButtonType::RightTrigger1, GamepadButtonType::West);
+        player_actions.use_environment_1 |= buttons_pressed!(GamepadButtonType::North);
+        player_actions.use_environment_2 |= buttons_pressed!(GamepadButtonType::East);
     }
 }
 
+/// System to track gamepad connections and disconnections.
 pub fn handle_gamepad_connections(
     mut commands: Commands,
     connected_gamepad: Option<Res<GamepadWrapper>>,

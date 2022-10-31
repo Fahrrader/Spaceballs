@@ -10,6 +10,7 @@ use rand::prelude::StdRng;
 use rand::Rng;
 use std::f32::consts::PI;
 
+/// Specifier of the scene which to load.
 #[derive(clap::ValueEnum, Clone)]
 pub enum SceneArg {
     Experimental,
@@ -28,6 +29,7 @@ impl TryFrom<String> for SceneArg {
     }
 }
 
+/// System to spawn a scene, the choice of which is based on the scene specifier resource.
 pub fn summon_scene(
     commands: Commands,
     scene: Res<Option<SceneArg>>,
@@ -42,6 +44,7 @@ pub fn summon_scene(
     }
 }
 
+/// Set up a more complicated and chaotic scene with the latest features and experiments.
 pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<StdRng>) {
     commands.spawn_bundle(Camera2dBundle::default());
 
@@ -90,6 +93,7 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<StdRn
     )));
 }
 
+/// Set up a lighter, stable scene. Considered default.
 pub fn setup_lite(mut commands: Commands, mut random_state: ResMut<StdRng>) {
     commands.spawn_bundle(Camera2dBundle::default());
 
@@ -99,6 +103,7 @@ pub fn setup_lite(mut commands: Commands, mut random_state: ResMut<StdRng>) {
         .spawn_with_equipment(&mut commands, &mut random_state, vec![GunPreset::Regular]);
 }
 
+/// Set up common stuff attributable to all levels.
 fn setup_base_arena(commands: &mut Commands) {
     // ----- Walls of the arena
     commands.spawn_bundle(RectangularObstacleBundle::new(

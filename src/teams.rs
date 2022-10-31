@@ -32,6 +32,6 @@ pub fn team_color(team: TeamNumber) -> Color {
         7 => Color::ORANGE_RED,
         8 => Color::INDIGO,
         9 => Color::SILVER,
-        _ => panic!("The team number is too big!"),
+        _ => panic!("The team number is out of bounds!"),
     }
 }

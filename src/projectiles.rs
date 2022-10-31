@@ -35,10 +35,7 @@ impl BulletBundle {
             bullet: Bullet { gun_type },
             team: Team(team),
             kinematics: KinematicsBundle::new(
-                PopularCollisionShape::get(
-                    PopularCollisionShape::Disc(gun_stats.projectile_size),
-                    Vec3::ONE,
-                ),
+                PopularCollisionShape::Disc(gun_stats.projectile_size).get(Vec3::ONE),
                 CollisionLayer::Projectile,
                 &[CollisionLayer::Character, CollisionLayer::Obstacle],
             )

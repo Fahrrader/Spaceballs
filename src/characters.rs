@@ -65,10 +65,7 @@ impl BuildCharacterBundle for BaseCharacterBundle {
             team: Team(team),
             action_input: CharacterActionInput::default(),
             kinematics: KinematicsBundle::new(
-                PopularCollisionShape::get(
-                    PopularCollisionShape::SquareCell(CHARACTER_SIZE),
-                    transform.scale,
-                ),
+                PopularCollisionShape::SquareCell(CHARACTER_SIZE).get(transform.scale),
                 CollisionLayer::Character,
                 CollisionLayer::all(),
             ),
@@ -172,7 +169,7 @@ impl BuildCharacterBundle for ControlledPlayerCharacterBundle {
     }
 }
 
-/// [deprecated] Marker designating an entity serving as a character body and character.
+/// Marker designating an entity serving as a character - a primary actor, usually controlled by a player.
 #[derive(Component)]
 pub struct Character;
 
@@ -182,7 +179,7 @@ pub struct PlayerControlled;
 
 /// Attach some equippable gear to a character and allow it to be interacted with.
 /// Unchecked if actually equippable, or if the equipping entity is a character!
-pub fn equip_gear(
+fn equip_gear(
     commands: &mut Commands,
     char_entity: Entity,
     gear_entity: Entity,
@@ -207,12 +204,12 @@ pub fn equip_gear(
 
 /// Un-attach something equipped on some entity and give it physics.
 /// No safety checks are made.
-pub(crate) fn unequip_gear(
+fn unequip_gear(
     commands: &mut Commands,
     gear_entity: Entity,
-    kinematics: KinematicsBundle,
     gun_type: GunPreset,
     gear_sprite: &mut Sprite,
+    kinematics: KinematicsBundle,
 ) {
     commands
         .entity(gear_entity)
@@ -226,23 +223,23 @@ pub(crate) fn unequip_gear(
 
 /// Unequip gear and give it some speed according to its type.
 /// No safety checks are made.
-pub(crate) fn throw_away_gear(
+fn throw_away_gear(
     commands: &mut Commands,
-    gear_entity: Entity,
-    gear_linear_velocity: Vec3,
-    gun_type: GunPreset,
-    gear_sprite: &mut Sprite,
-    gear_transform: &mut Transform,
     char_transform: &Transform,
+    gear_entity: Entity,
+    gun_type: GunPreset,
+    gear_transform: &mut Transform,
+    gear_sprite: &mut Sprite,
+    gear_given_velocity: Vec3,
 ) {
     let kinematics = gun_type
         .stats()
         .get_kinematics(gear_transform.scale)
-        .with_linear_velocity(gear_linear_velocity)
+        .with_linear_velocity(gear_given_velocity)
         .with_angular_velocity_in_rads(Vec3::Z, GUN_THROW_SPIN_SPEED)
         .with_rigidbody_type(heron::RigidBody::Dynamic);
 
-    unequip_gear(commands, gear_entity, kinematics, gun_type, gear_sprite);
+    unequip_gear(commands, gear_entity, gun_type, gear_sprite, kinematics);
 
     let gear_offset_forward = char_transform.up() * char_transform.scale.y * CHARACTER_SIZE / 2.;
     *gear_transform = Transform::from_translation(
@@ -337,12 +334,12 @@ pub fn handle_letting_gear_go(
                 let gun_velocity = velocity.linear + transform.up() * GUN_THROW_SPEED;
                 throw_away_gear(
                     &mut commands,
-                    child,
-                    gun_velocity,
-                    gun_type,
-                    &mut gun_sprite,
-                    &mut gun_transform,
                     transform,
+                    child,
+                    gun_type,
+                    &mut gun_transform,
+                    &mut gun_sprite,
+                    gun_velocity,
                 );
             }
         }

@@ -84,10 +84,7 @@ impl GunPersistentStats {
     /// Get the standard physics components for a gun.
     pub fn get_kinematics(&self, scale: Vec3) -> KinematicsBundle {
         KinematicsBundle::new(
-            PopularCollisionShape::get(
-                PopularCollisionShape::RectangularCell(self.gun_width, self.gun_length),
-                scale,
-            ),
+            PopularCollisionShape::RectangularCell(self.gun_width, self.gun_length).get(scale),
             CollisionLayer::Gear,
             &[CollisionLayer::Character, CollisionLayer::Obstacle],
         )

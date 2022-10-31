@@ -156,7 +156,8 @@ pub const TYPHOON: GunPersistentStats = GunPersistentStats {
     ..GunPreset::regular()
 };
 
-/// Due to the rail gun's penetrative properties, damage is applied per second of travel inside a body. Correlates heavily with projectile speed.
+/// Due to the rail gun's penetrative properties, damage is applied per second of travel inside a body.
+/// Correlates heavily with projectile speed. Used by a special system.
 pub const RAIL_GUN_DAMAGE_PER_SECOND: HitPoints = CHARACTER_MAX_HEALTH / 5.0 // under a normal angle and fully crossing the body, should kill in [5] hits
     * RAIL_GUN.projectile_speed
     / CHARACTER_SIZE;

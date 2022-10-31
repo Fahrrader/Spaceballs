@@ -138,10 +138,7 @@ impl RectangularObstacleBundle {
     /// Make a thing that stuff can't pass through. Warning: calculates its size based on the scale given and the normal obstacle size.
     pub fn new(transform: Transform) -> Self {
         Self {
-            collider: PopularCollisionShape::get(
-                PopularCollisionShape::SquareCell(OBSTACLE_CHUNK_SIZE),
-                transform.scale,
-            ),
+            collider: PopularCollisionShape::SquareCell(OBSTACLE_CHUNK_SIZE).get(transform.scale),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: DEFAULT_OBSTACLE_COLOR,
@@ -166,7 +163,8 @@ pub enum CollisionLayer {
 
 impl CollisionLayer {
     /// Fetch all possible collision layers.
-    pub fn all() -> &'static [Self] {
+    #[inline]
+    pub const fn all() -> &'static [Self] {
         &[
             CollisionLayer::Character,
             CollisionLayer::Gear,
@@ -184,8 +182,8 @@ pub enum PopularCollisionShape {
 }
 
 impl PopularCollisionShape {
-    pub fn get(shape: Self, scale: Vec3) -> CollisionShape {
-        match shape {
+    pub fn get(self, scale: Vec3) -> CollisionShape {
+        match self {
             Self::SquareCell(size) => CollisionShape::Cuboid {
                 half_extends: size / 2.0 * scale,
                 border_radius: None,

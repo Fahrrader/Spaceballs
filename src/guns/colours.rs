@@ -4,7 +4,8 @@ use crate::Color;
 /// since the gun doesn't have a collider.
 pub const GUN_TRANSPARENCY: f32 = 0.95;
 
-pub struct GunColour(pub(crate) Color);
+/// Wrapper to guarantee the sprite transparency.
+pub struct GunColour(pub Color);
 
 impl GunColour {
     pub(crate) const fn new(color: Color) -> Self {

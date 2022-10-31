@@ -38,9 +38,11 @@ const GUN_MAX_BOBBING_VELOCITY: f32 = CHARACTER_SPEED / 8.0;
 const GUN_MAX_BOBBING_VELOCITY_SQR: f32 = GUN_MAX_BOBBING_VELOCITY * GUN_MAX_BOBBING_VELOCITY;
 /// The velocity-damping ratio of the gun, in effect when pushed or thrown.
 const GUN_VELOCITY_DAMPING_RATIO: f32 = 1.15;
-
+/// Make it visible!
 const GUN_Z_LAYER: f32 = 5.0;
 
+/// Collection of components making up a gun entity. Starts independent and has to be equipped.
+/// Note that the kinematics bundle will be stripped when equipped.
 #[derive(Bundle)]
 pub struct GunBundle {
     pub gun: Gun,
@@ -167,6 +169,7 @@ impl Gun {
         }
     }
 
+    /// Expend a round from the magazine and return true if there are no more rounds left, and we should reload the gun.
     fn eject_shot_and_check_if_empty(&mut self) -> bool {
         if self.preset.stats().shots_before_reload > 0 {
             self.shots_before_reload -= 1;
@@ -200,8 +203,9 @@ impl Gun {
         }
     }
 
-    /// Get a round (optionally, several more ahead) of projectiles that comes out of a gun when a trigger is pressed.
-    /// These still have to be spawned. The gun will change its state.
+    /// Get a round (and, optionally, several more ahead, if that should have happened in the past)
+    /// of projectiles that come out of a gun when a trigger is pressed. These still have to be spawned.
+    /// The gun will change its state. If the gun has recoil, the character will be affected by it.
     fn fire_and_produce_projectiles(
         &mut self,
         gun_transform: &GlobalTransform,
@@ -234,7 +238,7 @@ impl Gun {
         let mut bullets = vec![];
 
         let mut rounds_fired = 0;
-        let (rounds_to_fire, time_elapsed_since_latest_cooldown) =
+        let (rounds_to_fire, time_in_nanos_elapsed_since_latest_cooldown) =
             if let Some(fast_forward) = fast_forward_rounds {
                 fast_forward
             } else {
@@ -260,7 +264,8 @@ impl Gun {
                 );
 
                 let linear_velocity = bullet.kinematics.velocity.linear;
-                bullet.sprite_bundle.transform.translation += (rounds_fired * cooldown_duration + time_elapsed_since_latest_cooldown) as f32 / cooldown_duration as f32
+                bullet.sprite_bundle.transform.translation += (rounds_fired * cooldown_duration + time_in_nanos_elapsed_since_latest_cooldown) as f32
+                    / cooldown_duration as f32
                     * linear_velocity
                     // nanos per second
                     / 1_000_000_000.0;
@@ -286,7 +291,7 @@ impl Gun {
         self.reset_fire_cooldown();
         self.tick_cooldowns(Duration::from_nanos(
             ((rounds_to_fire - rounds_fired) * cooldown_duration
-                + time_elapsed_since_latest_cooldown) as u64,
+                + time_in_nanos_elapsed_since_latest_cooldown) as u64,
         ));
 
         (bullets, rounds_fired)
@@ -378,7 +383,7 @@ pub fn handle_gun_idle_bobbing(
 ) {
     fn eval_bobbing(a: f32, cos_dt: f32) -> f32 {
         // a crutch for the time being. if frame time is too low (as when the window is not focused on),
-        // cos_dt gets so big that it breaks the function. todo think for a couple of minutes on an appropriate formula
+        // cos_dt gets so big that it breaks the function.
         (a + cos_dt).clamp(1. - GUN_BOBBING_AMPLITUDE, 1. + GUN_BOBBING_AMPLITUDE)
     }
 

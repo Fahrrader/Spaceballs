@@ -11,7 +11,7 @@ mod teams;
 
 pub use crate::ai::handle_ai_input;
 pub use crate::characters::{
-    calculate_character_velocity, equip_gear, handle_gun_picking, handle_inventory_layout_change,
+    calculate_character_velocity, handle_gun_picking, handle_inventory_layout_change,
     handle_letting_gear_go, BaseCharacterBundle, ControlledPlayerCharacterBundle,
 };
 pub use crate::controls::{
@@ -44,8 +44,11 @@ use clap::Parser;
 use wasm_bindgen::prelude::*;
 
 // todo after the adjustment of body sizes, change to probably 200.0
+/// The size of a side of the arena, in in-game units of distance.
 pub const SCREEN_SPAN: f32 = 800.0;
 
+/// If the game window was resized, change the camera's projection scale accordingly
+/// to keep the arena size the same.
 pub fn calculate_projection_scale(
     mut window_resized_events: EventReader<WindowResized>,
     windows: Res<Windows>,
@@ -78,6 +81,8 @@ pub fn calculate_projection_scale(
 }
 
 // todo add this optionally to a system set
+/// System to query JS whether the browser window size has changed, and resize the game window
+/// according to the JS-supplied data.
 pub fn handle_browser_window_resizing(#[cfg(target_arch = "wasm32")] mut windows: ResMut<Windows>) {
     #[cfg(target_arch = "wasm32")]
     {
@@ -91,6 +96,7 @@ pub fn handle_browser_window_resizing(#[cfg(target_arch = "wasm32")] mut windows
     }
 }
 
+/// Make a "window" for browser.
 #[cfg(target_arch = "wasm32")]
 pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
     let (width, height) = resolution;
@@ -103,6 +109,7 @@ pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
     }
 }
 
+/// Make a window for desktop.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
     let (width, height) = resolution;
@@ -116,6 +123,7 @@ pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
     }
 }
 
+/// The set of acceptable arguments for the command line interface.
 #[derive(Parser)]
 #[clap(version, about)]
 struct Cli {
@@ -124,12 +132,14 @@ struct Cli {
     scene: Option<SceneArg>,
 }
 
+/// Try to get input from the command line interface on which scene to load.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn parse_scene_ext_input() -> Option<SceneArg> {
     let args = Cli::parse();
     args.scene
 }
 
+/// Try to get input from the JS side's URL arguments on which scene to load.
 #[cfg(target_arch = "wasm32")]
 pub fn parse_scene_ext_input() -> Option<SceneArg> {
     get_scene_from_js().try_into().ok()
@@ -161,12 +171,15 @@ extern "C" {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(module = "/public/main.js")]
 extern "C" {
+    /// Get input from the JS side on which scene to load as an argument in its raw form.
     #[wasm_bindgen(js_name = getSceneFromUrl)]
     fn get_scene_from_js() -> String;
 
+    /// Ask JS whether the window size got changed lately.
     #[wasm_bindgen(js_name = detectWindowResize)]
     fn detect_window_resize_from_js() -> bool;
 
+    /// Take from JS its new window size.
     #[wasm_bindgen(js_name = getNewWindowSize)]
     fn get_new_window_size_from_js() -> Vec<f32>;
 }
