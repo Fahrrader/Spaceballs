@@ -108,7 +108,7 @@ pub fn handle_gamepad_input(
         player_actions.fire |=
             buttons_pressed!(GamepadButtonType::RightTrigger2, GamepadButtonType::South);
         player_actions.reload |=
-            buttons_pressed!(GamepadButtonType::RightTrigger1, GamepadButtonType::West);
+            buttons_pressed!(GamepadButtonType::RightTrigger, GamepadButtonType::West);
         player_actions.use_environment_1 |= buttons_pressed!(GamepadButtonType::North);
         player_actions.use_environment_2 |= buttons_pressed!(GamepadButtonType::East);
     }
