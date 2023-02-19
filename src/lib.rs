@@ -35,8 +35,11 @@ pub use bevy::render::camera::{camera_system, RenderTarget};
 use bevy::window::WindowResized;
 //pub use heron::PhysicsPlugin;
 
-pub use rand::prelude::StdRng;
-pub use rand::{Rng, SeedableRng};
+pub use rand::{
+    prelude::{StdRng, Distribution},
+    distributions::Standard,
+    Rng, SeedableRng,
+};
 
 use clap::Parser;
 
@@ -49,7 +52,8 @@ use crate::scenes::OptionalSceneArg;
 pub struct RandomState(pub StdRng);
 
 impl RandomState {
-    pub fn gen(&mut self) -> u64 {
+    #[inline]
+    pub fn gen<T>(&mut self) -> T where Standard: Distribution<T>{
         self.0.gen()
     }
 }
