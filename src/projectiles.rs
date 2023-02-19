@@ -1,7 +1,7 @@
 use crate::guns::{GunPersistentStats, GunPreset};
 use crate::health::{Dying, Health, HitPoints};
 use crate::physics::{
-    try_get_components_from_entities, CollisionLayer, KinematicsBundle, PopularCollisionShape,
+    try_get_components_from_entities, //CollisionLayer, KinematicsBundle, PopularCollisionShape,
 };
 use crate::teams::{Team, TeamNumber};
 use bevy::math::Vec3;
@@ -16,8 +16,8 @@ use bevy::utils::default;
 pub struct BulletBundle {
     pub bullet: Bullet,
     pub team: Team,
-    #[bundle]
-    pub kinematics: KinematicsBundle,
+    /*#[bundle]
+    pub kinematics: KinematicsBundle,*/
     #[bundle]
     pub sprite_bundle: SpriteBundle,
 }
@@ -34,14 +34,14 @@ impl BulletBundle {
         Self {
             bullet: Bullet { gun_type },
             team: Team(team),
-            kinematics: KinematicsBundle::new(
+            /*kinematics: KinematicsBundle::new(
                 PopularCollisionShape::Disc(gun_stats.projectile_size).get(Vec3::ONE),
                 CollisionLayer::Projectile,
                 &[CollisionLayer::Character, CollisionLayer::Obstacle],
             )
             .with_linear_velocity(velocity)
             .with_restitution(gun_stats.projectile_elasticity)
-            .with_density(gun_stats.projectile_density),
+            .with_density(gun_stats.projectile_density),*/
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: gun_stats.projectile_color.0,
@@ -100,7 +100,7 @@ fn do_projectile_damage(
         commands.entity(body.0).insert(Dying);
     }
 }
-
+/*
 /// System to continually deal damage to bodies that rail gun slugs travel through.
 pub fn handle_damage_from_railgun_things(
     mut commands: Commands,
@@ -121,8 +121,9 @@ pub fn handle_damage_from_railgun_things(
             }
         }
     }
-}
+}*/
 
+/*
 /// System to read collision events from bullets and apply their effects to the respective bodies.
 /// In particular, damage.
 pub fn handle_bullet_collision_events(
@@ -160,4 +161,4 @@ pub fn handle_bullet_collision_events(
             }
         }
     }
-}
+}*/

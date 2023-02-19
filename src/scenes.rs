@@ -1,12 +1,8 @@
+use std::borrow::{Borrow, BorrowMut};
 use crate::characters::BuildCharacterBundle;
-use crate::{
-    BaseCharacterBundle, ControlledPlayerCharacterBundle, GunBundle, GunPreset,
-    RectangularObstacleBundle, AI_DEFAULT_TEAM, OBSTACLE_CHUNK_SIZE, PLAYER_DEFAULT_TEAM,
-    SCREEN_SPAN,
-};
+use crate::{BaseCharacterBundle, ControlledPlayerCharacterBundle, GunBundle, GunPreset, /*RectangularObstacleBundle, */AI_DEFAULT_TEAM, OBSTACLE_CHUNK_SIZE, PLAYER_DEFAULT_TEAM, SCREEN_SPAN, RandomState};
 use bevy::math::{Quat, Vec3};
-use bevy::prelude::{Camera2dBundle, Commands, Res, ResMut, Transform};
-use rand::prelude::StdRng;
+use bevy::prelude::{Camera2dBundle, Commands, Resource, Res, ResMut, Transform};
 use rand::Rng;
 use std::f32::consts::PI;
 
@@ -16,6 +12,9 @@ pub enum SceneArg {
     Experimental,
     Lite,
 }
+
+#[derive(Resource, Clone)]
+pub struct OptionalSceneArg(pub Option<SceneArg>);
 
 impl TryFrom<String> for SceneArg {
     type Error = &'static str;
@@ -32,39 +31,39 @@ impl TryFrom<String> for SceneArg {
 /// System to spawn a scene, the choice of which is based on the scene specifier resource.
 pub fn summon_scene(
     commands: Commands,
-    scene: Res<Option<SceneArg>>,
-    random_state: ResMut<StdRng>,
+    scene: Res<OptionalSceneArg>,
+    random_state: ResMut<RandomState>,
 ) {
-    match scene.into_inner() {
-        None => setup_lite(commands, random_state),
+    match &scene.into_inner().0 {
+        None => setup_lite(commands, random_state.into_inner()),
         Some(scene) => match scene {
-            SceneArg::Experimental => setup_experimental(commands, random_state),
-            SceneArg::Lite => setup_lite(commands, random_state),
+            SceneArg::Experimental => setup_experimental(commands, random_state.into_inner()),
+            SceneArg::Lite => setup_lite(commands, random_state.into_inner()),
         },
     }
 }
 
 /// Set up a more complicated and chaotic scene with the latest features and experiments.
-pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<StdRng>) {
-    commands.spawn_bundle(Camera2dBundle::default());
+pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomState) {
+    commands.spawn(Camera2dBundle::default());
 
     setup_base_arena(&mut commands);
 
     // Some guns before the player
-    commands.spawn_bundle(GunBundle::new(
+    commands.spawn(GunBundle::new(
         GunPreset::LaserGun,
         Some(Transform::from_translation(Vec3::new(-120.0, 50.0, 0.0))),
         random_state.gen(),
     ));
-    commands.spawn_bundle(GunBundle::new(
+    commands.spawn(GunBundle::new(
         GunPreset::Imprecise,
         Some(Transform::from_translation(Vec3::new(-180.0, 50.0, 0.0))),
         random_state.gen(),
     ));
-    commands.spawn_bundle(GunBundle::new(
+    commands.spawn(GunBundle::new(
         GunPreset::RailGun,
         Some(Transform::from_translation(Vec3::new(-240.0, 50.0, 0.0))),
-        random_state.gen(),
+        random_state.0.gen(),
     ));
 
     // Player character
@@ -88,14 +87,14 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<StdRn
     .spawn_with_equipment(&mut commands, &mut random_state, vec![GunPreset::RailGun]);
 
     // Random wall in the middle
-    commands.spawn_bundle(RectangularObstacleBundle::new(Transform::from_scale(
+    /*commands.spawn(RectangularObstacleBundle::new(Transform::from_scale(
         Vec3::new(1.0, 2.0, 1.0),
-    )));
+    )));*/
 }
 
 /// Set up a lighter, stable scene. Considered default.
-pub fn setup_lite(mut commands: Commands, mut random_state: ResMut<StdRng>) {
-    commands.spawn_bundle(Camera2dBundle::default());
+pub fn setup_lite(mut commands: Commands, mut random_state: &mut RandomState) {
+    commands.spawn(Camera2dBundle::default());
 
     setup_base_arena(&mut commands);
 
@@ -106,33 +105,33 @@ pub fn setup_lite(mut commands: Commands, mut random_state: ResMut<StdRng>) {
 /// Set up common stuff attributable to all levels.
 fn setup_base_arena(commands: &mut Commands) {
     // ----- Walls of the arena
-    commands.spawn_bundle(RectangularObstacleBundle::new(
+    /*commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::X * -SCREEN_SPAN / 2.0).with_scale(Vec3::new(
             1.0,
             SCREEN_SPAN / OBSTACLE_CHUNK_SIZE + 1.0,
             1.0,
         )),
     ));
-    commands.spawn_bundle(RectangularObstacleBundle::new(
+    commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::X * SCREEN_SPAN / 2.0).with_scale(Vec3::new(
             1.0,
             SCREEN_SPAN / OBSTACLE_CHUNK_SIZE + 1.0,
             1.0,
         )),
     ));
-    commands.spawn_bundle(RectangularObstacleBundle::new(
+    commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::Y * SCREEN_SPAN / 2.0).with_scale(Vec3::new(
             SCREEN_SPAN / OBSTACLE_CHUNK_SIZE + 1.0,
             1.0,
             1.0,
         )),
     ));
-    commands.spawn_bundle(RectangularObstacleBundle::new(
+    commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::Y * -SCREEN_SPAN / 2.0).with_scale(Vec3::new(
             SCREEN_SPAN / OBSTACLE_CHUNK_SIZE + 1.0,
             1.0,
             1.0,
         )),
-    ));
+    ));*/
     // Walls of the arena -----
 }

@@ -3,7 +3,7 @@ use crate::characters::PlayerControlled;
 use bevy::input::{Axis, Input};
 use bevy::prelude::{
     Commands, EventReader, Gamepad, GamepadAxis, GamepadAxisType, GamepadButton, GamepadButtonType,
-    GamepadEvent, GamepadEventType, KeyCode, Query, Res, With,
+    GamepadEvent, GamepadEventType, KeyCode, Query, Resource, Res, With,
 };
 
 // uncouth, probably refactor later -- may have to forbid multiple simultaneous inputs
@@ -54,7 +54,15 @@ pub fn handle_keyboard_input(
     }
 }
 
+/*
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
+ */
 /// To-be resource holding the connected gamepad ID.
+#[derive(Resource)]
 pub struct GamepadWrapper(Gamepad);
 
 /// System to convert gamepad input to a player's character action input.
@@ -122,9 +130,10 @@ pub fn handle_gamepad_connections(
 ) {
     for ev in gamepad_events.iter() {
         let id = ev.gamepad;
-        match ev.event_type {
-            GamepadEventType::Connected => {
-                println!("New gamepad connected with ID: {:?}", id);
+        match &ev.event_type {
+            // name is skipped. maybe there will use for this later
+            GamepadEventType::Connected(info) => {
+                println!("New gamepad connected with ID: {:?}, name: {:?}", id, info.name);
 
                 // if we don't have any gamepad yet, use this one. Fix it for local multiplayer.
                 if connected_gamepad.is_none() {

@@ -72,10 +72,13 @@ impl GunPreset {
 
         match self {
             GunPreset::RailGun => {
-                add_projectile_components!(
+                /*add_projectile_components!(
                     RailGunThing,
                     heron::RigidBody::Sensor,
                     heron::Collisions::default()
+                );*/
+                add_projectile_components!(
+                    RailGunThing
                 );
             }
             _ => {}

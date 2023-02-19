@@ -1,16 +1,16 @@
 use crate::SCREEN_SPAN;
-use bevy::ecs::query::WorldQuery;
+use bevy::ecs::query::{ReadOnlyWorldQuery, WorldQuery};
 use bevy::math::Vec3;
 use bevy::prelude::{
     default, Bundle, Color, Commands, DespawnRecursiveExt, Entity, Query, Sprite, SpriteBundle,
     Transform, With,
 };
-use heron::prelude::*;
+//use heron::prelude::*;
 
 /// The size of an obstacle chunk. Useful to keep about the same as a character's body size to configure the terrain easier.
 pub const OBSTACLE_CHUNK_SIZE: f32 = 50.0;
 pub const DEFAULT_OBSTACLE_COLOR: Color = Color::WHITE;
-
+/*
 /// Collection of components desired for physics and collision simulation.
 #[derive(Bundle)]
 pub struct KinematicsBundle {
@@ -150,10 +150,10 @@ impl RectangularObstacleBundle {
             ..default()
         }
     }
-}
+}*/
 
 /// All various layers of collision used in the game, used by the CollisionLayers component to check if a collision should happen or not.
-#[derive(PhysicsLayer)]
+//#[derive(PhysicsLayer)]
 pub enum CollisionLayer {
     Character,
     Gear,
@@ -173,7 +173,7 @@ impl CollisionLayer {
         ]
     }
 }
-
+/*
 /// Collection of shortcuts to commonly used collision shapes.
 pub enum PopularCollisionShape {
     SquareCell(f32),
@@ -197,15 +197,15 @@ impl PopularCollisionShape {
             },
         }
     }
-}
+}*/
 
 /// Try to find two entities in two queries without knowing which one entity exists in which query.
 pub(crate) fn try_get_components_from_entities<
     'a,
     ComponentA: WorldQuery,
     ComponentB: WorldQuery,
-    FilterA: WorldQuery,
-    FilterB: WorldQuery,
+    FilterA: ReadOnlyWorldQuery,
+    FilterB: ReadOnlyWorldQuery,
 >(
     query_a: &'a Query<ComponentA, FilterA>,
     query_b: &'a Query<ComponentB, FilterB>,
@@ -220,7 +220,7 @@ pub(crate) fn try_get_components_from_entities<
         None
     }
 }
-
+/*
 /// System to despawn entities (bullets, in particular) that get out of bounds.
 /// Temporary fallback measurement, possibly, since normally it shouldn't happen.
 pub fn handle_entities_out_of_bounds(
@@ -238,4 +238,4 @@ pub fn handle_entities_out_of_bounds(
             // todo kill procedure first, probably
         }
     }
-}
+}*/

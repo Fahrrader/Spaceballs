@@ -5,14 +5,14 @@ version = "0.1.0"
 edition = "2021"
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "windows")))'.dependencies]
-bevy = {features = ["dynamic"], version = "0.8"}
+bevy = {version = "0.9", features = ["dynamic"]}
 
 [dependencies]
-bevy = "0.8"
-heron = { version = "4", features = ["2d", "enhanced-determinism"] }
+bevy = "0.9"
+heron = { version = "5", features = ["2d", "enhanced-determinism"] }
 rand = "0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
-clap = { version = "4.0.15", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
 console_error_panic_hook = "0.1"
 wasm-bindgen = "*"
 

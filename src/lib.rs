@@ -11,21 +11,21 @@ mod teams;
 
 pub use crate::ai::handle_ai_input;
 pub use crate::characters::{
-    calculate_character_velocity, handle_gun_picking, handle_inventory_layout_change,
-    handle_letting_gear_go, BaseCharacterBundle, ControlledPlayerCharacterBundle,
+    // calculate_character_velocity, handle_gun_picking, handle_letting_gear_go,
+    handle_inventory_layout_change, BaseCharacterBundle, ControlledPlayerCharacterBundle,
 };
 pub use crate::controls::{
     handle_gamepad_connections, handle_gamepad_input, handle_keyboard_input, reset_input,
 };
 pub use crate::guns::{
-    handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gunfire, GunBundle, GunPreset,
+    /*handle_gun_arriving_at_rest, */handle_gun_idle_bobbing, handle_gunfire, GunBundle, GunPreset,
 };
 pub use crate::health::handle_death;
 pub use crate::physics::{
-    handle_entities_out_of_bounds, RectangularObstacleBundle, OBSTACLE_CHUNK_SIZE,
+    /*handle_entities_out_of_bounds, RectangularObstacleBundle, */OBSTACLE_CHUNK_SIZE,
 };
 pub use crate::projectiles::{
-    handle_bullet_collision_events, handle_damage_from_railgun_things, handle_railgun_things,
+    /*handle_bullet_collision_events, handle_damage_from_railgun_things, */handle_railgun_things,
 };
 pub use crate::scenes::{summon_scene, SceneArg};
 pub use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
@@ -33,7 +33,7 @@ pub use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 pub use bevy::prelude::*;
 pub use bevy::render::camera::{camera_system, RenderTarget};
 use bevy::window::WindowResized;
-pub use heron::PhysicsPlugin;
+//pub use heron::PhysicsPlugin;
 
 pub use rand::prelude::StdRng;
 pub use rand::{Rng, SeedableRng};
@@ -42,6 +42,17 @@ use clap::Parser;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+use crate::scenes::OptionalSceneArg;
+
+/// State of chaos!
+#[derive(Resource)]
+pub struct RandomState(pub StdRng);
+
+impl RandomState {
+    pub fn gen(&mut self) -> u64 {
+        self.0.gen()
+    }
+}
 
 // todo after the adjustment of body sizes, change to probably 200.0
 /// The size of a side of the arena, in in-game units of distance.
@@ -134,15 +145,15 @@ struct Cli {
 
 /// Try to get input from the command line interface on which scene to load.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn parse_scene_ext_input() -> Option<SceneArg> {
+pub fn parse_scene_ext_input() -> OptionalSceneArg {
     let args = Cli::parse();
-    args.scene
+    OptionalSceneArg(args.scene)
 }
 
 /// Try to get input from the JS side's URL arguments on which scene to load.
 #[cfg(target_arch = "wasm32")]
-pub fn parse_scene_ext_input() -> Option<SceneArg> {
-    get_scene_from_js().try_into().ok()
+pub fn parse_scene_ext_input() -> OptionalSceneArg {
+    OptionalSceneArg(get_scene_from_js().try_into().ok())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

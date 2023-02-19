@@ -16,7 +16,7 @@ pub fn handle_ai_input(
     // I heard spinning is a good trick
     for mut action_input in query.iter_mut() {
         *action_input = advanced_action_routine(
-            ((time.seconds_since_startup() % (TIME_STEP * 3.0)) / TIME_STEP).floor() as u8,
+            ((time.elapsed_seconds_f64() % (TIME_STEP * 3.0)) / TIME_STEP).floor() as u8,
         );
     }
 }

@@ -1,6 +1,6 @@
 use crate::actions::CharacterActionInput;
 use crate::characters::{Character, CHARACTER_SPEED};
-use crate::physics::KinematicsBundle;
+//use crate::physics::KinematicsBundle;
 use crate::teams::{team_color, Team, TeamNumber};
 use bevy::math::{Quat, Vec2, Vec3};
 use bevy::prelude::{
@@ -22,6 +22,7 @@ use crate::projectiles::BulletBundle;
 pub use colours::GUN_TRANSPARENCY;
 pub use presets::{GunPreset, RAIL_GUN_DAMAGE_PER_SECOND};
 pub use stats::GunPersistentStats;
+use crate::TimerMode;
 
 /// The gun is slightly darker than the main color of the character body to be distinct.
 const GUN_COLOR_MULTIPLIER: f32 = 0.75;
@@ -46,9 +47,9 @@ const GUN_Z_LAYER: f32 = 5.0;
 #[derive(Bundle)]
 pub struct GunBundle {
     pub gun: Gun,
-    #[bundle]
+    /*#[bundle]
     pub kinematics: KinematicsBundle,
-    pub collisions: heron::Collisions,
+    pub collisions: heron::Collisions,*/
     #[bundle]
     pub sprite_bundle: SpriteBundle,
 }
@@ -60,8 +61,8 @@ impl Default for GunBundle {
         let transform = stats.get_transform();
         Self {
             gun,
-            kinematics: stats.get_kinematics(transform.scale),
-            collisions: heron::Collisions::default(),
+            /*kinematics: stats.get_kinematics(transform.scale),
+            collisions: heron::Collisions::default(),*/
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: stats.gun_neutral_color.0,
@@ -117,9 +118,9 @@ impl Default for Gun {
         let stats = preset.stats();
         Self {
             preset,
-            fire_cooldown: Timer::new(stats.fire_cooldown, false),
+            fire_cooldown: Timer::new(stats.fire_cooldown, TimerMode::Once),
             shots_before_reload: stats.shots_before_reload,
-            reload_progress: Timer::new(stats.reload_time, false),
+            reload_progress: Timer::new(stats.reload_time, TimerMode::Once),
             random_state: StdRng::seed_from_u64(0),
         }
     }
@@ -129,11 +130,11 @@ impl Gun {
     pub fn new(preset: GunPreset, random_seed: u64) -> Self {
         let stats = preset.stats();
 
-        let mut fire_cooldown = Timer::new(stats.fire_cooldown, false);
+        let mut fire_cooldown = Timer::new(stats.fire_cooldown, TimerMode::Once);
         // Mark cooldown after firing as finished, the player shouldn't wait for the gun to recover when first picking it up
         fire_cooldown.tick(stats.fire_cooldown);
 
-        let mut reload_progress = Timer::new(stats.reload_time, false);
+        let mut reload_progress = Timer::new(stats.reload_time, TimerMode::Once);
         // Reloading is not active at the start, firing cooldown and reloading must be mutually exclusive
         reload_progress.pause();
 
@@ -263,12 +264,14 @@ impl Gun {
                     facing_direction * gun_stats.projectile_speed,
                 );
 
+                /* todo kinematics
                 let linear_velocity = bullet.kinematics.velocity.linear;
                 bullet.sprite_bundle.transform.translation += (rounds_fired * cooldown_duration + time_in_nanos_elapsed_since_latest_cooldown) as f32
                     / cooldown_duration as f32
                     * linear_velocity
                     // nanos per second
                     / 1_000_000_000.0;
+                 */
 
                 bullets.push(bullet);
             }
@@ -365,7 +368,7 @@ pub fn handle_gunfire(
 
             if gun_type.has_extra_projectile_components() {
                 for bullet in bullets {
-                    let mut bullet_commands = commands.spawn_bundle(bullet);
+                    let mut bullet_commands = commands.spawn(bullet);
                     // Add any extra components that a bullet should have
                     gun_type.add_projectile_components(&mut bullet_commands);
                 }
@@ -393,7 +396,7 @@ pub fn handle_gun_idle_bobbing(
 
     let time_cos_dt = -GUN_BOBBING_TEMPO
         * GUN_BOBBING_AMPLITUDE
-        * (GUN_BOBBING_TEMPO as f64 * time.seconds_since_startup()).sin() as f32
+        * (GUN_BOBBING_TEMPO as f64 * time.elapsed_seconds_f64()).sin() as f32
         * time.delta_seconds();
 
     for mut transform in query_weapons.iter_mut() {
@@ -404,7 +407,7 @@ pub fn handle_gun_idle_bobbing(
         );
     }
 }
-
+/*
 /// System to strip the thrown guns of flying components if they have arrived within the threshold of rest.
 pub fn handle_gun_arriving_at_rest(
     mut commands: Commands,
@@ -419,4 +422,4 @@ pub fn handle_gun_arriving_at_rest(
             *body_type = heron::RigidBody::Sensor;
         }
     }
-}
+}*/

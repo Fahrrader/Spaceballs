@@ -1,6 +1,6 @@
 use crate::guns::colours::GunColour;
 use crate::guns::{GUN_VELOCITY_DAMPING_RATIO, GUN_Z_LAYER};
-use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
+//use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
 use bevy::math::Vec3;
 use bevy::prelude::Transform;
 use std::time::Duration;
@@ -82,7 +82,7 @@ impl GunPersistentStats {
     }
 
     /// Get the standard physics components for a gun.
-    pub fn get_kinematics(&self, scale: Vec3) -> KinematicsBundle {
+    /*pub fn get_kinematics(&self, scale: Vec3) -> KinematicsBundle {
         KinematicsBundle::new(
             PopularCollisionShape::RectangularCell(self.gun_width, self.gun_length).get(scale),
             CollisionLayer::Gear,
@@ -91,7 +91,7 @@ impl GunPersistentStats {
         .with_linear_damping(GUN_VELOCITY_DAMPING_RATIO)
         .with_angular_damping(GUN_VELOCITY_DAMPING_RATIO)
         .with_rigidbody_type(heron::RigidBody::Sensor)
-    }
+    }*/
 
     /// Calculate the y-offset where the bullet spawns (usually, at the tip of the gun barrel).
     pub fn get_bullet_spawn_offset(&self, scale: Vec3) -> f32 {
