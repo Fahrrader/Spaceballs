@@ -151,7 +151,7 @@ extern "C" {
 }
 
 #[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(module = "/public/main.js")]
+#[wasm_bindgen(module = "/web/main.ts")]
 extern "C" {
     #[wasm_bindgen(js_name = getSceneFromUrl)]
     fn get_scene_from_js() -> String;

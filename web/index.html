@@ -1,0 +1,142 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        background-color: #000000;
+        touch-action: none;
+        margin: 0px;
+        padding: 0px;
+        border: 0px;
+      }
+
+      canvas {
+        display: block;
+        margin: 0 auto;
+      }
+
+      canvas:focus {
+        outline: none;
+      }
+
+      .loader {
+        border: 16px solid #f3f3f3; /* Light grey */
+        border-top: 16px solid #00ffff; /* Blue */
+        border-radius: 50%;
+        width: 120px;
+        height: 120px;
+        position: absolute;
+        margin-top: -60px;
+        margin-left: -60px;
+        top: 50%;
+        left: 50%;
+        animation: spin 2s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      .controls_panel {
+        margin: 5%;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 90%;
+        /* visibility: hidden; */
+      }
+
+      .controls_steer {
+        float: left;
+      }
+
+      .controls_pedals {
+        float: right;
+      }
+
+      .controls {
+        background-color: #eee;
+        margin: 0;
+      }
+
+      #key_space_wide {
+        width: 100%;
+      }
+      #key_space_right {
+        width: 200px;
+      }
+      #key_space_left {
+        width: 200px;
+      }
+
+      @media (orientation: portrait) {
+        .controls {
+          width: 200px;
+          height: 200px;
+          border-radius: 50px;
+        }
+        #key_space_wide {
+          display: block;
+        }
+        #key_space_right {
+          display: none;
+        }
+        #key_space_left {
+          display: none;
+        }
+      }
+
+      @media (orientation: landscape) {
+        .controls {
+          width: 100px;
+          height: 100px;
+          border-radius: 25px;
+        }
+        #key_space_wide {
+          display: none;
+        }
+        #key_space_right {
+          display: block;
+        }
+        #key_space_left {
+          display: block;
+        }
+      }
+    </style>
+  </head>
+
+
+  <body>
+    <div class="loader"></div>
+
+    <div class='controls_panel'>
+      <div id="key_space_wide" class='key_space controls'></div><br>
+
+      <div class='controls_steer'>
+        <div id="key_space_left" class='key_space controls'></div><br>
+        <button class='key_a controls'><h1>A</h1></button>
+        <button class='key_d controls'><h1>D</h1></button>
+      </div>
+
+      <div class='controls_pedals'>
+        <div id="key_space_right" class='key_space controls'></div><br>
+        <button class='key_w controls'><h1>W</h1></button>
+        <button class='key_s controls'><h1>S</h1></button>
+      </div>
+    </div>
+
+    <script type="module">
+      import init from './cosmic-spaceball-tactical-action-arena.js';
+      import {run} from './main.ts';
+
+      init()
+        .catch((e) => {
+          console.error(e, e.stack);
+        })
+        .finally(() => {
+          run();
+        });
+    </script>
+  </body>
+</html>

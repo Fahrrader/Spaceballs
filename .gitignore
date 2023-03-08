@@ -1,8 +1,15 @@
+# npm stuff
+/web/dist
+/web/.parcel-cache
+/web/.cache
+/web/node_modules
+/web/cosmic-spaceball-tactical-action-arena*
+/web/snippets
+
 # Cargo
 /target
 
 # Local setup for convinience
-Makefile
 /public
 
 
