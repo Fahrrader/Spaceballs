@@ -6,7 +6,8 @@ variables:
 before_script:
   - rustup target add wasm32-unknown-unknown
   - cargo install wasm-bindgen-cli
-  - apt update && apt install -y npm
+  - curl -fsSL https://deb.nodesource.com/setup_19.x | bash
+  - sudo apt-get install -y nodejs
   - cd web; npm ci; cd ..
 
 pages:
