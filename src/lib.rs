@@ -7,6 +7,7 @@ mod physics;
 mod projectiles;
 mod scenes;
 mod teams;
+#[cfg(target_arch = "wasm32")]
 mod js_interop;
 
 pub use crate::ai::{handle_ai_input, AI_DEFAULT_TEAM};
