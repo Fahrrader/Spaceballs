@@ -7,6 +7,7 @@ mod physics;
 mod projectiles;
 mod scenes;
 mod teams;
+mod js_interop;
 
 pub use crate::ai::{handle_ai_input, AI_DEFAULT_TEAM};
 pub use crate::characters::{
@@ -14,7 +15,7 @@ pub use crate::characters::{
     ControlledPlayerCharacterBundle, PLAYER_DEFAULT_TEAM,
 };
 pub use crate::controls::{
-    handle_gamepad_connections, handle_gamepad_input, handle_keyboard_input, reset_input,
+    handle_gamepad_connections, handle_gamepad_input, handle_keyboard_input, handle_js_input, reset_input,
 };
 pub use crate::health::{handle_damage, EntityDamagedEvent};
 pub use crate::physics::{
@@ -27,10 +28,10 @@ pub use bevy::prelude::*;
 pub use heron::PhysicsPlugin;
 pub use bevy::render::camera::{camera_system, RenderTarget};
 use bevy::window::WindowResized;
+#[cfg(target_arch="wasm32")]
+use crate::js_interop::{get_scene_from_js, detect_window_resize_from_js, get_new_window_size_from_js};
 
 use clap::Parser;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
 
 // todo after the adjustment of body sizes, change to probably 200.0
 pub const SCREEN_SPAN: f32 = 800.0;
@@ -125,40 +126,4 @@ pub fn parse_scene_ext_input() -> Option<SceneArg> {
 #[cfg(target_arch = "wasm32")]
 pub fn parse_scene_ext_input() -> Option<SceneArg> {
     get_scene_from_js().try_into().ok()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[macro_export]
-macro_rules! log {
-    () => (println!());
-    ($($arg:tt)*) => ({
-        println!($($arg)*)
-    })
-}
-
-#[cfg(target_arch = "wasm32")]
-#[macro_export]
-macro_rules! log {
-    () => (log("\n"));
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(module = "/web/main.ts")]
-extern "C" {
-    #[wasm_bindgen(js_name = getSceneFromUrl)]
-    fn get_scene_from_js() -> String;
-
-    #[wasm_bindgen(js_name = detectWindowResize)]
-    fn detect_window_resize_from_js() -> bool;
-
-    #[wasm_bindgen(js_name = getNewWindowSize)]
-    fn get_new_window_size_from_js() -> Vec<f32>;
 }

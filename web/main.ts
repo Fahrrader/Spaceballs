@@ -1,6 +1,19 @@
+import * as nipplejs from 'nipplejs';
+
+const STICK_SIZE_PORTRAIT = 200;
+const STICK_SIZE_LANDSCAPE = 100;
+
 declare global {
-    interface Window { playArea: [number, number] | null; }
+    interface Window {
+        playArea: [number, number] | null;
+        sticksPosition: [number, number];
+        joysticks: [nipplejs.JoystickManager, nipplejs.JoystickManager] | null;
+    }
 }
+
+window.playArea = null;
+window.sticksPosition = [0, 0];
+window.joysticks = null;
 
 
 export function run(): void {
@@ -12,8 +25,7 @@ export function run(): void {
     if (detectMob()) {
         setupControls(c);
         for (let panel of document.getElementsByClassName("controls_panel"))
-            if (panel instanceof HTMLElement)
-                panel.style.visibility = "visible";
+            (panel as HTMLElement).style.visibility = "visible";
     }
 
     recalculateCanvasSize(c);
@@ -22,7 +34,7 @@ export function run(): void {
 }
 
 export function detectWindowResize(): boolean {
-    return window.playArea != null;
+    return window.playArea !== null;
 }
 
 export function getNewWindowSize(): [number, number] | null {
@@ -33,6 +45,10 @@ export function getNewWindowSize(): [number, number] | null {
 
 export function getSceneFromUrl(): string {
     return getUrlParam("scene");
+}
+
+export function getSticksPosition(): [number, number] {
+    return window.sticksPosition;
 }
 
 function getUrlParam(param: string): string {
@@ -72,17 +88,71 @@ function setupControls(c: HTMLCanvasElement): void {
         button.ontouchcancel = (e) => { fakePress(key, code, 'keyup'); e.preventDefault(); return false; }
     }
 
-    for (let key of document.getElementsByClassName("key_w"))
-        setupOneButton(key, 'w', 'KeyW');
-    for (let key of document.getElementsByClassName("key_a"))
-        setupOneButton(key, 'a', 'KeyA');
-    for (let key of document.getElementsByClassName("key_s"))
-        setupOneButton(key, 's', 'KeyS');
-    for (let key of document.getElementsByClassName("key_d"))
-        setupOneButton(key, 'd', 'KeyD');
+    for (let key of document.getElementsByClassName("key_f"))
+        setupOneButton(key, 'f', 'KeyF');
+    for (let key of document.getElementsByClassName("key_c"))
+        setupOneButton(key, 'c', 'KeyC');
 
     for (let key of document.getElementsByClassName("key_space"))
         setupOneButton(key, ' ', 'Space');
+    
+    recreateJoysticks(isLandscape(screen.orientation || window.orientation));
+
+    if(screen.orientation)
+        screen.orientation.addEventListener("change", (e)=>{
+            recreateJoysticks(isLandscape(e.target as ScreenOrientation));
+        })
+    else
+        window.addEventListener("orientationchange", (e)=>{
+            recreateJoysticks(isLandscape((e.target as Window).orientation));
+        })
+}
+
+function isLandscape(orientation: ScreenOrientation | number): boolean {
+    if (typeof(orientation) === 'number')
+        return orientation == -90 || orientation == 90;
+    return orientation.type.startsWith("landscape");
+}
+
+function recreateJoysticks(isLandscape: boolean): void {
+    if (window.joysticks !== null) {
+        window.joysticks[0].destroy();
+        window.joysticks[1].destroy();
+    }
+
+    let size = isLandscape ? STICK_SIZE_LANDSCAPE : STICK_SIZE_PORTRAIT;
+
+    var leftStickManager = nipplejs.create({
+        zone: document.getElementById('left_stick') as HTMLElement,
+        mode: 'static',
+        position: {left: '50%', bottom: '50%'},
+        color: 'white',
+        lockX: true,
+        size: size,
+    });
+    leftStickManager.on("move", (_event, data) => {
+        window.sticksPosition[0] = data.vector.x * (data.distance / size) * 2;
+    });
+    leftStickManager.on("end", (_event, _data) => {
+        window.sticksPosition[0] = 0;
+    })
+
+    var rightStickManager = nipplejs.create({
+        zone: document.getElementById('right_stick') as HTMLElement,
+        mode: 'static',
+        position: {left: '50%', bottom: '50%'},
+        color: 'white',
+        lockY: true,
+        size: size,
+    });
+    rightStickManager.on("move", (_event, data) => {
+        window.sticksPosition[1] = data.vector.y * (data.distance / size) * 2;
+    });
+    rightStickManager.on("end", (_event, _data) => {
+        window.sticksPosition[1] = 0;
+    })
+
+    window.joysticks = [leftStickManager, rightStickManager];
 }
 
 function recalculateCanvasSize(c: HTMLCanvasElement): void {

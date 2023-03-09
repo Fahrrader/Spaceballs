@@ -21,6 +21,7 @@ fn main() {
                 .with_system(reset_input)
                 .with_system(handle_keyboard_input.after(reset_input))
                 .with_system(handle_gamepad_input.after(reset_input))
+                .with_system(handle_js_input.after(reset_input))
                 .with_system(handle_ai_input.after(reset_input)),
         )
         .add_system(calculate_character_velocity.after("handle_input"))
