@@ -39,7 +39,6 @@ fn main() {
         .add_system(handle_letting_gear_go.after("handle_input"))
         .add_system(handle_entities_out_of_bounds)
         .add_system(handle_railgun_things)
-        .add_system(display_events)
         .add_system(handle_damage_from_railgun_things)
         .add_system(handle_bullet_collision_events)
         .add_system(handle_inventory_layout_change)
