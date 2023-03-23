@@ -11,21 +11,21 @@ mod teams;
 
 pub use crate::ai::handle_ai_input;
 pub use crate::characters::{
-    // calculate_character_velocity, handle_gun_picking, handle_letting_gear_go,
-    handle_inventory_layout_change, BaseCharacterBundle, ControlledPlayerCharacterBundle,
+    calculate_character_velocity, handle_gun_picking, handle_inventory_layout_change,
+    handle_letting_gear_go, BaseCharacterBundle, ControlledPlayerCharacterBundle,
 };
 pub use crate::controls::{
     handle_gamepad_connections, handle_gamepad_input, handle_keyboard_input, reset_input,
 };
 pub use crate::guns::{
-    /*handle_gun_arriving_at_rest, */handle_gun_idle_bobbing, handle_gunfire, GunBundle, GunPreset,
+    handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gunfire, GunBundle, GunPreset,
 };
 pub use crate::health::handle_death;
 pub use crate::physics::{
-    /*handle_entities_out_of_bounds, RectangularObstacleBundle, */OBSTACLE_CHUNK_SIZE,
+    handle_entities_out_of_bounds, RectangularObstacleBundle, SpaceballsPhysicsPlugin, CHUNK_SIZE,
 };
 pub use crate::projectiles::{
-    /*handle_bullet_collision_events, handle_damage_from_railgun_things, */handle_railgun_things,
+    handle_bullet_collision_events, handle_damage_from_railgun_things, handle_railgun_things,
 };
 pub use crate::scenes::{summon_scene, SceneArg};
 pub use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
@@ -33,19 +33,19 @@ pub use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 pub use bevy::prelude::*;
 pub use bevy::render::camera::{camera_system, RenderTarget};
 use bevy::window::WindowResized;
-//pub use heron::PhysicsPlugin;
+pub use bevy_rapier2d::prelude::{RapierConfiguration, RapierPhysicsPlugin};
 
 pub use rand::{
-    prelude::{StdRng, Distribution},
     distributions::Standard,
+    prelude::{Distribution, StdRng},
     Rng, SeedableRng,
 };
 
 use clap::Parser;
 
+use crate::scenes::OptionalSceneArg;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-use crate::scenes::OptionalSceneArg;
 
 /// State of chaos!
 #[derive(Resource)]
@@ -53,7 +53,10 @@ pub struct RandomState(pub StdRng);
 
 impl RandomState {
     #[inline]
-    pub fn gen<T>(&mut self) -> T where Standard: Distribution<T>{
+    pub fn gen<T>(&mut self) -> T
+    where
+        Standard: Distribution<T>,
+    {
         self.0.gen()
     }
 }

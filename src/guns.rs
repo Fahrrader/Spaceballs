@@ -1,6 +1,6 @@
 use crate::actions::CharacterActionInput;
 use crate::characters::{Character, CHARACTER_SPEED};
-//use crate::physics::KinematicsBundle;
+use crate::physics::{KinematicsBundle, OngoingCollisions, RigidBody, Sensor, Velocity};
 use crate::teams::{team_color, Team, TeamNumber};
 use bevy::math::{Quat, Vec2, Vec3};
 use bevy::prelude::{
@@ -19,10 +19,10 @@ mod stats;
 
 use crate::guns::stats::ProjectileSpawnSpace;
 use crate::projectiles::BulletBundle;
+use crate::TimerMode;
 pub use colours::GUN_TRANSPARENCY;
 pub use presets::{GunPreset, RAIL_GUN_DAMAGE_PER_SECOND};
 pub use stats::GunPersistentStats;
-use crate::TimerMode;
 
 /// The gun is slightly darker than the main color of the character body to be distinct.
 const GUN_COLOR_MULTIPLIER: f32 = 0.75;
@@ -47,9 +47,10 @@ const GUN_Z_LAYER: f32 = 5.0;
 #[derive(Bundle)]
 pub struct GunBundle {
     pub gun: Gun,
-    /*#[bundle]
+    #[bundle]
     pub kinematics: KinematicsBundle,
-    pub collisions: heron::Collisions,*/
+    pub sensor: Sensor,
+    pub collisions: OngoingCollisions,
     #[bundle]
     pub sprite_bundle: SpriteBundle,
 }
@@ -61,8 +62,9 @@ impl Default for GunBundle {
         let transform = stats.get_transform();
         Self {
             gun,
-            /*kinematics: stats.get_kinematics(transform.scale),
-            collisions: heron::Collisions::default(),*/
+            kinematics: stats.get_kinematics(),
+            sensor: Sensor,
+            collisions: OngoingCollisions::default(),
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: stats.gun_neutral_color.0,
@@ -264,14 +266,12 @@ impl Gun {
                     facing_direction * gun_stats.projectile_speed,
                 );
 
-                /* todo kinematics
-                let linear_velocity = bullet.kinematics.velocity.linear;
+                let linear_velocity = bullet.kinematics.velocity.linvel.extend(0.);
                 bullet.sprite_bundle.transform.translation += (rounds_fired * cooldown_duration + time_in_nanos_elapsed_since_latest_cooldown) as f32
                     / cooldown_duration as f32
                     * linear_velocity
                     // nanos per second
                     / 1_000_000_000.0;
-                 */
 
                 bullets.push(bullet);
             }
@@ -306,10 +306,6 @@ impl Gun {
 pub struct Equipped {
     pub by: Entity,
 }
-
-/// Marker signifying that the gun has been thrown away from the player, has some velocity, and shouldn't idle-bob yet.
-#[derive(Component)]
-pub struct Thrown;
 
 /// Reset everything about the gun's transform, replacing the component's parts with their default state.
 pub(crate) fn reset_gun_transform(preset: GunPreset, transform: &mut Transform) {
@@ -382,7 +378,7 @@ pub fn handle_gunfire(
 /// System to make weapons more noticeable when not equipped and otherwise at rest.
 pub fn handle_gun_idle_bobbing(
     time: Res<Time>,
-    mut query_weapons: Query<&mut Transform, (With<Gun>, Without<Thrown>, Without<Equipped>)>,
+    mut query_weapons: Query<&mut Transform, (With<Gun>, With<Sensor>, Without<Equipped>)>,
 ) {
     fn eval_bobbing(a: f32, cos_dt: f32) -> f32 {
         // a crutch for the time being. if frame time is too low (as when the window is not focused on),
@@ -407,19 +403,19 @@ pub fn handle_gun_idle_bobbing(
         );
     }
 }
-/*
+
 /// System to strip the thrown guns of flying components if they have arrived within the threshold of rest.
 pub fn handle_gun_arriving_at_rest(
     mut commands: Commands,
     mut query_weapons: Query<
-        (&heron::Velocity, &mut heron::RigidBody, Entity),
-        (With<Gun>, With<Thrown>, Without<Equipped>),
+        (&Velocity, &mut RigidBody, Entity),
+        (With<Gun>, Without<Equipped>, Without<Sensor>),
     >,
 ) {
     for (velocity, mut body_type, entity) in query_weapons.iter_mut() {
-        if GUN_MAX_BOBBING_VELOCITY_SQR > velocity.linear.length_squared() {
-            commands.entity(entity).remove::<Thrown>();
-            *body_type = heron::RigidBody::Sensor;
+        if GUN_MAX_BOBBING_VELOCITY_SQR > velocity.linvel.length_squared() {
+            commands.entity(entity).insert(Sensor);
+            *body_type = RigidBody::Fixed;
         }
     }
-}*/
+}

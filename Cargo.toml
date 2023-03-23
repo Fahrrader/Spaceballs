@@ -9,7 +9,7 @@ bevy = {version = "0.9", features = ["dynamic"]}
 
 [dependencies]
 bevy = "0.9"
-heron = { version = "5", features = ["2d", "enhanced-determinism"] }
+bevy_rapier2d = { version = "0.20.0", features = ["enhanced-determinism"]} # serde-serialize, debug-render
 rand = "0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
 clap = { version = "4", features = ["derive"] }
@@ -19,6 +19,7 @@ wasm-bindgen = "*"
 [profile.release]
 opt-level = 's'
 lto = 'thin'
+codegen-units = 1
 
 [profile.dev]
 opt-level = 3

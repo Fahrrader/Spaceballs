@@ -1,8 +1,10 @@
-use std::borrow::{Borrow, BorrowMut};
 use crate::characters::BuildCharacterBundle;
-use crate::{BaseCharacterBundle, ControlledPlayerCharacterBundle, GunBundle, GunPreset, /*RectangularObstacleBundle, */AI_DEFAULT_TEAM, OBSTACLE_CHUNK_SIZE, PLAYER_DEFAULT_TEAM, SCREEN_SPAN, RandomState};
+use crate::{
+    BaseCharacterBundle, ControlledPlayerCharacterBundle, GunBundle, GunPreset, RandomState,
+    RectangularObstacleBundle, AI_DEFAULT_TEAM, CHUNK_SIZE, PLAYER_DEFAULT_TEAM, SCREEN_SPAN,
+};
 use bevy::math::{Quat, Vec3};
-use bevy::prelude::{Camera2dBundle, Commands, Resource, Res, ResMut, Transform};
+use bevy::prelude::{Camera2dBundle, Commands, Res, ResMut, Resource, Transform};
 use rand::Rng;
 use std::f32::consts::PI;
 
@@ -87,9 +89,9 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
     .spawn_with_equipment(&mut commands, &mut random_state, vec![GunPreset::RailGun]);
 
     // Random wall in the middle
-    /*commands.spawn(RectangularObstacleBundle::new(Transform::from_scale(
+    commands.spawn(RectangularObstacleBundle::new(Transform::from_scale(
         Vec3::new(1.0, 2.0, 1.0),
-    )));*/
+    )));
 }
 
 /// Set up a lighter, stable scene. Considered default.
@@ -105,33 +107,33 @@ pub fn setup_lite(mut commands: Commands, mut random_state: &mut RandomState) {
 /// Set up common stuff attributable to all levels.
 fn setup_base_arena(commands: &mut Commands) {
     // ----- Walls of the arena
-    /*commands.spawn(RectangularObstacleBundle::new(
+    commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::X * -SCREEN_SPAN / 2.0).with_scale(Vec3::new(
             1.0,
-            SCREEN_SPAN / OBSTACLE_CHUNK_SIZE + 1.0,
+            SCREEN_SPAN / CHUNK_SIZE + 1.0,
             1.0,
         )),
     ));
     commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::X * SCREEN_SPAN / 2.0).with_scale(Vec3::new(
             1.0,
-            SCREEN_SPAN / OBSTACLE_CHUNK_SIZE + 1.0,
+            SCREEN_SPAN / CHUNK_SIZE + 1.0,
             1.0,
         )),
     ));
     commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::Y * SCREEN_SPAN / 2.0).with_scale(Vec3::new(
-            SCREEN_SPAN / OBSTACLE_CHUNK_SIZE + 1.0,
+            SCREEN_SPAN / CHUNK_SIZE + 1.0,
             1.0,
             1.0,
         )),
     ));
     commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::Y * -SCREEN_SPAN / 2.0).with_scale(Vec3::new(
-            SCREEN_SPAN / OBSTACLE_CHUNK_SIZE + 1.0,
+            SCREEN_SPAN / CHUNK_SIZE + 1.0,
             1.0,
             1.0,
         )),
-    ));*/
+    ));
     // Walls of the arena -----
 }

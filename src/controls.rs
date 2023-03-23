@@ -3,7 +3,7 @@ use crate::characters::PlayerControlled;
 use bevy::input::{Axis, Input};
 use bevy::prelude::{
     Commands, EventReader, Gamepad, GamepadAxis, GamepadAxisType, GamepadButton, GamepadButtonType,
-    GamepadEvent, GamepadEventType, KeyCode, Query, Resource, Res, With,
+    GamepadEvent, GamepadEventType, KeyCode, Query, Res, Resource, With,
 };
 
 // uncouth, probably refactor later -- may have to forbid multiple simultaneous inputs
@@ -133,7 +133,10 @@ pub fn handle_gamepad_connections(
         match &ev.event_type {
             // name is skipped. maybe there will use for this later
             GamepadEventType::Connected(info) => {
-                println!("New gamepad connected with ID: {:?}, name: {:?}", id, info.name);
+                println!(
+                    "New gamepad connected with ID: {:?}, name: {:?}",
+                    id, info.name
+                );
 
                 // if we don't have any gamepad yet, use this one. Fix it for local multiplayer.
                 if connected_gamepad.is_none() {

@@ -1,19 +1,20 @@
 use crate::actions::CharacterActionInput;
-use crate::guns::{paint_gun, reset_gun_transform, Equipped, Gun, GunBundle, GunPreset, Thrown};
+use crate::guns::{paint_gun, reset_gun_transform, Equipped, Gun, GunBundle, GunPreset};
 use crate::health::{Health, HitPoints};
-//use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
+use crate::physics::{
+    popular_collider, ActiveEvents, CollisionLayer, KinematicsBundle, OngoingCollisions, RigidBody,
+    Sensor, Velocity,
+};
 use crate::teams::{team_color, Team, TeamNumber};
+use crate::RandomState;
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
-    Bundle, Changed, Commands, Component, Entity, Query, ResMut, Sprite, SpriteBundle, Transform,
-    With, Without,
+    Bundle, Changed, Commands, Component, Entity, Query, Sprite, SpriteBundle, Transform, With,
+    Without,
 };
 use bevy::utils::default;
-//use heron::{AxisAngle, Velocity};
-use rand::Rng;
 use std::f32::consts::PI;
-use crate::RandomState;
 
 // todo resize all sizes and speeds as percentages of screen-range
 /// Standard size for a character body in the prime time of their life.
@@ -39,8 +40,9 @@ pub struct BaseCharacterBundle {
     pub health: Health,
     pub team: Team,
     pub action_input: CharacterActionInput,
-    //#[bundle]
-    //pub kinematics: KinematicsBundle,
+    #[bundle]
+    pub kinematics: KinematicsBundle,
+    pub active_events: ActiveEvents,
     #[bundle]
     pub sprite_bundle: SpriteBundle,
 }
@@ -64,11 +66,12 @@ impl BuildCharacterBundle for BaseCharacterBundle {
             health: Health::new(CHARACTER_MAX_HEALTH),
             team: Team(team),
             action_input: CharacterActionInput::default(),
-            /*kinematics: KinematicsBundle::new(
-                PopularCollisionShape::SquareCell(CHARACTER_SIZE).get(transform.scale),
-                CollisionLayer::Character,
+            kinematics: KinematicsBundle::new(
+                popular_collider::square(CHARACTER_SIZE),
+                &[CollisionLayer::Character],
                 CollisionLayer::all(),
-            ),*/
+            ),
+            active_events: ActiveEvents::COLLISION_EVENTS,
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: team_color(team),
@@ -190,7 +193,8 @@ fn equip_gear(
     commands.entity(char_entity).add_child(gear_entity);
     commands
         .entity(gear_entity)
-        //.remove::<KinematicsBundle>()
+        .remove::<KinematicsBundle>()
+        .remove::<Sensor>()
         .insert(Equipped { by: char_entity });
 
     // only guns for now
@@ -209,13 +213,12 @@ fn unequip_gear(
     gear_entity: Entity,
     gun_type: GunPreset,
     gear_sprite: &mut Sprite,
-    //kinematics: KinematicsBundle,
+    kinematics: KinematicsBundle,
 ) {
     commands
         .entity(gear_entity)
         .remove::<Equipped>()
-        //.insert(kinematics)
-        .insert(Thrown);
+        .insert(kinematics);
 
     // reset_gun_transform(gun_type, gear_transform);
     paint_gun(gun_type, gear_sprite, None);
@@ -232,14 +235,14 @@ fn throw_away_gear(
     gear_sprite: &mut Sprite,
     gear_given_velocity: Vec3,
 ) {
-    /*let kinematics = gun_type
+    let kinematics = gun_type
         .stats()
-        .get_kinematics(gear_transform.scale)
+        .get_kinematics()
         .with_linear_velocity(gear_given_velocity)
-        .with_angular_velocity_in_rads(Vec3::Z, GUN_THROW_SPIN_SPEED);
-        .with_rigidbody_type(heron::RigidBody::Dynamic);*/
+        .with_angular_velocity(GUN_THROW_SPIN_SPEED)
+        .with_rigidbody_type(RigidBody::Dynamic);
 
-    unequip_gear(commands, gear_entity, gun_type, gear_sprite/*, kinematics*/);
+    unequip_gear(commands, gear_entity, gun_type, gear_sprite, kinematics);
 
     let gear_offset_forward = char_transform.up() * char_transform.scale.y * CHARACTER_SIZE / 2.;
     *gear_transform = Transform::from_translation(
@@ -251,29 +254,28 @@ fn throw_away_gear(
 }
 
 /// System to convert a character's action input (human or not) to linear and angular velocities.
-/*pub fn calculate_character_velocity(
+pub fn calculate_character_velocity(
     mut query: Query<(&mut Velocity, &Transform, &CharacterActionInput)>,
 ) {
     for (mut velocity, transform, action_input) in query.iter_mut() {
-        velocity.linear = transform.up() * action_input.speed() * CHARACTER_SPEED;
-        velocity.angular =
-            AxisAngle::new(-Vec3::Z, action_input.angular_speed() * CHARACTER_RAD_SPEED);
+        velocity.linvel = (transform.up() * action_input.speed() * CHARACTER_SPEED).truncate();
+        velocity.angvel = action_input.angular_speed() * -CHARACTER_RAD_SPEED;
     }
-}*/
+}
 
 /// System to, according to a character's input, pick up and equip guns off the ground.
-/*pub fn handle_gun_picking(
+pub fn handle_gun_picking(
     mut commands: Commands,
     query_characters: Query<(&CharacterActionInput, &Team, Entity)>,
     mut query_weapons: Query<
         (
             &Gun,
-            &heron::Collisions,
+            &OngoingCollisions,
             &mut Sprite,
             &mut Transform,
             Entity,
         ),
-        With<heron::RigidBody>,
+        (With<RigidBody>, With<Sensor>),
     >,
 ) {
     for (weapon, collisions, mut weapon_sprite, mut weapon_transform, weapon_entity) in
@@ -299,11 +301,11 @@ fn throw_away_gear(
             );
         }
     }
-}*/
+}
 
 /// System to, according to either to a character's input or its untimely demise, unequip guns and throw them to the ground with some gusto.
 /// That perfect gun is gone, and the heat never bothered it anyway.
-/*pub fn handle_letting_gear_go(
+pub fn handle_letting_gear_go(
     mut commands: Commands,
     mut query_characters: Query<
         (
@@ -331,7 +333,7 @@ fn throw_away_gear(
             if let Ok((gun, mut gun_sprite, mut gun_transform)) = query_gear.get_mut(child) {
                 let gun_type = gun.preset;
                 equipped_gears.push(child);
-                let gun_velocity = velocity.linear + transform.up() * GUN_THROW_SPEED;
+                let gun_velocity = velocity.linvel.extend(0.) + transform.up() * GUN_THROW_SPEED;
                 throw_away_gear(
                     &mut commands,
                     transform,
@@ -346,7 +348,7 @@ fn throw_away_gear(
 
         commands.entity(entity).remove_children(&equipped_gears);
     }
-}*/
+}
 
 /// System to distribute guns around a character's face whenever a new one is added or an old one removed.
 pub fn handle_inventory_layout_change(

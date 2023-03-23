@@ -2,6 +2,7 @@ use crate::characters::{CHARACTER_MAX_HEALTH, CHARACTER_SIZE, CHARACTER_SPEED};
 use crate::guns::colours::GunColour;
 use crate::guns::stats::{GunPersistentStats, ProjectileSpawnSpace};
 use crate::health::HitPoints;
+use crate::physics::{ContinuousCollisionDetection, OngoingCollisions, Sensor};
 use crate::projectiles::RailGunThing;
 use crate::Color;
 use bevy::ecs::system::EntityCommands;
@@ -72,13 +73,11 @@ impl GunPreset {
 
         match self {
             GunPreset::RailGun => {
-                /*add_projectile_components!(
-                    RailGunThing,
-                    heron::RigidBody::Sensor,
-                    heron::Collisions::default()
-                );*/
                 add_projectile_components!(
-                    RailGunThing
+                    RailGunThing,
+                    Sensor,
+                    OngoingCollisions::default(),
+                    ContinuousCollisionDetection { enabled: true }
                 );
             }
             _ => {}
