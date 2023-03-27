@@ -95,7 +95,7 @@ impl GunBundle {
 
     /// Change the bundled gun's color from neutral to that in line with the team.
     pub fn with_paint_job(mut self, team_number: TeamNumber) -> Self {
-        paint_gun(
+        team_paint_gun(
             self.gun.preset,
             &mut self.sprite_bundle.sprite,
             Some(team_number),
@@ -316,7 +316,11 @@ pub(crate) fn reset_gun_transform(preset: GunPreset, transform: &mut Transform) 
 }
 
 /// Make a gun look in line with a team's color or neutral (usually when not equipped by anybody).
-pub(crate) fn paint_gun(preset: GunPreset, sprite: &mut Sprite, team_number: Option<TeamNumber>) {
+pub(crate) fn team_paint_gun(
+    preset: GunPreset,
+    sprite: &mut Sprite,
+    team_number: Option<TeamNumber>,
+) {
     if let Some(team_number) = team_number {
         sprite.color = (team_color(team_number) * GUN_COLOR_MULTIPLIER)
             .set_a(GUN_TRANSPARENCY)

@@ -313,7 +313,7 @@ pub struct SpaceballsPhysicsPlugin;
 impl Plugin for SpaceballsPhysicsPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<OngoingCollisions>()
-            .add_system_to_stage(CoreStage::PostUpdate, cleanup_ongoing_collisions)
-            .add_system(update_ongoing_collisions);
+            .add_system(update_ongoing_collisions)
+            .add_system_to_stage(CoreStage::PostUpdate, cleanup_ongoing_collisions);
     }
 }

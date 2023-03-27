@@ -1,5 +1,5 @@
 use crate::actions::CharacterActionInput;
-use crate::guns::{paint_gun, reset_gun_transform, Equipped, Gun, GunBundle, GunPreset};
+use crate::guns::{reset_gun_transform, team_paint_gun, Equipped, Gun, GunBundle, GunPreset};
 use crate::health::{Health, HitPoints};
 use crate::physics::{
     popular_collider, ActiveEvents, CollisionLayer, KinematicsBundle, OngoingCollisions, RigidBody,
@@ -202,7 +202,7 @@ fn equip_gear(
         reset_gun_transform(gun_preset, such);
     }
     if let Some(such) = gear_paint_job {
-        paint_gun(gun_preset, such.0, such.1);
+        team_paint_gun(gun_preset, such.0, such.1);
     }
 }
 
@@ -221,7 +221,7 @@ fn unequip_gear(
         .insert(kinematics);
 
     // reset_gun_transform(gun_type, gear_transform);
-    paint_gun(gun_type, gear_sprite, None);
+    team_paint_gun(gun_type, gear_sprite, None);
 }
 
 /// Unequip gear and give it some speed according to its type.
@@ -275,7 +275,7 @@ pub fn handle_gun_picking(
             &mut Transform,
             Entity,
         ),
-        (With<RigidBody>, With<Sensor>),
+        (With<RigidBody>, Without<Equipped>),
     >,
 ) {
     for (weapon, collisions, mut weapon_sprite, mut weapon_transform, weapon_entity) in
@@ -284,6 +284,7 @@ pub fn handle_gun_picking(
         if collisions.is_empty() {
             continue;
         }
+
         for (char_input, char_team, char_entity) in query_characters.iter() {
             if !char_input.use_environment_1 || !collisions.contains(&char_entity) {
                 continue;

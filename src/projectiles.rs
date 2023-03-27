@@ -1,8 +1,8 @@
 use crate::guns::{GunPersistentStats, GunPreset, RAIL_GUN_DAMAGE_PER_SECOND};
 use crate::health::{Dying, Health, HitPoints};
 use crate::physics::{
-    popular_collider, try_get_components_from_entities, CollisionEvent, CollisionLayer,
-    KinematicsBundle, OngoingCollisions, Velocity,
+    popular_collider, try_get_components_from_entities, ActiveEvents, CollisionEvent,
+    CollisionLayer, KinematicsBundle, OngoingCollisions, Velocity,
 };
 use crate::teams::{Team, TeamNumber};
 use bevy::math::Vec3;
@@ -19,6 +19,7 @@ pub struct BulletBundle {
     pub team: Team,
     #[bundle]
     pub kinematics: KinematicsBundle,
+    pub active_events: ActiveEvents,
     #[bundle]
     pub sprite_bundle: SpriteBundle,
 }
@@ -44,6 +45,7 @@ impl BulletBundle {
             .with_linear_velocity(velocity)
             .with_restitution(gun_stats.projectile_elasticity)
             .with_density(gun_stats.projectile_density),
+            active_events: ActiveEvents::COLLISION_EVENTS,
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: gun_stats.projectile_color.0,
