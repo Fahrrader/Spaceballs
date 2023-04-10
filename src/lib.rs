@@ -16,6 +16,7 @@ pub use crate::characters::{
 };
 pub use crate::controls::{
     handle_gamepad_connections, handle_gamepad_input, handle_keyboard_input, reset_input,
+    InputHandlingSet,
 };
 pub use crate::guns::{
     handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gunfire, GunBundle, GunPreset,
@@ -32,7 +33,7 @@ pub use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 
 pub use bevy::prelude::*;
 pub use bevy::render::camera::{camera_system, RenderTarget};
-use bevy::window::WindowResized;
+use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 pub use bevy_rapier2d::prelude::{RapierConfiguration, RapierPhysicsPlugin};
 
 pub use rand::{
@@ -65,33 +66,38 @@ impl RandomState {
 /// The size of a side of the arena, in in-game units of distance.
 pub const SCREEN_SPAN: f32 = 800.0;
 
-/// If the game window was resized, change the camera's projection scale accordingly
+/// If the primary game window was resized, change the main camera's projection scale accordingly
 /// to keep the arena size the same.
-pub fn calculate_projection_scale(
+pub fn calculate_main_camera_projection_scale(
     mut window_resized_events: EventReader<WindowResized>,
-    windows: Res<Windows>,
+    primary_window_query: Query<&Window, With<PrimaryWindow>>,
     mut query: Query<(&Camera, &mut OrthographicProjection)>,
 ) {
     if window_resized_events.len() == 0 {
         return;
     }
 
+    // find the primary changed window (of the game arena)
     let mut changed_window_ids = Vec::new();
-    for event in window_resized_events.iter().rev() {
-        if changed_window_ids.contains(&event.id) {
+    for event in window_resized_events.iter() {
+        if changed_window_ids.contains(&event.window) {
             continue;
         }
-
-        changed_window_ids.push(event.id);
+        changed_window_ids.push(event.window);
     }
 
+    // find the camera and projection that use the primary window
     for (camera, mut projection) in query.iter_mut() {
-        let window_id = match camera.target {
-            RenderTarget::Window(window_id) => window_id,
+        let window = match camera.target {
+            RenderTarget::Window(window) => window,
             RenderTarget::Image(_) => continue,
         };
-        if changed_window_ids.contains(&window_id) {
-            if let Some(window) = windows.get(window_id) {
+
+        if match window {
+            WindowRef::Primary => true,
+            WindowRef::Entity(window_entity) => changed_window_ids.contains(&window_entity),
+        } {
+            if let Ok(window) = primary_window_query.get_single() {
                 projection.scale = SCREEN_SPAN / (window.width()).min(window.height());
             }
         }
@@ -101,27 +107,30 @@ pub fn calculate_projection_scale(
 // todo add this optionally to a system set
 /// System to query JS whether the browser window size has changed, and resize the game window
 /// according to the JS-supplied data.
-pub fn handle_browser_window_resizing(#[cfg(target_arch = "wasm32")] mut windows: ResMut<Windows>) {
+pub fn handle_browser_window_resizing(
+    #[cfg(target_arch = "wasm32")] mut primary_window_query: Query<
+        &mut Window,
+        With<PrimaryWindow>,
+    >,
+) {
     #[cfg(target_arch = "wasm32")]
     {
         if !detect_window_resize_from_js() {
             return;
         }
         let size = get_new_window_size_from_js();
-        for window in windows.iter_mut() {
-            window.set_resolution(size[0].into(), size[1].into());
+        for mut window in primary_window_query.iter_mut() {
+            window.resolution = (size[0], size[1]).into();
         }
     }
 }
 
 /// Make a "window" for browser.
 #[cfg(target_arch = "wasm32")]
-pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
-    let (width, height) = resolution;
-    WindowDescriptor {
+pub fn create_window(width: f32, height: f32) -> Window {
+    Window {
         title: "Cosmic Spaceball Tactical Action Arena".to_string(),
-        width,
-        height,
+        resolution: (width, height).into(),
         // scale_factor_override: Some(1.0),
         ..default()
     }
@@ -129,12 +138,10 @@ pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
 
 /// Make a window for desktop.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn create_window_descriptor(resolution: (f32, f32)) -> WindowDescriptor {
-    let (width, height) = resolution;
-    WindowDescriptor {
+pub fn create_window(width: f32, height: f32) -> Window {
+    Window {
         title: "Cosmic Spaceball Tactical Action Arena".to_string(),
-        width,
-        height,
+        resolution: (width, height).into(),
         // todo uncomment if window size must be fixed (events of resizing at the window creation still apply)
         // resizable: false,
         ..default()

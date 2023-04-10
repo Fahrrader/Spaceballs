@@ -5,11 +5,11 @@ version = "0.1.0"
 edition = "2021"
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "windows")))'.dependencies]
-bevy = {version = "0.9", features = ["dynamic"]}
+bevy = {version = "0.10", features = ["dynamic_linking"]}
 
 [dependencies]
-bevy = "0.9"
-bevy_rapier2d = { version = "0.20.0", features = ["enhanced-determinism"]} # serde-serialize, debug-render
+bevy = "0.10"
+bevy_rapier2d = { version = "0.21.0", features = ["enhanced-determinism"]} # serde-serialize, debug-render
 rand = "0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
 clap = { version = "4", features = ["derive"] }

@@ -2,8 +2,9 @@ use crate::{error, SCREEN_SPAN};
 use bevy::ecs::query::{ReadOnlyWorldQuery, WorldQuery};
 use bevy::math::Vec3;
 use bevy::prelude::{
-    default, App, Bundle, Color, Commands, Component, CoreStage, DespawnRecursiveExt, Entity,
-    EventReader, Plugin, Query, Reflect, RemovedComponents, Sprite, SpriteBundle, Transform, With,
+    default, App, Bundle, Color, Commands, Component, CoreSet, DespawnRecursiveExt, Entity,
+    EventReader, IntoSystemConfig, Plugin, Query, Reflect, RemovedComponents, Sprite, SpriteBundle,
+    Transform, With,
 };
 use bevy::utils::HashSet;
 use bevy_rapier2d::prelude::*;
@@ -279,7 +280,7 @@ pub(super) fn update_ongoing_collisions(
 ///
 /// It's an intentional [issue](https://github.com/dimforge/rapier/issues/299) with Rapier.
 pub(super) fn cleanup_ongoing_collisions(
-    removed_rigid_bodies: RemovedComponents<RigidBody>,
+    mut removed_rigid_bodies: RemovedComponents<RigidBody>,
     mut collisions: Query<&mut OngoingCollisions>,
 ) {
     for rigid_body in removed_rigid_bodies.iter() {
@@ -314,6 +315,6 @@ impl Plugin for SpaceballsPhysicsPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<OngoingCollisions>()
             .add_system(update_ongoing_collisions)
-            .add_system_to_stage(CoreStage::PostUpdate, cleanup_ongoing_collisions);
+            .add_system(cleanup_ongoing_collisions.in_base_set(CoreSet::PostUpdate));
     }
 }

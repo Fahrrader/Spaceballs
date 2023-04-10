@@ -16,27 +16,31 @@ fn main() {
         })
         //.register_type::<CharacterActionInput>() // todo make plugins, register all respective types, will make development easier
         .add_plugins(DefaultPlugins.set(WindowPlugin {
-            window: create_window_descriptor((800.0, 800.0)),
+            primary_window: Some(create_window(800., 800.)),
             ..default()
         }))
         .add_plugin(RapierPhysicsPlugin::<()>::default())
         .add_plugin(SpaceballsPhysicsPlugin)
         /*.add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())*/
+        .configure_set(InputHandlingSet::AftermathControl.after(InputHandlingSet::MediaHandling))
         .add_startup_system(summon_scene)
         .add_system(handle_gamepad_connections)
-        .add_system_set(
-            SystemSet::new()
-                .label("handle_input")
-                .with_system(reset_input)
-                .with_system(handle_keyboard_input.after(reset_input))
-                .with_system(handle_gamepad_input.after(reset_input))
-                .with_system(handle_ai_input.after(reset_input)),
+        .add_system(reset_input.in_set(InputHandlingSet::MediaHandling))
+        .add_systems(
+            (handle_keyboard_input, handle_gamepad_input, handle_ai_input)
+                .after(reset_input)
+                .in_set(InputHandlingSet::MediaHandling),
         )
-        .add_system(calculate_character_velocity.after("handle_input"))
-        .add_system(handle_gunfire.after("handle_input"))
-        .add_system(handle_gun_picking.after("handle_input"))
-        .add_system(handle_letting_gear_go.after("handle_input"))
+        .add_systems(
+            (
+                calculate_character_velocity,
+                handle_gunfire,
+                handle_gun_picking,
+                handle_letting_gear_go,
+            )
+                .in_set(InputHandlingSet::AftermathControl),
+        )
         .add_system(handle_entities_out_of_bounds)
         .add_system(handle_railgun_things)
         .add_system(handle_damage_from_railgun_things)
@@ -51,9 +55,10 @@ fn main() {
                 .after(handle_letting_gear_go),
         )
         .add_system(handle_browser_window_resizing)
-        .add_system_to_stage(
-            CoreStage::PostUpdate,
-            calculate_projection_scale.before(camera_system::<OrthographicProjection>),
+        .add_system(
+            calculate_main_camera_projection_scale
+                .before(camera_system::<OrthographicProjection>)
+                .in_base_set(CoreSet::PostUpdate),
         )
         .run();
 }

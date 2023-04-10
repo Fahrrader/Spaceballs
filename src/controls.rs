@@ -1,10 +1,20 @@
 use crate::actions::CharacterActionInput;
 use crate::characters::PlayerControlled;
-use bevy::input::{Axis, Input};
-use bevy::prelude::{
-    Commands, EventReader, Gamepad, GamepadAxis, GamepadAxisType, GamepadButton, GamepadButtonType,
-    GamepadEvent, GamepadEventType, KeyCode, Query, Res, Resource, With,
+use bevy::ecs::schedule::SystemSet;
+use bevy::input::{
+    gamepad::{
+        Gamepad, GamepadAxis, GamepadAxisType, GamepadButton, GamepadButtonType, GamepadConnection,
+        GamepadConnectionEvent,
+    },
+    Axis, Input,
 };
+use bevy::prelude::{Commands, EventReader, KeyCode, Query, Res, Resource, With};
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum InputHandlingSet {
+    MediaHandling,
+    AftermathControl,
+}
 
 // uncouth, probably refactor later -- may have to forbid multiple simultaneous inputs
 /// Reset every input, preferably at the start of the game.
@@ -126,13 +136,13 @@ pub fn handle_gamepad_input(
 pub fn handle_gamepad_connections(
     mut commands: Commands,
     connected_gamepad: Option<Res<GamepadWrapper>>,
-    mut gamepad_events: EventReader<GamepadEvent>,
+    mut gamepad_events: EventReader<GamepadConnectionEvent>,
 ) {
     for ev in gamepad_events.iter() {
         let id = ev.gamepad;
-        match &ev.event_type {
+        match &ev.connection {
             // name is skipped. maybe there will use for this later
-            GamepadEventType::Connected(info) => {
+            GamepadConnection::Connected(info) => {
                 println!(
                     "New gamepad connected with ID: {:?}, name: {:?}",
                     id, info.name
@@ -143,7 +153,7 @@ pub fn handle_gamepad_connections(
                     commands.insert_resource(GamepadWrapper(id));
                 }
             }
-            GamepadEventType::Disconnected => {
+            GamepadConnection::Disconnected => {
                 println!("Lost gamepad connection with ID: {:?}", id);
 
                 if let Some(GamepadWrapper(old_id)) = connected_gamepad.as_deref() {
@@ -152,7 +162,6 @@ pub fn handle_gamepad_connections(
                     }
                 }
             }
-            _ => {}
         }
     }
 }
