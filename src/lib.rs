@@ -9,10 +9,11 @@ mod projectiles;
 mod scenes;
 mod teams;
 
+pub use crate::actions::CharacterActionInput;
 pub use crate::ai::handle_ai_input;
 pub use crate::characters::{
     calculate_character_velocity, handle_gun_picking, handle_inventory_layout_change,
-    handle_letting_gear_go, BaseCharacterBundle, ControlledPlayerCharacterBundle,
+    handle_letting_gear_go, PlayerCharacterBundle,
 };
 pub use crate::controls::{
     handle_gamepad_connections, handle_online_player_input, process_input, InputHandlingSet,
@@ -50,6 +51,15 @@ use bevy_ggrs::{ggrs, Session};
 pub use bevy_ggrs::{GGRSPlugin, GGRSSchedule};
 use bevy_matchbox::prelude::{MatchboxSocket, PeerId, SingleChannel};
 
+/// Client's current state of the game.
+#[derive(States, Clone, Default, Eq, PartialEq, Debug, Hash)]
+pub enum GameState {
+    // MainMenu,
+    #[default]
+    Matchmaking,
+    InGame,
+}
+
 // todo:mp displace into 'multiplayer' module
 /// Placeholder struct onto which the GGRS config's types are mapped.
 pub struct GgrsConfig;
@@ -81,19 +91,19 @@ pub fn wait_for_players(
     mut commands: Commands,
     mut socket: ResMut<MatchboxSocket<SingleChannel>>,
     player_count: Res<PlayerCount>,
-    session: Option<Res<Session<GgrsConfig>>>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
-    // If the session is already initialized, skip this system
-    if let Some(_) = session {
-        return;
-    }
-
-    // check for new connections
+    // Check for new connections
     socket.update_peers();
     let players = socket.players();
 
     // todo:mp try players.len() (i.e. drop-in)
+    // if there is not enough players, wait
     if players.len() < player_count.0 {
+        /*if session.is_none() {
+           // remove resource
+           // unneeded, do drop-in, drop-out
+        }*/
         return; // wait for more players
     }
 
@@ -108,6 +118,7 @@ pub fn wait_for_players(
         session_builder = session_builder
             .add_player(player, i)
             .expect("failed to add player");
+        // todo:mp add players here?
     }
 
     // move the channel out of the socket (required because GGRS takes ownership of it)
@@ -119,6 +130,7 @@ pub fn wait_for_players(
         .expect("failed to start session");
 
     commands.insert_resource(Session::P2PSession(ggrs_session));
+    next_state.set(GameState::InGame);
 }
 
 /// State of chaos!

@@ -1,8 +1,7 @@
-use crate::characters::BuildCharacterBundle;
+use crate::characters::{AICharacterBundle, BuildCharacter, PlayerCharacterBundle};
 use crate::{
-    BaseCharacterBundle, ControlledPlayerCharacterBundle, GunBundle, GunPreset, PlayerCount,
-    RandomState, RectangularObstacleBundle, AI_DEFAULT_TEAM, CHUNK_SIZE, PLAYER_DEFAULT_TEAM,
-    SCREEN_SPAN,
+    GunBundle, GunPreset, PlayerCount, RandomState, RectangularObstacleBundle, AI_DEFAULT_TEAM,
+    CHUNK_SIZE, PLAYER_DEFAULT_TEAM, SCREEN_SPAN,
 };
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{Camera2dBundle, Commands, Res, ResMut, Resource, Transform};
@@ -71,7 +70,7 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
     ));
 
     // Player character
-    ControlledPlayerCharacterBundle::new(
+    PlayerCharacterBundle::new(
         Transform::from_translation(Vec3::new(-150.0, 0.0, 0.0)),
         PLAYER_DEFAULT_TEAM,
         0,
@@ -84,7 +83,7 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
 
     // todo:mp player generation on drop-in
     // Player character 2
-    ControlledPlayerCharacterBundle::new(
+    PlayerCharacterBundle::new(
         Transform::from_translation(Vec3::new(-50.0, 150.0, 0.0)),
         PLAYER_DEFAULT_TEAM + 1,
         1,
@@ -93,7 +92,7 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
 
     // todo respawning? conjoin with drop-in
     // AI character
-    BaseCharacterBundle::new(
+    AICharacterBundle::new(
         Transform::from_translation(Vec3::new(150.0, 0.0, 0.0))
             .with_rotation(Quat::from_axis_angle(Vec3::Z, PI / 6.0))
             .with_scale(Vec3::new(2.0, 3.0, 1.0)),
@@ -115,8 +114,11 @@ pub fn setup_lite(mut commands: Commands, mut random_state: &mut RandomState) {
 
     setup_base_arena(&mut commands);
 
-    ControlledPlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0)
-        .spawn_with_equipment(&mut commands, &mut random_state, vec![GunPreset::Regular]);
+    PlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0).spawn_with_equipment(
+        &mut commands,
+        &mut random_state,
+        vec![GunPreset::Regular],
+    );
 }
 
 /// Set up common stuff attributable to all levels.

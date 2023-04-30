@@ -13,6 +13,7 @@ fn main() {
         .with_input_system(process_input)
         .register_rollback_component::<Transform>()
         .register_rollback_component::<Velocity>()
+        .register_rollback_component::<CharacterActionInput>()
         //.register_rollback_component::<Gun>()
         //.register_rollback_component::<Children>()
         .build(&mut app);
@@ -33,9 +34,11 @@ fn main() {
         .add_plugin(SpaceballsPhysicsPlugin)
         /*.add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())*/
+        // todo summon scene only on InGame
+        .add_state::<GameState>()
         .configure_set(InputHandlingSet::ResponseProcessing.after(InputHandlingSet::InputReading))
         .add_startup_systems((summon_scene, start_matchbox_socket))
-        .add_system(wait_for_players)
+        .add_system(wait_for_players.run_if(in_state(GameState::Matchmaking)))
         .add_system(handle_gamepad_connections)
         /*.add_system(reset_input.in_set(InputHandlingSet::MediaReading))
         .add_systems(
@@ -43,7 +46,11 @@ fn main() {
                 .after(reset_input)
                 .in_set(InputHandlingSet::MediaReading),
         )*/
-        .add_system(handle_ai_input.in_set(InputHandlingSet::InputReading))
+        .add_system(
+            handle_ai_input
+                .in_set(InputHandlingSet::InputReading)
+                .run_if(in_state(GameState::InGame)),
+        )
         .add_system(
             handle_online_player_input
                 .in_set(InputHandlingSet::InputReading)
@@ -52,11 +59,13 @@ fn main() {
         .add_systems(
             (
                 // todo:mp not good, don't make them share and bottleneck on a single input component
-                calculate_character_velocity.after(handle_online_player_input),
-                handle_gunfire.after(calculate_character_velocity),
-                handle_gun_picking.after(handle_gunfire),
-                handle_letting_gear_go.after(handle_gun_picking),
+                calculate_character_velocity,
+                handle_gunfire,
+                handle_gun_picking,
+                handle_letting_gear_go,
             )
+                .chain()
+                .after(handle_online_player_input)
                 .in_set(InputHandlingSet::ResponseProcessing)
                 .in_schedule(GGRSSchedule),
         )

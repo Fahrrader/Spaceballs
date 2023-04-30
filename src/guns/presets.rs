@@ -24,8 +24,9 @@ pub const BULLET_DAMAGE: HitPoints = CHARACTER_MAX_HEALTH / 20.0; // 5.0 - 20 di
 pub const BULLET_STOP_SPEED_MULTIPLIER: f32 = 0.8;
 
 /// Array of guns for your taste and pleasure. All fixed variables per type are found via a look-up table by a value of this enum.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Reflect, FromReflect)]
+#[derive(Copy, Clone, Debug, Default, Hash, PartialEq, Eq, Reflect, FromReflect)]
 pub enum GunPreset {
+    #[default]
     Regular,
     Imprecise,
     RailGun,
@@ -41,12 +42,6 @@ pub enum GunPreset {
     // WMDs? Something that would sufficiently impact the game as to make a zone unlivable. Craters. But need penalties...
 
     // not really a gun, but why not -- TRAVEL THROUGH TIME?? (forward, like do some stuff in advance) - also, reverse entropy
-}
-
-impl Default for GunPreset {
-    fn default() -> Self {
-        GunPreset::Regular
-    }
 }
 
 impl GunPreset {

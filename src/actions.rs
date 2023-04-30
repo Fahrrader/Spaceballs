@@ -1,9 +1,10 @@
 use crate::controls::GgrsInput;
 use bevy::prelude::Component;
+use bevy::reflect::{FromReflect, Reflect};
 
 // todo conjoin with 'controls'
 /// Inputs for characters to act on during the next frame.
-#[derive(Component, Clone, Copy, Default)]
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect, FromReflect)]
 pub struct CharacterActionInput {
     /// Forward movement. Clamp to 1.0!
     pub up: f32,
