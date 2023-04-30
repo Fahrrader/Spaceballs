@@ -6,6 +6,7 @@ use crate::physics::{ContinuousCollisionDetection, OngoingCollisions, Sensor};
 use crate::projectiles::RailGunThing;
 use crate::Color;
 use bevy::ecs::system::EntityCommands;
+use bevy::reflect::{FromReflect, Reflect};
 use std::f32::consts::PI;
 use std::time::Duration;
 
@@ -23,7 +24,7 @@ pub const BULLET_DAMAGE: HitPoints = CHARACTER_MAX_HEALTH / 20.0; // 5.0 - 20 di
 pub const BULLET_STOP_SPEED_MULTIPLIER: f32 = 0.8;
 
 /// Array of guns for your taste and pleasure. All fixed variables per type are found via a look-up table by a value of this enum.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Reflect, FromReflect)]
 pub enum GunPreset {
     Regular,
     Imprecise,
@@ -66,7 +67,7 @@ impl GunPreset {
     pub fn add_projectile_components(&self, projectile_commands: &mut EntityCommands) {
         /// Inserts components onto a projectile repeatedly.
         macro_rules! add_projectile_components {
-            ($($e:expr),*) => {
+            ($($e:expr),* $(,)?) => {
                 $(projectile_commands.insert($e));*
             }
         }
@@ -77,7 +78,7 @@ impl GunPreset {
                     RailGunThing,
                     Sensor,
                     OngoingCollisions::default(),
-                    ContinuousCollisionDetection { enabled: true }
+                    ContinuousCollisionDetection { enabled: true },
                 );
             }
             _ => {}
@@ -92,37 +93,32 @@ impl GunPreset {
             _ => false,
         }
     }
-
-    /// Stats of the base, default weapon, which others might base off.
-    pub(crate) const fn regular() -> GunPersistentStats {
-        GunPersistentStats {
-            gun_width: REGULAR_GUN_WIDTH,
-            gun_length: REGULAR_GUN_LENGTH,
-            gun_neutral_color: GunColour::new(Color::DARK_GRAY),
-            gun_center_x: REGULAR_GUN_CENTER_X,
-            gun_center_y: REGULAR_GUN_CENTER_Y,
-            fire_cooldown: Duration::from_millis(REGULAR_FIRE_COOLDOWN_TIME_MILLIS),
-            shots_before_reload: 0,
-            reload_time: Duration::from_millis(0),
-            recoil: 0.0,
-            projectiles_per_shot: 1,
-            projectile_spread_angle: 0.0,
-            projectile_speed: BULLET_SPEED,
-            min_speed_to_live_multiplier: BULLET_STOP_SPEED_MULTIPLIER,
-            // Elasticity of 0 or below will not trigger collision's Stopped events until another collision!
-            projectile_elasticity: 0.10,
-            projectile_density: 1.0,
-            projectile_size: BULLET_SIZE,
-            projectile_color: GunColour::new(Color::ALICE_BLUE),
-            projectile_spawn_point: ProjectileSpawnSpace::Gunpoint,
-            projectile_damage: BULLET_DAMAGE,
-            friendly_fire: false,
-        }
-    }
 }
 
 /// Regular, default gun. Shoots straight. Trusty and simple.
-pub const REGULAR: GunPersistentStats = GunPreset::regular();
+pub const REGULAR: GunPersistentStats = GunPersistentStats {
+    gun_width: REGULAR_GUN_WIDTH,
+    gun_length: REGULAR_GUN_LENGTH,
+    gun_neutral_color: GunColour::new(Color::DARK_GRAY),
+    gun_center_x: REGULAR_GUN_CENTER_X,
+    gun_center_y: REGULAR_GUN_CENTER_Y,
+    fire_cooldown: Duration::from_millis(REGULAR_FIRE_COOLDOWN_TIME_MILLIS),
+    shots_before_reload: 0,
+    reload_time: Duration::from_millis(0),
+    recoil: 0.0,
+    projectiles_per_shot: 1,
+    projectile_spread_angle: 0.0,
+    projectile_speed: BULLET_SPEED,
+    min_speed_to_live_multiplier: BULLET_STOP_SPEED_MULTIPLIER,
+    // Elasticity of 0 or below will not trigger collision's Stopped events until another collision!
+    projectile_elasticity: 0.10,
+    projectile_density: 1.0,
+    projectile_size: BULLET_SIZE,
+    projectile_color: GunColour::new(Color::ALICE_BLUE),
+    projectile_spawn_point: ProjectileSpawnSpace::Gunpoint,
+    projectile_damage: BULLET_DAMAGE,
+    friendly_fire: false,
+};
 
 /// An experimental "upgrade" over a regular gun. Faster, inaccurate, doesn't hit as hard.
 pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
@@ -132,7 +128,7 @@ pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
     projectile_speed: BULLET_SPEED * 2.,
     reload_time: Duration::from_millis(500),
     shots_before_reload: 15,
-    ..GunPreset::regular()
+    ..REGULAR
 };
 
 /// Shotgun. Individual pellets don't hit as hard and spread apart with time, but devastating at close range.
@@ -143,7 +139,7 @@ pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
     projectiles_per_shot: 12,
     fire_cooldown: Duration::from_millis(600),
     recoil: 6.0,
-    ..GunPreset::regular()
+    ..REGULAR
 };
 
 /// Discombobulate foes surrounding you with this. Spreads many projectiles in a circle.
@@ -155,7 +151,7 @@ pub const TYPHOON: GunPersistentStats = GunPersistentStats {
     projectiles_per_shot: 64,
     projectile_elasticity: 1.0,
     fire_cooldown: Duration::from_millis(1800),
-    ..GunPreset::regular()
+    ..REGULAR
 };
 
 /// Due to the rail gun's penetrative properties, damage is applied per second of travel inside a body.
@@ -174,7 +170,7 @@ pub const RAIL_GUN: GunPersistentStats = GunPersistentStats {
     fire_cooldown: Duration::from_millis(1000),
     friendly_fire: true,
     recoil: 15.0,
-    ..GunPreset::regular()
+    ..REGULAR
 };
 
 // todo have a point momentarily travel with an extra Component, bouncing off walls (have distinction in material?),
@@ -190,5 +186,5 @@ pub const LASER_GUN: GunPersistentStats = GunPersistentStats {
     fire_cooldown: Duration::from_millis(5),
     friendly_fire: true,
     min_speed_to_live_multiplier: 0.3,
-    ..GunPreset::regular()
+    ..REGULAR
 };

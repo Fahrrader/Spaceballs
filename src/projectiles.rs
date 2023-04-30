@@ -68,18 +68,6 @@ pub struct Bullet {
 #[derive(Component)]
 pub struct RailGunThing;
 
-/// System to handle projectiles shot from a rail gun.
-pub fn handle_railgun_things(
-    time: Res<Time>,
-    mut query_bullets: Query<(&Bullet, &mut Transform), With<RailGunThing>>,
-) {
-    for (bullet, mut transform) in query_bullets.iter_mut() {
-        let up = transform.up();
-        transform.translation +=
-            up * bullet.gun_type.stats().projectile_speed * time.delta_seconds();
-    }
-}
-
 /// Apply damage to a body affected by a projectile. If the remaining health happens to be below 0, marks it Dying.
 fn do_projectile_damage(
     commands: &mut Commands,
@@ -106,7 +94,7 @@ fn do_projectile_damage(
 }
 
 /// System to continually deal damage to bodies that rail gun slugs travel through.
-pub fn handle_damage_from_railgun_things(
+pub fn handle_railgun_penetration_damage(
     mut commands: Commands,
     time: Res<Time>,
     query_bullets: Query<(&OngoingCollisions, &Bullet, &Team), With<RailGunThing>>,

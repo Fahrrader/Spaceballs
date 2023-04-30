@@ -1,7 +1,8 @@
 use crate::characters::BuildCharacterBundle;
 use crate::{
-    BaseCharacterBundle, ControlledPlayerCharacterBundle, GunBundle, GunPreset, RandomState,
-    RectangularObstacleBundle, AI_DEFAULT_TEAM, CHUNK_SIZE, PLAYER_DEFAULT_TEAM, SCREEN_SPAN,
+    BaseCharacterBundle, ControlledPlayerCharacterBundle, GunBundle, GunPreset, PlayerCount,
+    RandomState, RectangularObstacleBundle, AI_DEFAULT_TEAM, CHUNK_SIZE, PLAYER_DEFAULT_TEAM,
+    SCREEN_SPAN,
 };
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{Camera2dBundle, Commands, Res, ResMut, Resource, Transform};
@@ -48,6 +49,7 @@ pub fn summon_scene(
 /// Set up a more complicated and chaotic scene with the latest features and experiments.
 pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomState) {
     commands.spawn(Camera2dBundle::default());
+    commands.insert_resource(PlayerCount(2));
 
     setup_base_arena(&mut commands);
 
@@ -70,8 +72,9 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
 
     // Player character
     ControlledPlayerCharacterBundle::new(
-        PLAYER_DEFAULT_TEAM,
         Transform::from_translation(Vec3::new(-150.0, 0.0, 0.0)),
+        PLAYER_DEFAULT_TEAM,
+        0,
     )
     .spawn_with_equipment(
         &mut commands,
@@ -79,12 +82,23 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
         vec![GunPreset::Scattershot],
     );
 
+    // todo:mp player generation on drop-in
+    // Player character 2
+    ControlledPlayerCharacterBundle::new(
+        Transform::from_translation(Vec3::new(-50.0, 150.0, 0.0)),
+        PLAYER_DEFAULT_TEAM + 1,
+        1,
+    )
+    .spawn_with_equipment(&mut commands, &mut random_state, vec![GunPreset::Imprecise]);
+
+    // todo respawning? conjoin with drop-in
     // AI character
     BaseCharacterBundle::new(
-        AI_DEFAULT_TEAM,
         Transform::from_translation(Vec3::new(150.0, 0.0, 0.0))
             .with_rotation(Quat::from_axis_angle(Vec3::Z, PI / 6.0))
             .with_scale(Vec3::new(2.0, 3.0, 1.0)),
+        AI_DEFAULT_TEAM,
+        usize::MAX,
     )
     .spawn_with_equipment(&mut commands, &mut random_state, vec![GunPreset::RailGun]);
 
@@ -97,10 +111,11 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
 /// Set up a lighter, stable scene. Considered default.
 pub fn setup_lite(mut commands: Commands, mut random_state: &mut RandomState) {
     commands.spawn(Camera2dBundle::default());
+    commands.insert_resource(PlayerCount(1));
 
     setup_base_arena(&mut commands);
 
-    ControlledPlayerCharacterBundle::new(PLAYER_DEFAULT_TEAM, Transform::default())
+    ControlledPlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0)
         .spawn_with_equipment(&mut commands, &mut random_state, vec![GunPreset::Regular]);
 }
 

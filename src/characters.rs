@@ -48,8 +48,8 @@ pub struct BaseCharacterBundle {
 }
 
 pub trait BuildCharacterBundle {
-    /// Make a new character bundle yet to be spawned, with a team assigned and some transform.
-    fn new(team: TeamNumber, transform: Transform) -> Self;
+    /// Make a new character bundle yet to be spawned, with the transform of the initial placement, the team and the online player handle assigned.
+    fn new(transform: Transform, team: TeamNumber, player_handle: usize) -> Self;
     /// Spawn a character bundle and attach equipment to it, returning spawned entities, character first.
     fn spawn_with_equipment(
         self,
@@ -60,7 +60,7 @@ pub trait BuildCharacterBundle {
 }
 
 impl BuildCharacterBundle for BaseCharacterBundle {
-    fn new(team: TeamNumber, transform: Transform) -> Self {
+    fn new(transform: Transform, team: TeamNumber, _player_handle: usize) -> Self {
         Self {
             character: Character,
             health: Health::new(CHARACTER_MAX_HEALTH),
@@ -139,14 +139,16 @@ impl BaseCharacterBundle {
 pub struct ControlledPlayerCharacterBundle {
     #[bundle]
     pub character_bundle: BaseCharacterBundle,
-    pub player_controlled_marker: PlayerControlled,
+    pub player_marker: PlayerControlled,
 }
 
 impl BuildCharacterBundle for ControlledPlayerCharacterBundle {
-    fn new(team: TeamNumber, transform: Transform) -> Self {
+    fn new(transform: Transform, team: TeamNumber, player_handle: usize) -> Self {
         Self {
-            character_bundle: BaseCharacterBundle::new(team, transform),
-            player_controlled_marker: PlayerControlled,
+            character_bundle: BaseCharacterBundle::new(transform, team, player_handle),
+            player_marker: PlayerControlled {
+                handle: player_handle,
+            },
         }
     }
 
@@ -178,7 +180,9 @@ pub struct Character;
 
 /// Marker designating an entity controlled by the local player.
 #[derive(Component)]
-pub struct PlayerControlled;
+pub struct PlayerControlled {
+    pub handle: usize,
+}
 
 /// Attach some equippable gear to a character and allow it to be interacted with.
 /// Unchecked if actually equippable, or if the equipping entity is a character!
@@ -255,6 +259,7 @@ fn throw_away_gear(
 
 /// System to convert a character's action input (human or not) to linear and angular velocities.
 pub fn calculate_character_velocity(
+    // inputs: Res<PlayerInputs<GgrsConfig>>,
     mut query: Query<(&mut Velocity, &Transform, &CharacterActionInput)>,
 ) {
     for (mut velocity, transform, action_input) in query.iter_mut() {

@@ -8,8 +8,10 @@ use std::f64::consts::PI;
 
 const TIME_STEP: f64 = 2.0 * PI / (CHARACTER_RAD_SPEED as f64);
 
+// todo possibly split AI calculation between participating machines, depending on some runtime performance metrics?
 /// System to give AI characters something to do this frame. Uses a function of time to calculate the set of actions performed.
 pub fn handle_ai_input(
+    // todo:mp time should be synced from the moment the guys join, and the game starts
     time: Res<Time>,
     mut query: Query<&mut CharacterActionInput, Without<PlayerControlled>>,
 ) {

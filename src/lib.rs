@@ -15,19 +15,17 @@ pub use crate::characters::{
     handle_letting_gear_go, BaseCharacterBundle, ControlledPlayerCharacterBundle,
 };
 pub use crate::controls::{
-    handle_gamepad_connections, handle_gamepad_input, handle_keyboard_input, reset_input,
-    InputHandlingSet,
+    handle_gamepad_connections, handle_online_player_input, process_input, InputHandlingSet,
 };
 pub use crate::guns::{
-    handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gunfire, GunBundle, GunPreset,
+    handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gunfire, Gun, GunBundle, GunPreset,
 };
 pub use crate::health::handle_death;
 pub use crate::physics::{
-    handle_entities_out_of_bounds, RectangularObstacleBundle, SpaceballsPhysicsPlugin, CHUNK_SIZE,
+    handle_entities_out_of_bounds, RectangularObstacleBundle, SpaceballsPhysicsPlugin, Velocity,
+    CHUNK_SIZE,
 };
-pub use crate::projectiles::{
-    handle_bullet_collision_events, handle_damage_from_railgun_things, handle_railgun_things,
-};
+pub use crate::projectiles::{handle_bullet_collision_events, handle_railgun_penetration_damage};
 pub use crate::scenes::{summon_scene, SceneArg};
 pub use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 
@@ -47,6 +45,81 @@ use clap::Parser;
 use crate::scenes::OptionalSceneArg;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+
+use bevy_ggrs::{ggrs, Session};
+pub use bevy_ggrs::{GGRSPlugin, GGRSSchedule};
+use bevy_matchbox::prelude::{MatchboxSocket, PeerId, SingleChannel};
+
+// todo:mp displace into 'multiplayer' module
+/// Placeholder struct onto which the GGRS config's types are mapped.
+pub struct GgrsConfig;
+
+// todo:mp state sync with the host
+impl ggrs::Config for GgrsConfig {
+    // 4 directions, fire, reload and 2 interact actions fit perfectly in a single byte
+    // but todo:mp rework for a more complex struct
+    type Input = u8;
+    type State = u8;
+    // Matchbox' WebRtcSocket addresses are called `PeerId`s
+    type Address = PeerId;
+}
+
+/// Expected - and maximum - player count for the game session.
+#[derive(Resource)]
+pub struct PlayerCount(usize);
+
+/// Initialize a socket for connecting to the matchbox server.
+pub fn start_matchbox_socket(mut commands: Commands) {
+    let room_url = "ws://127.0.0.1:3536/extreme_bevy?next=2";
+    info!("connecting to matchbox server: {:?}", room_url);
+    commands.insert_resource(MatchboxSocket::new_ggrs(room_url));
+}
+
+/// Initialize the multiplayer session.
+/// Having input systems in GGRS schedule will not execute them until a session is initialized.
+pub fn wait_for_players(
+    mut commands: Commands,
+    mut socket: ResMut<MatchboxSocket<SingleChannel>>,
+    player_count: Res<PlayerCount>,
+    session: Option<Res<Session<GgrsConfig>>>,
+) {
+    // If the session is already initialized, skip this system
+    if let Some(_) = session {
+        return;
+    }
+
+    // check for new connections
+    socket.update_peers();
+    let players = socket.players();
+
+    // todo:mp try players.len() (i.e. drop-in)
+    if players.len() < player_count.0 {
+        return; // wait for more players
+    }
+
+    info!("All peers have joined, going in-game");
+
+    // create a GGRS P2P session
+    let mut session_builder = ggrs::SessionBuilder::<GgrsConfig>::new()
+        .with_num_players(player_count.0)
+        .with_input_delay(2);
+
+    for (i, player) in players.into_iter().enumerate() {
+        session_builder = session_builder
+            .add_player(player, i)
+            .expect("failed to add player");
+    }
+
+    // move the channel out of the socket (required because GGRS takes ownership of it)
+    let channel = socket.take_channel(0).unwrap();
+
+    // start the GGRS session
+    let ggrs_session = session_builder
+        .start_p2p_session(channel)
+        .expect("failed to start session");
+
+    commands.insert_resource(Session::P2PSession(ggrs_session));
+}
 
 /// State of chaos!
 #[derive(Resource)]
@@ -132,6 +205,10 @@ pub fn create_window(width: f32, height: f32) -> Window {
         title: "Cosmic Spaceball Tactical Action Arena".to_string(),
         resolution: (width, height).into(),
         // scale_factor_override: Some(1.0),
+        // fill the entire browser window
+        // fit_canvas_to_parent: true,
+        // don't hijack keyboard shortcuts like F5, F6, F12, Ctrl+R etc.
+        // prevent_default_event_handling: false,
         ..default()
     }
 }

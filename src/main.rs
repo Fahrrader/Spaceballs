@@ -6,8 +6,18 @@ fn main() {
     #[cfg(target_arch = "wasm32")]
     console_error_panic_hook::set_once();
 
-    App::new()
-        .insert_resource(ClearColor(Color::BLACK))
+    let mut app = App::new();
+
+    // todo:mp probably add a separate
+    GGRSPlugin::<GgrsConfig>::new()
+        .with_input_system(process_input)
+        .register_rollback_component::<Transform>()
+        .register_rollback_component::<Velocity>()
+        //.register_rollback_component::<Gun>()
+        //.register_rollback_component::<Children>()
+        .build(&mut app);
+
+    app.insert_resource(ClearColor(Color::BLACK))
         .insert_resource(scene_arg)
         .insert_resource(RandomState(StdRng::seed_from_u64(42))) // probably refactor for async
         .insert_resource(RapierConfiguration {
@@ -23,31 +33,41 @@ fn main() {
         .add_plugin(SpaceballsPhysicsPlugin)
         /*.add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())*/
-        .configure_set(InputHandlingSet::AftermathControl.after(InputHandlingSet::MediaHandling))
-        .add_startup_system(summon_scene)
+        .configure_set(InputHandlingSet::ResponseProcessing.after(InputHandlingSet::InputReading))
+        .add_startup_systems((summon_scene, start_matchbox_socket))
+        .add_system(wait_for_players)
         .add_system(handle_gamepad_connections)
-        .add_system(reset_input.in_set(InputHandlingSet::MediaHandling))
+        /*.add_system(reset_input.in_set(InputHandlingSet::MediaReading))
         .add_systems(
             (handle_keyboard_input, handle_gamepad_input, handle_ai_input)
                 .after(reset_input)
-                .in_set(InputHandlingSet::MediaHandling),
+                .in_set(InputHandlingSet::MediaReading),
+        )*/
+        .add_system(handle_ai_input.in_set(InputHandlingSet::InputReading))
+        .add_system(
+            handle_online_player_input
+                .in_set(InputHandlingSet::InputReading)
+                .in_schedule(GGRSSchedule),
         )
         .add_systems(
             (
-                calculate_character_velocity,
-                handle_gunfire,
-                handle_gun_picking,
-                handle_letting_gear_go,
+                // todo:mp not good, don't make them share and bottleneck on a single input component
+                calculate_character_velocity.after(handle_online_player_input),
+                handle_gunfire.after(calculate_character_velocity),
+                handle_gun_picking.after(handle_gunfire),
+                handle_letting_gear_go.after(handle_gun_picking),
             )
-                .in_set(InputHandlingSet::AftermathControl),
+                .in_set(InputHandlingSet::ResponseProcessing)
+                .in_schedule(GGRSSchedule),
         )
         .add_system(handle_entities_out_of_bounds)
-        .add_system(handle_railgun_things)
-        .add_system(handle_damage_from_railgun_things)
         .add_system(handle_bullet_collision_events)
-        .add_system(handle_inventory_layout_change)
-        .add_system(handle_gun_idle_bobbing)
-        .add_system(handle_gun_arriving_at_rest)
+        .add_system(handle_railgun_penetration_damage)
+        .add_systems((
+            handle_inventory_layout_change,
+            handle_gun_idle_bobbing,
+            handle_gun_arriving_at_rest,
+        ))
         // probably execute latest
         .add_system(
             handle_death

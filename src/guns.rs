@@ -1,11 +1,13 @@
 use crate::actions::CharacterActionInput;
 use crate::characters::{Character, CHARACTER_SPEED};
+use crate::guns::stats::ProjectileSpawnSpace;
 use crate::physics::{KinematicsBundle, OngoingCollisions, RigidBody, Sensor, Velocity};
+use crate::projectiles::BulletBundle;
 use crate::teams::{team_color, Team, TeamNumber};
 use bevy::math::{Quat, Vec2, Vec3};
 use bevy::prelude::{
     Bundle, Commands, Component, Entity, GlobalTransform, Query, Res, Sprite, SpriteBundle, Time,
-    Timer, Transform, With, Without,
+    Timer, TimerMode, Transform, With, Without,
 };
 use bevy::utils::default;
 use rand::prelude::StdRng;
@@ -17,9 +19,6 @@ pub mod colours;
 mod presets;
 mod stats;
 
-use crate::guns::stats::ProjectileSpawnSpace;
-use crate::projectiles::BulletBundle;
-use crate::TimerMode;
 pub use colours::GUN_TRANSPARENCY;
 pub use presets::{GunPreset, RAIL_GUN_DAMAGE_PER_SECOND};
 pub use stats::GunPersistentStats;
@@ -105,7 +104,8 @@ impl GunBundle {
 }
 
 /// Holder of all non-constant properties of a weapon.
-#[derive(Component)]
+//#[derive(Component, Debug, PartialEq, Clone, Reflect, FromReflect)]
+#[derive(Component, Debug, Clone)]
 pub struct Gun {
     pub(crate) preset: GunPreset,
     fire_cooldown: Timer,

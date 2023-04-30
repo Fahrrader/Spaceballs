@@ -4,12 +4,17 @@ description = "High-concept, extremely fun and varied in level selection arcade 
 version = "0.1.0"
 edition = "2021"
 
+# [target.wasm32-unknown-unknown]
+# runner = "wasm-server-runner"
+
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "windows")))'.dependencies]
-bevy = {version = "0.10", features = ["dynamic_linking"]}
+bevy = { version = "0.10", features = ["dynamic_linking"] }
 
 [dependencies]
 bevy = "0.10"
 bevy_rapier2d = { version = "0.21.0", features = ["enhanced-determinism"]} # serde-serialize, debug-render
+bevy_ggrs = { version = "0.12", features = ["wasm-bindgen"] }
+bevy_matchbox = { version = "0.6", features = ["ggrs"] }
 rand = "0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
 clap = { version = "4", features = ["derive"] }
