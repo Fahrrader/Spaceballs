@@ -1,5 +1,5 @@
-use crate::actions::CharacterActionInput;
 use crate::characters::{AiControlled, CHARACTER_RAD_SPEED};
+use crate::controls::CharacterActionInput;
 use bevy::prelude::{Component, Query, Res, Time, With};
 use bevy::utils::default;
 // use rand::prelude::random;
@@ -8,9 +8,9 @@ use std::f32::consts::PI;
 /// One possible AI controller component, deciding an AI's input. Contains the current time tracker.
 /// For now, it performs incredible maneuvers.
 #[derive(Component, Default)]
-pub struct AiActionRoutine(pub f32);
+pub struct AIActionRoutine(pub f32);
 
-impl AiActionRoutine {
+impl AIActionRoutine {
     /// Seconds it takes to proceed to the next stage in the routine.
     const STAGE_LENGTH: f32 = /*2.0 * */ PI / CHARACTER_RAD_SPEED;
     // const TIME_STEP: f32 = Self::STAGE_LENGTH / 120.0;
@@ -49,7 +49,7 @@ impl AiActionRoutine {
 /// System to give AI characters something to do this frame. Uses a function of time to calculate the set of actions performed.
 pub fn handle_ai_input(
     time: Res<Time>,
-    mut query: Query<(&mut CharacterActionInput, &mut AiActionRoutine), With<AiControlled>>,
+    mut query: Query<(&mut CharacterActionInput, &mut AIActionRoutine), With<AiControlled>>,
 ) {
     for (mut action_input, mut action_routine) in query.iter_mut() {
         *action_input = action_routine.increment_routine_step(time.delta_seconds());

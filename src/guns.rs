@@ -1,5 +1,5 @@
-use crate::actions::CharacterActionInput;
 use crate::characters::CHARACTER_SPEED;
+use crate::controls::CharacterActionInput;
 use crate::guns::stats::ProjectileSpawnSpace;
 use crate::physics::{KinematicsBundle, OngoingCollisions, RigidBody, Sensor, Velocity};
 use crate::projectiles::BulletBundle;
@@ -335,6 +335,7 @@ pub fn handle_gunfire(
     mut commands: Commands,
     time: Res<Time>,
     mut query_weapons: Query<(&mut Gun, &GlobalTransform, &Equipped)>,
+    // todo:mp event for movement instead
     mut query_characters: Query<(&CharacterActionInput, &Team, &mut Transform)>,
 ) {
     for (mut gun, gun_transform, equipped) in query_weapons.iter_mut() {

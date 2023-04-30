@@ -1,27 +1,30 @@
-mod actions;
 mod ai;
 mod characters;
 mod controls;
 mod guns;
 mod health;
+mod multiplayer;
 mod physics;
 mod projectiles;
 mod scenes;
 mod teams;
 
-pub use crate::actions::CharacterActionInput;
 pub use crate::ai::handle_ai_input;
 pub use crate::characters::{
     calculate_character_velocity, handle_gun_picking, handle_inventory_layout_change,
     handle_letting_gear_go, PlayerCharacterBundle,
 };
 pub use crate::controls::{
-    handle_gamepad_connections, handle_online_player_input, process_input, InputHandlingSet,
+    handle_gamepad_connections, handle_online_player_input, process_input, CharacterActionInput,
+    InputHandlingSet,
 };
 pub use crate::guns::{
     handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gunfire, Gun, GunBundle, GunPreset,
 };
 pub use crate::health::handle_death;
+pub use crate::multiplayer::{
+    start_matchbox_socket, wait_for_players, GGRSConfig, GGRSPlugin, GGRSSchedule, PlayerCount,
+};
 pub use crate::physics::{
     handle_entities_out_of_bounds, RectangularObstacleBundle, SpaceballsPhysicsPlugin, Velocity,
     CHUNK_SIZE,
@@ -32,7 +35,6 @@ pub use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 
 pub use bevy::prelude::*;
 pub use bevy::render::camera::{camera_system, RenderTarget};
-use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 pub use bevy_rapier2d::prelude::{RapierConfiguration, RapierPhysicsPlugin};
 
 pub use rand::{
@@ -41,15 +43,12 @@ pub use rand::{
     Rng, SeedableRng,
 };
 
+use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use clap::Parser;
 
 use crate::scenes::OptionalSceneArg;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-
-use bevy_ggrs::{ggrs, Session};
-pub use bevy_ggrs::{GGRSPlugin, GGRSSchedule};
-use bevy_matchbox::prelude::{MatchboxSocket, PeerId, SingleChannel};
 
 /// Client's current state of the game.
 #[derive(States, Clone, Default, Eq, PartialEq, Debug, Hash)]
@@ -58,79 +57,6 @@ pub enum GameState {
     #[default]
     Matchmaking,
     InGame,
-}
-
-// todo:mp displace into 'multiplayer' module
-/// Placeholder struct onto which the GGRS config's types are mapped.
-pub struct GgrsConfig;
-
-// todo:mp state sync with the host
-impl ggrs::Config for GgrsConfig {
-    // 4 directions, fire, reload and 2 interact actions fit perfectly in a single byte
-    // but todo:mp rework for a more complex struct
-    type Input = u8;
-    type State = u8;
-    // Matchbox' WebRtcSocket addresses are called `PeerId`s
-    type Address = PeerId;
-}
-
-/// Expected - and maximum - player count for the game session.
-#[derive(Resource)]
-pub struct PlayerCount(usize);
-
-/// Initialize a socket for connecting to the matchbox server.
-pub fn start_matchbox_socket(mut commands: Commands) {
-    let room_url = "ws://127.0.0.1:3536/extreme_bevy?next=2";
-    info!("connecting to matchbox server: {:?}", room_url);
-    commands.insert_resource(MatchboxSocket::new_ggrs(room_url));
-}
-
-/// Initialize the multiplayer session.
-/// Having input systems in GGRS schedule will not execute them until a session is initialized.
-pub fn wait_for_players(
-    mut commands: Commands,
-    mut socket: ResMut<MatchboxSocket<SingleChannel>>,
-    player_count: Res<PlayerCount>,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
-    // Check for new connections
-    socket.update_peers();
-    let players = socket.players();
-
-    // todo:mp try players.len() (i.e. drop-in)
-    // if there is not enough players, wait
-    if players.len() < player_count.0 {
-        /*if session.is_none() {
-           // remove resource
-           // unneeded, do drop-in, drop-out
-        }*/
-        return; // wait for more players
-    }
-
-    info!("All peers have joined, going in-game");
-
-    // create a GGRS P2P session
-    let mut session_builder = ggrs::SessionBuilder::<GgrsConfig>::new()
-        .with_num_players(player_count.0)
-        .with_input_delay(2);
-
-    for (i, player) in players.into_iter().enumerate() {
-        session_builder = session_builder
-            .add_player(player, i)
-            .expect("failed to add player");
-        // todo:mp add players here?
-    }
-
-    // move the channel out of the socket (required because GGRS takes ownership of it)
-    let channel = socket.take_channel(0).unwrap();
-
-    // start the GGRS session
-    let ggrs_session = session_builder
-        .start_p2p_session(channel)
-        .expect("failed to start session");
-
-    commands.insert_resource(Session::P2PSession(ggrs_session));
-    next_state.set(GameState::InGame);
 }
 
 /// State of chaos!

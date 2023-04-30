@@ -9,7 +9,7 @@ fn main() {
     let mut app = App::new();
 
     // todo:mp probably add a separate
-    GGRSPlugin::<GgrsConfig>::new()
+    GGRSPlugin::<GGRSConfig>::new()
         .with_input_system(process_input)
         .register_rollback_component::<Transform>()
         .register_rollback_component::<Velocity>()
@@ -39,6 +39,7 @@ fn main() {
         .configure_set(InputHandlingSet::ResponseProcessing.after(InputHandlingSet::InputReading))
         .add_startup_systems((summon_scene, start_matchbox_socket))
         .add_system(wait_for_players.run_if(in_state(GameState::Matchmaking)))
+        //.add_system(summon_scene.in_schedule(OnEnter(GameState::InGame)))
         .add_system(handle_gamepad_connections)
         /*.add_system(reset_input.in_set(InputHandlingSet::MediaReading))
         .add_systems(
@@ -58,12 +59,12 @@ fn main() {
         )
         .add_systems(
             (
-                // todo:mp not good, don't make them share and bottleneck on a single input component
                 calculate_character_velocity,
                 handle_gunfire,
                 handle_gun_picking,
                 handle_letting_gear_go,
             )
+                // todo:mp think on how to remove mutable intersections of components
                 .chain()
                 .after(handle_online_player_input)
                 .in_set(InputHandlingSet::ResponseProcessing)

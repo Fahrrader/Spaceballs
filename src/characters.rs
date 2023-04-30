@@ -1,5 +1,5 @@
-use crate::actions::CharacterActionInput;
-use crate::ai::AiActionRoutine;
+use crate::ai::AIActionRoutine;
+use crate::controls::CharacterActionInput;
 use crate::guns::{reset_gun_transform, team_paint_gun, Equipped, Gun, GunBundle, GunPreset};
 use crate::health::{Health, HitPoints};
 use crate::physics::{
@@ -167,7 +167,7 @@ pub struct AICharacterBundle {
     #[bundle]
     pub character_bundle: BaseCharacterBundle,
     pub player_marker: AiControlled,
-    pub ai_controller: AiActionRoutine,
+    pub ai_controller: AIActionRoutine,
 }
 
 /// Marker designating an entity controlled by a player.
@@ -180,7 +180,7 @@ impl BuildCharacter for AICharacterBundle {
         Self {
             character_bundle: BaseCharacterBundle::new(transform, team),
             player_marker: AiControlled,
-            ai_controller: AiActionRoutine::default(),
+            ai_controller: AIActionRoutine::default(),
         }
     }
 

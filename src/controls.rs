@@ -1,6 +1,5 @@
-use crate::actions::CharacterActionInput;
 use crate::characters::PlayerControlled;
-use crate::GgrsConfig;
+use crate::multiplayer::{GGRSConfig, GGRSInput};
 use bevy::ecs::schedule::SystemSet;
 use bevy::input::{
     gamepad::{
@@ -9,11 +8,9 @@ use bevy::input::{
     },
     Axis, Input,
 };
-use bevy::prelude::{Commands, EventReader, In, KeyCode, Query, Res, Resource};
+use bevy::prelude::{Commands, Component, EventReader, In, KeyCode, Query, Res, Resource};
+use bevy::reflect::{FromReflect, Reflect};
 use bevy_ggrs::{ggrs, PlayerInputs};
-
-/// Players' input data structure, used and encoded by GGRS and exchanged over the internet.
-pub type GgrsInput = u8;
 
 /// Set of systems for input handling for better organisation in the schedule.
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -25,9 +22,46 @@ pub enum InputHandlingSet {
     ResponseProcessing,
 }
 
+/// Inputs for characters to act on during the next frame.
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect, FromReflect)]
+pub struct CharacterActionInput {
+    /// Forward movement. Clamp to 1.0!
+    pub up: f32,
+    /// Right-hand movement. Clamp to 1.0!
+    pub right: f32,
+    /// To shoot or not to shoot? That is the question.
+    pub fire: bool,
+    /// Whether a reload must be triggered this frame.
+    pub reload: bool,
+
+    /// Whether an environmental interactive action must be triggered this frame,
+    /// such as picking guns up from the ground.
+    pub use_environment_1: bool,
+    /// Whether an auxiliary environmental interactive action must be triggered this frame,
+    /// such as throwing equipped guns away.
+    pub use_environment_2: bool,
+}
+
+impl CharacterActionInput {
+    /// Bring every input to the default state.
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
+
+    /// Get direction of linear speed.
+    pub fn speed(&self) -> f32 {
+        self.up.clamp(-1.0, 1.0)
+    }
+
+    /// Get direction of rotational speed.
+    pub fn angular_speed(&self) -> f32 {
+        self.right.clamp(-1.0, 1.0)
+    }
+}
+
 /// System to record the players' online inputs (local and received) to the input struct used by the actuator systems.
 pub fn handle_online_player_input(
-    inputs: Res<PlayerInputs<GgrsConfig>>,
+    inputs: Res<PlayerInputs<GGRSConfig>>,
     mut query: Query<(&mut CharacterActionInput, &PlayerControlled)>,
 ) {
     for (mut player_inputs, player) in query.iter_mut() {
@@ -45,7 +79,7 @@ pub fn process_input(
     gamepad_axes: Res<Axis<GamepadAxis>>,
     gamepad_buttons: Res<Input<GamepadButton>>,
     //mut query: Query<&mut CharacterActionInput, With<PlayerControlled>>,
-) -> GgrsInput {
+) -> GGRSInput {
     let mut player_actions = CharacterActionInput::default();
 
     process_keyboard_input(&mut player_actions, &keyboard);
