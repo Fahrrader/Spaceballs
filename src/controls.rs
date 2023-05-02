@@ -36,10 +36,10 @@ pub struct CharacterActionInput {
 
     /// Whether an environmental interactive action must be triggered this frame,
     /// such as picking guns up from the ground.
-    pub use_environment_1: bool,
+    pub interact_1: bool,
     /// Whether an auxiliary environmental interactive action must be triggered this frame,
     /// such as throwing equipped guns away.
-    pub use_environment_2: bool,
+    pub interact_2: bool,
 }
 
 impl CharacterActionInput {
@@ -124,8 +124,8 @@ fn process_keyboard_input(actions: &mut CharacterActionInput, keyboard: &Input<K
     );
     set_flag_if_keys_changed(&mut actions.fire, vec![KeyCode::Space]);
     set_flag_if_keys_changed(&mut actions.reload, vec![KeyCode::R]);
-    set_flag_if_keys_changed(&mut actions.use_environment_1, vec![KeyCode::F]);
-    set_flag_if_keys_changed(&mut actions.use_environment_2, vec![KeyCode::C]);
+    set_flag_if_keys_changed(&mut actions.interact_1, vec![KeyCode::F]);
+    set_flag_if_keys_changed(&mut actions.interact_2, vec![KeyCode::C]);
 }
 
 /*
@@ -172,24 +172,28 @@ pub fn process_gamepad_input(
         }
     }
 
-    macro_rules! buttons_pressed {
-        ($($e:expr),*) => {{
-            let mut pressed = false;
+    macro_rules! set_flag_if_pressed {
+        ($action:expr, [$($e:expr),*]) => {{
             $(
                 let button = GamepadButton {
                     gamepad,
                     button_type: $e,
                 };
-                pressed |= buttons.pressed(button);
+                $action |= buttons.pressed(button);
             )*
-            pressed
         }
     }}
 
-    actions.fire |= buttons_pressed!(GamepadButtonType::RightTrigger2, GamepadButtonType::South);
-    actions.reload |= buttons_pressed!(GamepadButtonType::RightTrigger, GamepadButtonType::West);
-    actions.use_environment_1 |= buttons_pressed!(GamepadButtonType::North);
-    actions.use_environment_2 |= buttons_pressed!(GamepadButtonType::East);
+    set_flag_if_pressed!(
+        actions.fire,
+        [GamepadButtonType::RightTrigger2, GamepadButtonType::South]
+    );
+    set_flag_if_pressed!(
+        actions.reload,
+        [GamepadButtonType::RightTrigger, GamepadButtonType::West]
+    );
+    set_flag_if_pressed!(actions.interact_1, [GamepadButtonType::North]);
+    set_flag_if_pressed!(actions.interact_2, [GamepadButtonType::East]);
 }
 
 /// System to track gamepad connections and disconnections.

@@ -8,7 +8,7 @@ fn main() {
 
     let mut app = App::new();
 
-    // todo:mp probably add a separate
+    // todo:mp probably run systems used by ggrs also outside of ggrs schedule for single-player if chosen in menu
     GGRSPlugin::<GGRSConfig>::new()
         .with_input_system(process_input)
         .register_rollback_component::<Transform>()
@@ -36,7 +36,13 @@ fn main() {
         .add_plugin(FrameTimeDiagnosticsPlugin::default())*/
         // todo summon scene only on InGame
         .add_state::<GameState>()
-        .configure_set(InputHandlingSet::ResponseProcessing.after(InputHandlingSet::InputReading))
+        .configure_sets(
+            (
+                InputHandlingSet::InputReading,
+                InputHandlingSet::ResponseProcessing,
+            )
+                .chain(),
+        )
         .add_startup_systems((summon_scene, start_matchbox_socket))
         .add_system(wait_for_players.run_if(in_state(GameState::Matchmaking)))
         //.add_system(summon_scene.in_schedule(OnEnter(GameState::InGame)))

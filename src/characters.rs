@@ -287,6 +287,7 @@ pub fn handle_gun_picking(
         (
             &Gun,
             &OngoingCollisions,
+            // todo:mp event for color/sprite changing
             &mut Sprite,
             &mut Transform,
             Entity,
@@ -302,7 +303,7 @@ pub fn handle_gun_picking(
         }
 
         for (char_input, char_team, char_entity) in query_characters.iter() {
-            if !char_input.use_environment_1 || !collisions.contains(&char_entity) {
+            if !char_input.interact_1 || !collisions.contains(&char_entity) {
                 continue;
             }
 
@@ -340,7 +341,7 @@ pub fn handle_letting_gear_go(
     for (action_input, velocity, transform, children, health, entity) in query_characters.iter_mut()
     {
         // Only proceed with the throwing away if either the drop-gear button is pressed, or if the guy's wasted.
-        if !(action_input.use_environment_2 || health.is_dead()) || children.is_empty() {
+        if !(action_input.interact_2 || health.is_dead()) || children.is_empty() {
             continue;
         }
 

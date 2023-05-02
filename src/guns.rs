@@ -335,7 +335,7 @@ pub fn handle_gunfire(
     mut commands: Commands,
     time: Res<Time>,
     mut query_weapons: Query<(&mut Gun, &GlobalTransform, &Equipped)>,
-    // todo:mp event for movement instead
+    // todo:mp event for movement instead?
     mut query_characters: Query<(&CharacterActionInput, &Team, &mut Transform)>,
 ) {
     for (mut gun, gun_transform, equipped) in query_weapons.iter_mut() {

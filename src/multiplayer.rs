@@ -2,9 +2,20 @@ pub use bevy_ggrs::{GGRSPlugin, GGRSSchedule};
 
 use crate::controls::CharacterActionInput;
 use crate::{info, GameState};
+use bevy::core::{Pod, Zeroable};
 use bevy::prelude::{Commands, NextState, Res, ResMut, Resource};
+use bevy::reflect::{FromReflect, Reflect};
 use bevy_ggrs::{ggrs, Session};
 use bevy_matchbox::prelude::{MatchboxSocket, PeerId, SingleChannel};
+
+/// Common room address for all matches on the server! Oh it's going to be gloriously broken if left like this.
+// pub const ROOM_NAME: &str = "spaceballs";
+// Bevy-Extremists host this match making service for us to use FOR FREE.
+// So, use Johan's compatible matchbox.
+// "wss://match-0-6.helsing.studio/bevy-ggrs-rapier-example?next=2";
+// Check out their work on "Cargo Space", especially the blog posts, which are incredibly enlightening!
+// https://johanhelsing.studio/cargospace
+pub const MATCHBOX_ADDR: &str = "ws://localhost:3536/spaceballs?next=2";
 
 /// Expected - and maximum - player count for the game session.
 #[derive(Resource)]
@@ -26,7 +37,7 @@ impl ggrs::Config for GGRSConfig {
 
 /// Initialize a socket for connecting to the matchbox server.
 pub fn start_matchbox_socket(mut commands: Commands) {
-    let room_url = "ws://127.0.0.1:3536/extreme_bevy?next=2";
+    let room_url = MATCHBOX_ADDR;
     info!("connecting to matchbox server: {:?}", room_url);
     commands.insert_resource(MatchboxSocket::new_ggrs(room_url));
 }
@@ -80,57 +91,60 @@ pub fn wait_for_players(
 }
 
 /// Players' input data structure, used and encoded by GGRS and exchanged over the internet.
-pub type GGRSInput = u8;
+#[derive(Copy, Clone, Debug, Default, PartialEq, Pod, Zeroable, Reflect, FromReflect)]
+#[repr(C)]
+pub struct GGRSInput {
+    pub up: f32,
+    pub right: f32,
+    // bytemuck::Pod does not accept "padding"/uninit bytes,
+    // therefore fields must make up a multiple of the byte size of the biggest field
+    pub bit_flags: u32,
+}
 
-const INPUT_UP: u8 = 1 << 0;
-const INPUT_DOWN: u8 = 1 << 1;
-const INPUT_LEFT: u8 = 1 << 2;
-const INPUT_RIGHT: u8 = 1 << 3;
-const INPUT_FIRE: u8 = 1 << 4;
-const INPUT_RELOAD: u8 = 1 << 5;
-const INPUT_ENV_1: u8 = 1 << 6;
-const INPUT_ENV_2: u8 = 1 << 7;
+mod input_flags {
+    pub const FIRE: u32 = 1 << 0;
+    pub const RELOAD: u32 = 1 << 1;
+    pub const INTERACT_1: u32 = 1 << 2;
+    pub const INTERACT_2: u32 = 1 << 3;
+}
 
 impl Into<GGRSInput> for CharacterActionInput {
     fn into(self) -> GGRSInput {
+        use input_flags::*;
+
         let mut input = GGRSInput::default();
-        if self.up > 0.0 {
-            input |= INPUT_UP;
-        }
-        if self.up < 0.0 {
-            input |= INPUT_DOWN;
-        }
-        if self.right > 0.0 {
-            input |= INPUT_RIGHT;
-        }
-        if self.right < 0.0 {
-            input |= INPUT_LEFT;
-        }
+
+        input.up = self.up;
+        input.right = self.right;
+
         if self.fire {
-            input |= INPUT_FIRE;
+            input.bit_flags |= FIRE;
         }
         if self.reload {
-            input |= INPUT_RELOAD;
+            input.bit_flags |= RELOAD;
         }
-        if self.use_environment_1 {
-            input |= INPUT_ENV_1;
+        if self.interact_1 {
+            input.bit_flags |= INTERACT_1;
         }
-        if self.use_environment_2 {
-            input |= INPUT_ENV_2;
+        if self.interact_2 {
+            input.bit_flags |= INTERACT_2;
         }
+
         input
     }
 }
 
 impl From<GGRSInput> for CharacterActionInput {
     fn from(value: GGRSInput) -> Self {
+        use input_flags::*;
+
         CharacterActionInput {
-            up: (value & INPUT_UP) as f32 - (value & INPUT_DOWN) as f32,
-            right: (value & INPUT_RIGHT) as f32 - (value & INPUT_LEFT) as f32,
-            fire: value & INPUT_FIRE != 0,
-            reload: value & INPUT_RELOAD != 0,
-            use_environment_1: value & INPUT_ENV_1 != 0,
-            use_environment_2: value & INPUT_ENV_2 != 0,
+            up: value.up,
+            right: value.right,
+            fire: value.bit_flags & FIRE != 0,
+            reload: value.bit_flags & RELOAD != 0,
+            interact_1: value.bit_flags & INTERACT_1 != 0,
+            interact_2: value.bit_flags & INTERACT_2 != 0,
         }
     }
 }
