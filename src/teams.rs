@@ -1,4 +1,4 @@
-use bevy::prelude::Component;
+use bevy::prelude::{Component, FromReflect, Reflect};
 use bevy::render::color::Color;
 
 /// Number of teams is limited by 256.
@@ -10,7 +10,7 @@ pub const PLAYER_DEFAULT_TEAM: TeamNumber = 1;
 pub const AI_DEFAULT_TEAM: TeamNumber = 9;
 
 /// Marker holding the character's (or anything's) allegiance.
-#[derive(Component, Clone, Eq, PartialEq)]
+#[derive(Component, Clone, Debug, Eq, PartialEq, Reflect, FromReflect)]
 pub struct Team(pub TeamNumber);
 
 impl Team {

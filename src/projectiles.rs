@@ -7,8 +7,8 @@ use crate::physics::{
 use crate::teams::{Team, TeamNumber};
 use bevy::math::Vec3;
 use bevy::prelude::{
-    Bundle, Commands, Component, Entity, EventReader, Query, Res, Sprite, SpriteBundle, Time,
-    Transform, With,
+    Bundle, Commands, Component, Entity, EventReader, FromReflect, Query, Reflect, Res, Sprite,
+    SpriteBundle, Time, Transform, With,
 };
 use bevy::utils::default;
 
@@ -59,13 +59,13 @@ impl BulletBundle {
 }
 
 /// Marker component signifying that this is indeed a bullet / projectile.
-#[derive(Component)]
+#[derive(Component, Debug, Default, Reflect, FromReflect)]
 pub struct Bullet {
     gun_type: GunPreset,
 }
 
 /// Marker component for a rail gun projectile.
-#[derive(Component)]
+#[derive(Component, Debug, Default, Reflect, FromReflect)]
 pub struct RailGunThing;
 
 /// Apply damage to a body affected by a projectile. If the remaining health happens to be below 0, marks it Dying.

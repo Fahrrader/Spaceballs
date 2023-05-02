@@ -1,13 +1,12 @@
 use crate::characters::{AiControlled, CHARACTER_RAD_SPEED};
 use crate::controls::CharacterActionInput;
-use bevy::prelude::{Component, Query, Res, Time, With};
+use bevy::prelude::{Component, FromReflect, Query, Reflect, Res, Time, With};
 use bevy::utils::default;
-// use rand::prelude::random;
 use std::f32::consts::PI;
 
 /// One possible AI controller component, deciding an AI's input. Contains the current time tracker.
 /// For now, it performs incredible maneuvers.
-#[derive(Component, Default)]
+#[derive(Component, Debug, Default, PartialEq, Reflect, FromReflect)]
 pub struct AIActionRoutine(pub f32);
 
 impl AIActionRoutine {

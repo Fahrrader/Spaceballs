@@ -3,8 +3,8 @@ use bevy::ecs::query::{ReadOnlyWorldQuery, WorldQuery};
 use bevy::math::Vec3;
 use bevy::prelude::{
     default, App, Bundle, Color, Commands, Component, CoreSet, DespawnRecursiveExt, Entity,
-    EventReader, IntoSystemConfig, Plugin, Query, Reflect, RemovedComponents, Sprite, SpriteBundle,
-    Transform, With,
+    EventReader, FromReflect, IntoSystemConfig, Plugin, Query, Reflect, RemovedComponents, Sprite,
+    SpriteBundle, Transform, With,
 };
 use bevy::utils::HashSet;
 use bevy_rapier2d::prelude::*;
@@ -219,7 +219,7 @@ pub(crate) fn try_get_components_from_entities<
 /// Component which will be filled (if present) with a list of entities with which the current entity is currently in contact.
 ///
 /// NOTE: will only be updated if ['ActiveEvents::COLLISION_EVENTS'] is also present on the entity.
-#[derive(Component, Default, Reflect)]
+#[derive(Component, Debug, Default, Reflect, FromReflect)]
 pub struct OngoingCollisions(HashSet<Entity>);
 
 impl OngoingCollisions {

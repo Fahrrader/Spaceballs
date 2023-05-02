@@ -7,7 +7,7 @@ use crate::physics::{
     Sensor, Velocity,
 };
 use crate::teams::{team_color, Team, TeamNumber};
-use crate::RandomState;
+use crate::EntropyGenerator;
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
@@ -42,7 +42,7 @@ pub trait BuildCharacter {
     fn spawn_with_equipment(
         self,
         commands: &mut Commands,
-        random_state: &mut RandomState,
+        random_state: EntropyGenerator,
         equipment: Vec<GunPreset>,
     ) -> Vec<Entity>;
 }
@@ -89,14 +89,14 @@ impl BaseCharacterBundle {
         commands: &mut Commands,
         character_id: Entity,
         team: TeamNumber,
-        random_state: &mut RandomState,
+        mut random_state: EntropyGenerator,
         equipment: Vec<GunPreset>,
     ) -> Vec<Entity> {
         let mut result = Vec::with_capacity(equipment.len());
 
         for gun_preset in equipment {
             let gun_id = commands
-                .spawn(GunBundle::new(gun_preset, None, random_state.gen()).with_paint_job(team))
+                .spawn(GunBundle::new(gun_preset, None, random_state.fork()).with_paint_job(team))
                 .id();
 
             equip_gear(commands, character_id, gun_id, gun_preset, None, None);
@@ -109,7 +109,7 @@ impl BaseCharacterBundle {
         bundle: CharacterBundle,
         team: TeamNumber,
         commands: &mut Commands,
-        random_state: &mut RandomState,
+        random_state: EntropyGenerator,
         equipment: Vec<GunPreset>,
     ) -> Vec<Entity> {
         let char_id = commands.spawn(bundle).id();
@@ -135,7 +135,7 @@ pub struct PlayerCharacterBundle {
 }
 
 /// Marker designating an entity controlled by a player.
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct PlayerControlled {
     pub handle: usize,
 }
@@ -153,7 +153,7 @@ impl BuildCharacter for PlayerCharacterBundle {
     fn spawn_with_equipment(
         self,
         commands: &mut Commands,
-        random_state: &mut RandomState,
+        random_state: EntropyGenerator,
         equipment: Vec<GunPreset>,
     ) -> Vec<Entity> {
         let team = self.character_bundle.team.0;
@@ -171,7 +171,7 @@ pub struct AICharacterBundle {
 }
 
 /// Marker designating an entity controlled by a player.
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct AiControlled;
 // pub peer_handle: usize,
 
@@ -187,7 +187,7 @@ impl BuildCharacter for AICharacterBundle {
     fn spawn_with_equipment(
         self,
         commands: &mut Commands,
-        random_state: &mut RandomState,
+        random_state: EntropyGenerator,
         equipment: Vec<GunPreset>,
     ) -> Vec<Entity> {
         let team = self.character_bundle.team.0;
@@ -279,7 +279,7 @@ pub fn calculate_character_velocity(
     }
 }
 
-/// System to, according to a character's input, pick up and equip guns off the ground.
+/// System to pick up and equip guns off the ground according to a character's input.
 pub fn handle_gun_picking(
     mut commands: Commands,
     query_characters: Query<(&CharacterActionInput, &Team, Entity)>,

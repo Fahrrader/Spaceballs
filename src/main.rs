@@ -11,21 +11,26 @@ fn main() {
     // todo:mp probably run systems used by ggrs also outside of ggrs schedule for single-player if chosen in menu
     GGRSPlugin::<GGRSConfig>::new()
         .with_input_system(process_input)
+        .register_rollback_resource::<EntropyGenerator>()
         .register_rollback_component::<Transform>()
         .register_rollback_component::<Velocity>()
         .register_rollback_component::<CharacterActionInput>()
-        //.register_rollback_component::<Gun>()
+        .register_rollback_component::<Gun>()
+        .register_rollback_component::<Health>()
+        .register_rollback_component::<ActiveEvents>()
+        .register_rollback_component::<AIActionRoutine>()
         //.register_rollback_component::<Children>()
         .build(&mut app);
 
     app.insert_resource(ClearColor(Color::BLACK))
         .insert_resource(scene_arg)
-        .insert_resource(RandomState(StdRng::seed_from_u64(42))) // probably refactor for async
+        .insert_resource(EntropyGenerator::new(42))
         .insert_resource(RapierConfiguration {
             gravity: Vec2::default(),
             ..default()
         })
-        //.register_type::<CharacterActionInput>() // todo make plugins, register all respective types, will make development easier
+        // make plugins, register all respective types, will make development easier
+        //.register_type::<CharacterActionInput>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(create_window(800., 800.)),
             ..default()
@@ -37,6 +42,7 @@ fn main() {
         // todo summon scene only on InGame
         .add_state::<GameState>()
         .configure_sets(
+            // ggrs couldn't give two flying shits about this one
             (
                 InputHandlingSet::InputReading,
                 InputHandlingSet::ResponseProcessing,
@@ -47,19 +53,15 @@ fn main() {
         .add_system(wait_for_players.run_if(in_state(GameState::Matchmaking)))
         //.add_system(summon_scene.in_schedule(OnEnter(GameState::InGame)))
         .add_system(handle_gamepad_connections)
-        /*.add_system(reset_input.in_set(InputHandlingSet::MediaReading))
-        .add_systems(
-            (handle_keyboard_input, handle_gamepad_input, handle_ai_input)
-                .after(reset_input)
-                .in_set(InputHandlingSet::MediaReading),
-        )*/
+        // todo:mp action routine gets abnormally long if in rollback together with ai input, might be interesting to look into
         .add_system(
             handle_ai_input
-                .in_set(InputHandlingSet::InputReading)
-                .run_if(in_state(GameState::InGame)),
+                .run_if(in_state(GameState::InGame))
+                .in_set(InputHandlingSet::InputReading),
         )
         .add_system(
             handle_online_player_input
+                .run_if(in_state(GameState::InGame))
                 .in_set(InputHandlingSet::InputReading)
                 .in_schedule(GGRSSchedule),
         )
@@ -72,8 +74,8 @@ fn main() {
             )
                 // todo:mp think on how to remove mutable intersections of components
                 .chain()
-                .after(handle_online_player_input)
                 .in_set(InputHandlingSet::ResponseProcessing)
+                .after(InputHandlingSet::InputReading)
                 .in_schedule(GGRSSchedule),
         )
         .add_system(handle_entities_out_of_bounds)
@@ -84,7 +86,7 @@ fn main() {
             handle_gun_idle_bobbing,
             handle_gun_arriving_at_rest,
         ))
-        // probably execute latest
+        // probably execute latest -- todo:mp add to GGRS?
         .add_system(
             handle_death
                 .after(handle_bullet_collision_events) // todo bullet collision plugin / system set

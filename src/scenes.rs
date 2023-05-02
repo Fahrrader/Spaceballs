@@ -1,11 +1,10 @@
 use crate::characters::{AICharacterBundle, BuildCharacter, PlayerCharacterBundle};
 use crate::{
-    GunBundle, GunPreset, PlayerCount, RandomState, RectangularObstacleBundle, AI_DEFAULT_TEAM,
-    CHUNK_SIZE, PLAYER_DEFAULT_TEAM, SCREEN_SPAN,
+    EntropyGenerator, GunBundle, GunPreset, PlayerCount, RectangularObstacleBundle,
+    AI_DEFAULT_TEAM, CHUNK_SIZE, PLAYER_DEFAULT_TEAM, SCREEN_SPAN,
 };
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{Camera2dBundle, Commands, Res, ResMut, Resource, Transform};
-use rand::Rng;
 use std::f32::consts::PI;
 
 /// Specifier of the scene which to load.
@@ -34,19 +33,19 @@ impl TryFrom<String> for SceneArg {
 pub fn summon_scene(
     commands: Commands,
     scene: Res<OptionalSceneArg>,
-    random_state: ResMut<RandomState>,
+    random_state: ResMut<EntropyGenerator>,
 ) {
     match &scene.into_inner().0 {
-        None => setup_lite(commands, random_state.into_inner()),
+        None => setup_lite(commands, random_state),
         Some(scene) => match scene {
-            SceneArg::Experimental => setup_experimental(commands, random_state.into_inner()),
-            SceneArg::Lite => setup_lite(commands, random_state.into_inner()),
+            SceneArg::Experimental => setup_experimental(commands, random_state),
+            SceneArg::Lite => setup_lite(commands, random_state),
         },
     }
 }
 
 /// Set up a more complicated and chaotic scene with the latest features and experiments.
-pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomState) {
+pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<EntropyGenerator>) {
     commands.spawn(Camera2dBundle::default());
     commands.insert_resource(PlayerCount(2));
 
@@ -56,17 +55,17 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
     commands.spawn(GunBundle::new(
         GunPreset::LaserGun,
         Some(Transform::from_translation(Vec3::new(-120.0, 50.0, 0.0))),
-        random_state.gen(),
+        random_state.fork(),
     ));
     commands.spawn(GunBundle::new(
         GunPreset::Imprecise,
         Some(Transform::from_translation(Vec3::new(-180.0, 50.0, 0.0))),
-        random_state.gen(),
+        random_state.fork(),
     ));
     commands.spawn(GunBundle::new(
         GunPreset::RailGun,
         Some(Transform::from_translation(Vec3::new(-240.0, 50.0, 0.0))),
-        random_state.0.gen(),
+        random_state.fork(),
     ));
 
     // Player character
@@ -77,7 +76,7 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
     )
     .spawn_with_equipment(
         &mut commands,
-        &mut random_state,
+        random_state.fork(),
         vec![GunPreset::Scattershot],
     );
 
@@ -88,7 +87,11 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
         PLAYER_DEFAULT_TEAM + 1,
         1,
     )
-    .spawn_with_equipment(&mut commands, &mut random_state, vec![GunPreset::Imprecise]);
+    .spawn_with_equipment(
+        &mut commands,
+        random_state.fork(),
+        vec![GunPreset::Imprecise],
+    );
 
     // todo respawning? conjoin with drop-in
     // AI character
@@ -99,7 +102,7 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
         AI_DEFAULT_TEAM,
         usize::MAX,
     )
-    .spawn_with_equipment(&mut commands, &mut random_state, vec![GunPreset::RailGun]);
+    .spawn_with_equipment(&mut commands, random_state.fork(), vec![GunPreset::RailGun]);
 
     // Random wall in the middle
     commands.spawn(RectangularObstacleBundle::new(Transform::from_scale(
@@ -108,7 +111,7 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: &mut RandomS
 }
 
 /// Set up a lighter, stable scene. Considered default.
-pub fn setup_lite(mut commands: Commands, mut random_state: &mut RandomState) {
+pub fn setup_lite(mut commands: Commands, mut random_state: ResMut<EntropyGenerator>) {
     commands.spawn(Camera2dBundle::default());
     commands.insert_resource(PlayerCount(1));
 
@@ -116,7 +119,7 @@ pub fn setup_lite(mut commands: Commands, mut random_state: &mut RandomState) {
 
     PlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0).spawn_with_equipment(
         &mut commands,
-        &mut random_state,
+        random_state.fork(),
         vec![GunPreset::Regular],
     );
 }

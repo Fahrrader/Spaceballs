@@ -9,7 +9,7 @@ mod projectiles;
 mod scenes;
 mod teams;
 
-pub use crate::ai::handle_ai_input;
+pub use crate::ai::{handle_ai_input, AIActionRoutine};
 pub use crate::characters::{
     calculate_character_velocity, handle_gun_picking, handle_inventory_layout_change,
     handle_letting_gear_go, PlayerCharacterBundle,
@@ -21,13 +21,13 @@ pub use crate::controls::{
 pub use crate::guns::{
     handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gunfire, Gun, GunBundle, GunPreset,
 };
-pub use crate::health::handle_death;
+pub use crate::health::{handle_death, Health};
 pub use crate::multiplayer::{
     start_matchbox_socket, wait_for_players, GGRSConfig, GGRSPlugin, GGRSSchedule, PlayerCount,
 };
 pub use crate::physics::{
-    handle_entities_out_of_bounds, RectangularObstacleBundle, SpaceballsPhysicsPlugin, Velocity,
-    CHUNK_SIZE,
+    handle_entities_out_of_bounds, ActiveEvents, RectangularObstacleBundle,
+    SpaceballsPhysicsPlugin, Velocity, CHUNK_SIZE,
 };
 pub use crate::projectiles::{handle_bullet_collision_events, handle_railgun_penetration_damage};
 pub use crate::scenes::{summon_scene, SceneArg};
@@ -36,13 +36,13 @@ pub use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 pub use bevy::prelude::*;
 pub use bevy::render::camera::{camera_system, RenderTarget};
 pub use bevy_rapier2d::prelude::{RapierConfiguration, RapierPhysicsPlugin};
-
 pub use rand::{
     distributions::Standard,
     prelude::{Distribution, StdRng},
     Rng, SeedableRng,
 };
 
+use bevy::reflect::ReflectFromReflect;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use clap::Parser;
 
@@ -60,16 +60,31 @@ pub enum GameState {
 }
 
 /// State of chaos!
-#[derive(Resource)]
-pub struct RandomState(pub StdRng);
+#[derive(Resource, Clone, Debug, PartialEq, Eq, Reflect, FromReflect)]
+#[reflect_value(Debug, Resource, FromReflect)]
+pub struct EntropyGenerator(pub StdRng);
 
-impl RandomState {
+impl EntropyGenerator {
     #[inline]
     pub fn gen<T>(&mut self) -> T
     where
         Standard: Distribution<T>,
     {
         self.0.gen()
+    }
+
+    pub fn new(seed: u64) -> Self {
+        Self(StdRng::seed_from_u64(seed))
+    }
+
+    pub fn fork(&mut self) -> Self {
+        Self(StdRng::from_rng(&mut self.0).unwrap())
+    }
+}
+
+impl Default for EntropyGenerator {
+    fn default() -> Self {
+        Self::new(0)
     }
 }
 

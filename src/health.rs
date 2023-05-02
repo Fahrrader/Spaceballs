@@ -1,19 +1,14 @@
 use bevy::prelude::{Commands, Component, DespawnRecursiveExt, Entity, Query, With};
+use bevy::reflect::{FromReflect, Reflect};
 
 /// Floating point number signifying an entity's last arbitrary currency it pays to stay in this world.
 pub type HitPoints = f32;
 
 /// Holder component of an entity's hit points.
-#[derive(Component)]
+#[derive(Component, Debug, Default, PartialEq, Reflect, FromReflect)]
 pub struct Health {
     hp: HitPoints,
     // armor? max?
-}
-
-impl Default for Health {
-    fn default() -> Self {
-        Self { hp: 1.0 }
-    }
 }
 
 impl Health {
@@ -27,7 +22,7 @@ impl Health {
     }
 
     /// Take off (or add, if negative) some hit points.
-    pub(crate) fn damage(&mut self, damage: HitPoints) -> bool {
+    pub fn damage(&mut self, damage: HitPoints) -> bool {
         self.hp -= damage;
         self.is_dead()
     }
@@ -39,7 +34,7 @@ impl Health {
 }
 
 /// Marker component indicating that the entity has reached zero hit points and is about to be despawned.
-#[derive(Component)]
+#[derive(Component, Debug, Default, Reflect, FromReflect)]
 #[component(storage = "SparseSet")]
 pub struct Dying;
 

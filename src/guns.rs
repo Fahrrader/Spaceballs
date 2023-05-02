@@ -4,14 +4,14 @@ use crate::guns::stats::ProjectileSpawnSpace;
 use crate::physics::{KinematicsBundle, OngoingCollisions, RigidBody, Sensor, Velocity};
 use crate::projectiles::BulletBundle;
 use crate::teams::{team_color, Team, TeamNumber};
+use crate::EntropyGenerator;
 use bevy::math::{Quat, Vec2, Vec3};
 use bevy::prelude::{
-    Bundle, Commands, Component, Entity, GlobalTransform, Query, Res, Sprite, SpriteBundle, Time,
-    Timer, TimerMode, Transform, With, Without,
+    Bundle, Commands, Component, Entity, GlobalTransform, Query, ReflectComponent, Res, Sprite,
+    SpriteBundle, Time, Timer, TimerMode, Transform, With, Without,
 };
+use bevy::reflect::{FromReflect, Reflect, ReflectFromReflect};
 use bevy::utils::default;
-use rand::prelude::StdRng;
-use rand::{Rng, SeedableRng};
 use std::f32::consts::PI;
 use std::time::Duration;
 
@@ -78,9 +78,9 @@ impl Default for GunBundle {
 }
 
 impl GunBundle {
-    pub fn new(preset: GunPreset, transform: Option<Transform>, random_seed: u64) -> Self {
+    pub fn new(preset: GunPreset, transform: Option<Transform>, rng: EntropyGenerator) -> Self {
         let mut gun_bundle = Self {
-            gun: Gun::new(preset, random_seed),
+            gun: Gun::new(preset, rng),
             ..default()
         };
         gun_bundle.sprite_bundle.sprite.color = preset.stats().gun_neutral_color.0;
@@ -104,14 +104,15 @@ impl GunBundle {
 }
 
 /// Holder of all non-constant properties of a weapon.
-//#[derive(Component, Debug, PartialEq, Clone, Reflect, FromReflect)]
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Clone, Debug, Reflect, FromReflect)]
+#[reflect_value(Debug, Component, FromReflect)]
 pub struct Gun {
-    pub(crate) preset: GunPreset,
+    pub preset: GunPreset,
     fire_cooldown: Timer,
     shots_before_reload: u32,
     reload_progress: Timer,
-    random_state: StdRng,
+    // displace to a component? risk of nondeterministic order of execution
+    entropy: EntropyGenerator,
 }
 
 impl Default for Gun {
@@ -123,13 +124,13 @@ impl Default for Gun {
             fire_cooldown: Timer::new(stats.fire_cooldown, TimerMode::Once),
             shots_before_reload: stats.shots_before_reload,
             reload_progress: Timer::new(stats.reload_time, TimerMode::Once),
-            random_state: StdRng::seed_from_u64(0),
+            entropy: EntropyGenerator::new(0),
         }
     }
 }
 
 impl Gun {
-    pub fn new(preset: GunPreset, random_seed: u64) -> Self {
+    pub fn new(preset: GunPreset, rng: EntropyGenerator) -> Self {
         let stats = preset.stats();
 
         let mut fire_cooldown = Timer::new(stats.fire_cooldown, TimerMode::Once);
@@ -145,7 +146,7 @@ impl Gun {
             fire_cooldown,
             shots_before_reload: stats.shots_before_reload,
             reload_progress,
-            random_state: StdRng::seed_from_u64(random_seed),
+            entropy: rng,
         }
     }
 
@@ -200,8 +201,7 @@ impl Gun {
         } else {
             Quat::from_axis_angle(
                 -Vec3::Z,
-                (self.random_state.gen::<f32>() - 0.5)
-                    * self.preset.stats().projectile_spread_angle,
+                (self.entropy.gen::<f32>() - 0.5) * self.preset.stats().projectile_spread_angle,
             )
         }
     }
@@ -302,7 +302,7 @@ impl Gun {
 }
 
 /// Marker signifying that the entity is equipped "by" another entity and is a child (transforms are shared).
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct Equipped {
     pub by: Entity,
 }
