@@ -37,7 +37,8 @@ pub struct GunPersistentStats {
     /// Time to reload a gun and set [`shots_before_reload`] back to full. // todo place a UI indicator
     pub reload_time: Duration,
     /// Units of distance the character is pushed back when firing.
-    // why'd I even want this // refactor later, when dodge is implemented, use the same principle
+    // todo refactor when dodge is implemented -- or use mass comparison of the gun/projectile to the character
+    // and either dampen char's speed or cause an event/mini-dodge to push it back if too heavy
     pub recoil: f32,
     // transparent? implant? have property that'd prevent gun dropping /
 

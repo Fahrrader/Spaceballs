@@ -7,8 +7,8 @@ use crate::teams::{team_color, Team, TeamNumber};
 use crate::EntropyGenerator;
 use bevy::math::{Quat, Vec2, Vec3};
 use bevy::prelude::{
-    Bundle, Commands, Component, Entity, GlobalTransform, Query, ReflectComponent, Res, Sprite,
-    SpriteBundle, Time, Timer, TimerMode, Transform, With, Without,
+    Bundle, Changed, Children, Commands, Component, Entity, GlobalTransform, Query,
+    ReflectComponent, Res, Sprite, SpriteBundle, Time, Timer, TimerMode, Transform, With, Without,
 };
 use bevy::reflect::{FromReflect, Reflect, ReflectFromReflect};
 use bevy::utils::default;
@@ -94,7 +94,7 @@ impl GunBundle {
 
     /// Change the bundled gun's color from neutral to that in line with the team.
     pub fn with_paint_job(mut self, team_number: TeamNumber) -> Self {
-        team_paint_gun(
+        Gun::team_paint(
             self.gun.preset,
             &mut self.sprite_bundle.sprite,
             Some(team_number),
@@ -117,7 +117,7 @@ pub struct Gun {
 
 impl Default for Gun {
     fn default() -> Self {
-        let preset = GunPreset::Regular;
+        let preset = GunPreset::default();
         let stats = preset.stats();
         Self {
             preset,
@@ -147,6 +147,25 @@ impl Gun {
             shots_before_reload: stats.shots_before_reload,
             reload_progress,
             entropy: rng,
+        }
+    }
+
+    /// Reset everything about the gun's transform, replacing the component's parts with their default state.
+    pub fn reset_transform(preset: GunPreset, transform: &mut Transform) {
+        let preset_transform = preset.stats().get_transform();
+        transform.translation = preset_transform.translation;
+        transform.rotation = preset_transform.rotation;
+        transform.scale = preset_transform.scale;
+    }
+
+    /// Make a gun look in line with a team's color or neutral (usually when not equipped by anybody).
+    pub fn team_paint(preset: GunPreset, sprite: &mut Sprite, team_number: Option<TeamNumber>) {
+        if let Some(team_number) = team_number {
+            sprite.color = (team_color(team_number) * GUN_COLOR_MULTIPLIER)
+                .set_a(GUN_TRANSPARENCY)
+                .as_rgba();
+        } else {
+            sprite.color = preset.stats().gun_neutral_color.0;
         }
     }
 
@@ -302,32 +321,9 @@ impl Gun {
 }
 
 /// Marker signifying that the entity is equipped "by" another entity and is a child (transforms are shared).
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Default, PartialEq, Reflect, FromReflect)]
 pub struct Equipped {
-    pub by: Entity,
-}
-
-/// Reset everything about the gun's transform, replacing the component's parts with their default state.
-pub(crate) fn reset_gun_transform(preset: GunPreset, transform: &mut Transform) {
-    let preset_transform = preset.stats().get_transform();
-    transform.translation = preset_transform.translation;
-    transform.rotation = preset_transform.rotation;
-    transform.scale = preset_transform.scale;
-}
-
-/// Make a gun look in line with a team's color or neutral (usually when not equipped by anybody).
-pub(crate) fn team_paint_gun(
-    preset: GunPreset,
-    sprite: &mut Sprite,
-    team_number: Option<TeamNumber>,
-) {
-    if let Some(team_number) = team_number {
-        sprite.color = (team_color(team_number) * GUN_COLOR_MULTIPLIER)
-            .set_a(GUN_TRANSPARENCY)
-            .as_rgba();
-    } else {
-        sprite.color = preset.stats().gun_neutral_color.0;
-    }
+    pub by: Option<Entity>,
 }
 
 /// System to spawn projectiles out of guns and keep track of their firing cooldowns, magazine sizes, and character recoil.
@@ -339,8 +335,16 @@ pub fn handle_gunfire(
     mut query_characters: Query<(&CharacterActionInput, &Team, &mut Transform)>,
 ) {
     for (mut gun, gun_transform, equipped) in query_weapons.iter_mut() {
+        if equipped.by.is_none() {
+            continue;
+        }
+
         let (wants_to_fire, wants_to_reload, team, mut transform) = query_characters
-            .get_mut(equipped.by)
+            .get_mut(
+                equipped
+                    .by
+                    .expect("Should've checked if it was none! The gun is not equipped by anyone."),
+            )
             .map(|(input, team, transform)| (input.fire, input.reload, team, transform))
             .unwrap();
 
@@ -380,9 +384,36 @@ pub fn handle_gunfire(
     }
 }
 
+pub fn handle_gun_ownership_change(
+    mut commands: Commands,
+    mut q_guns: Query<(&Gun, &mut Sprite, &Equipped, Entity), Changed<Equipped>>,
+    // maybe with character component if ever present
+    q_characters: Query<&Team, With<Children>>,
+) {
+    for (gun, mut sprite, equipped, entity) in q_guns.iter_mut() {
+        if equipped.by.is_none() {
+            commands.entity(entity).remove::<Equipped>();
+            // Gun::reset_transform(gun.preset, &mut transform);
+            // *transform = Transform::from(*global_transform);
+            Gun::team_paint(gun.preset, &mut sprite, None);
+            continue;
+        }
+
+        let owner = equipped
+            .by
+            .expect("Should've checked if it was none! The gun is not equipped by anyone.");
+        let team = q_characters
+            .get(owner)
+            .expect("Couldn't find the entity the gun is equipped by!");
+        Gun::team_paint(gun.preset, &mut sprite, Some(team.0));
+        // Gun::reset_transform(gun.preset, &mut transform);
+    }
+}
+
 /// System to make weapons more noticeable when not equipped and otherwise at rest.
 pub fn handle_gun_idle_bobbing(
     time: Res<Time>,
+    // make sure that only the transform's scale changes, and doesn't affect the collider
     mut query_weapons: Query<&mut Transform, (With<Gun>, With<Sensor>, Without<Equipped>)>,
 ) {
     fn eval_bobbing(a: f32, cos_dt: f32) -> f32 {

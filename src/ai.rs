@@ -45,6 +45,7 @@ impl AIActionRoutine {
 }
 
 // todo:mp possibly split AI calculation between participating machines, depending on some runtime performance metrics?
+// also, split ai into strategy and tactics and more (big computations and small computations), and evaluate the former rarely
 /// System to give AI characters something to do this frame. Uses a function of time to calculate the set of actions performed.
 pub fn handle_ai_input(
     time: Res<Time>,

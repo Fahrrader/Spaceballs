@@ -19,9 +19,10 @@ pub use crate::controls::{
     InputHandlingSet,
 };
 pub use crate::guns::{
-    handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gunfire, Gun, GunBundle, GunPreset,
+    handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gun_ownership_change,
+    handle_gunfire, Equipped, Gun, GunBundle, GunPreset,
 };
-pub use crate::health::{handle_death, Health};
+pub use crate::health::{handle_death, Dying, Health};
 pub use crate::multiplayer::{
     start_matchbox_socket, wait_for_players, GGRSConfig, GGRSPlugin, GGRSSchedule, PlayerCount,
 };

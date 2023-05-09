@@ -1,3 +1,4 @@
+// todo make it a separate crate -- take common consts and types outside, too
 use crate::characters::{CHARACTER_MAX_HEALTH, CHARACTER_SIZE, CHARACTER_SPEED};
 use crate::guns::colours::GunColour;
 use crate::guns::stats::{GunPersistentStats, ProjectileSpawnSpace};

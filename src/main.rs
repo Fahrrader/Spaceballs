@@ -14,12 +14,14 @@ fn main() {
         .register_rollback_resource::<EntropyGenerator>()
         .register_rollback_component::<Transform>()
         .register_rollback_component::<Velocity>()
-        .register_rollback_component::<CharacterActionInput>()
-        .register_rollback_component::<Gun>()
-        .register_rollback_component::<Health>()
         .register_rollback_component::<ActiveEvents>()
+        .register_rollback_component::<CharacterActionInput>()
         .register_rollback_component::<AIActionRoutine>()
-        //.register_rollback_component::<Children>()
+        .register_rollback_component::<Gun>()
+        .register_rollback_component::<Equipped>()
+        .register_rollback_component::<Health>()
+        .register_rollback_component::<Dying>()
+        // .register_rollback_component::<Children>()
         .build(&mut app);
 
     app.insert_resource(ClearColor(Color::BLACK))
@@ -69,10 +71,9 @@ fn main() {
             (
                 calculate_character_velocity,
                 handle_gunfire,
-                handle_gun_picking,
                 handle_letting_gear_go,
+                handle_gun_picking,
             )
-                // todo:mp think on how to remove mutable intersections of components
                 .chain()
                 .in_set(InputHandlingSet::ResponseProcessing)
                 .after(InputHandlingSet::InputReading)
@@ -82,6 +83,8 @@ fn main() {
         .add_system(handle_bullet_collision_events)
         .add_system(handle_railgun_penetration_damage)
         .add_systems((
+            handle_gun_ownership_change,
+            // todo:mp does it run anyway after rollback because "changed"?
             handle_inventory_layout_change,
             handle_gun_idle_bobbing,
             handle_gun_arriving_at_rest,
