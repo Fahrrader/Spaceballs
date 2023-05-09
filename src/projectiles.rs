@@ -1,21 +1,21 @@
-use crate::guns::{GunPersistentStats, GunPreset, RAIL_GUN_DAMAGE_PER_SECOND};
+use crate::guns::{GunPersistentStats, GunPreset};
 use crate::health::{Dying, Health, HitPoints};
 use crate::physics::{
     popular_collider, try_get_components_from_entities, ActiveEvents, CollisionEvent,
-    CollisionLayer, KinematicsBundle, OngoingCollisions, Velocity,
+    CollisionLayer, KinematicsBundle, Velocity,
 };
 use crate::teams::{Team, TeamNumber};
 use bevy::math::Vec3;
 use bevy::prelude::{
-    Bundle, Commands, Component, Entity, EventReader, FromReflect, Query, Reflect, Res, Sprite,
-    SpriteBundle, Time, Transform, With,
+    Bundle, Commands, Component, Entity, EventReader, FromReflect, Query, Reflect, Sprite,
+    SpriteBundle, Transform,
 };
 use bevy::utils::default;
 
 /// Collection of components making up a projectile entity.
 #[derive(Bundle)]
-pub struct BulletBundle {
-    pub bullet: Bullet,
+pub struct ProjectileBundle {
+    pub projectile: Projectile,
     pub team: Team,
     #[bundle]
     pub kinematics: KinematicsBundle,
@@ -24,7 +24,7 @@ pub struct BulletBundle {
     pub sprite_bundle: SpriteBundle,
 }
 
-impl BulletBundle {
+impl ProjectileBundle {
     pub fn new(
         gun_type: GunPreset,
         team: TeamNumber,
@@ -34,7 +34,7 @@ impl BulletBundle {
         let gun_stats = gun_type.stats();
         let bullet_transform = transform.with_scale(Vec3::ONE * gun_stats.projectile_size);
         Self {
-            bullet: Bullet { gun_type },
+            projectile: Projectile { gun_type },
             team: Team(team),
             kinematics: KinematicsBundle::new(
                 // radius + bit of an oomph to the collider, no need to be so accurate
@@ -60,57 +60,33 @@ impl BulletBundle {
 
 /// Marker component signifying that this is indeed a bullet / projectile.
 #[derive(Component, Debug, Default, Reflect, FromReflect)]
-pub struct Bullet {
-    gun_type: GunPreset,
+pub struct Projectile {
+    pub gun_type: GunPreset,
 }
 
-/// Marker component for a rail gun projectile.
-#[derive(Component, Debug, Default, Reflect, FromReflect)]
-pub struct RailGunThing;
-
-/// Apply damage to a body affected by a projectile. If the remaining health happens to be below 0, marks it Dying.
-fn do_projectile_damage(
-    commands: &mut Commands,
-    projectile: (&GunPersistentStats, &Team),
-    body: (Entity, &mut Health, Option<&Team>),
-    damage_substitute: Option<HitPoints>,
-) {
-    if body.1.is_dead() {
-        // uncouth, but since we still don't have healing, return to this later when panicking is solved
-        return;
-    }
-    let mut should_be_damaged = true;
-    if let Some(body_team) = body.2 {
-        should_be_damaged = projectile.0.friendly_fire || projectile.1 != body_team;
-    }
-    if should_be_damaged
-        && body
-            .1
-            .damage(damage_substitute.unwrap_or(projectile.0.projectile_damage))
-    {
-        // todo panics if an entity is already despawned. issues on bevy are still open.
-        commands.entity(body.0).insert(Dying);
-    }
-}
-
-/// System to continually deal damage to bodies that rail gun slugs travel through.
-pub fn handle_railgun_penetration_damage(
-    mut commands: Commands,
-    time: Res<Time>,
-    query_bullets: Query<(&OngoingCollisions, &Bullet, &Team), With<RailGunThing>>,
-    mut query_bodies: Query<(&mut Health, Option<&Team>)>,
-) {
-    for (collisions, bullet, bullet_team) in query_bullets.iter() {
-        let gun_stats = bullet.gun_type.stats();
-        for body_entity in collisions.iter() {
-            if let Ok(mut body) = query_bodies.get_mut(*body_entity) {
-                do_projectile_damage(
-                    &mut commands,
-                    (gun_stats, bullet_team),
-                    (*body_entity, &mut body.0, body.1),
-                    Some(RAIL_GUN_DAMAGE_PER_SECOND * time.delta_seconds()),
-                );
-            }
+impl Projectile {
+    /// Apply damage to a body affected by a projectile. If the remaining health happens to be below 0, marks it Dying.
+    pub fn do_damage(
+        commands: &mut Commands,
+        projectile: (&GunPersistentStats, &Team),
+        body: (Entity, &mut Health, Option<&Team>),
+        damage_substitute: Option<HitPoints>,
+    ) {
+        if body.1.is_dead() {
+            // uncouth, but since we still don't have healing, return to this later when panicking is solved
+            return;
+        }
+        let mut should_be_damaged = true;
+        if let Some(body_team) = body.2 {
+            should_be_damaged = projectile.0.friendly_fire || projectile.1 != body_team;
+        }
+        if should_be_damaged
+            && body
+                .1
+                .damage(damage_substitute.unwrap_or(projectile.0.projectile_damage))
+        {
+            // todo panics if an entity is already despawned. issues on bevy are still open.
+            commands.entity(body.0).insert(Dying);
         }
     }
 }
@@ -122,7 +98,7 @@ pub fn handle_bullet_collision_events(
     mut collision_events: EventReader<CollisionEvent>,
     // todo change this function to only damage if projectile dampening is done, health would be a given
     mut query_bodies: Query<(Option<&mut Health>, Option<&Team>)>,
-    query_bullets: Query<(&Bullet, &Team, &Velocity)>,
+    query_bullets: Query<(&Projectile, &Team, &Velocity)>,
 ) {
     for event in collision_events.iter() {
         let (entity_a, entity_b) = match event {
@@ -142,7 +118,7 @@ pub fn handle_bullet_collision_events(
             // Most bullets do not register collision Stopping immediately due to perfect inelasticity.
             if matches!(event, CollisionEvent::Started(..)) {
                 if let Some(mut life) = body_health {
-                    do_projectile_damage(
+                    Projectile::do_damage(
                         &mut commands,
                         (&gun_stats, bullet_team),
                         (body_entity, &mut life, body_team),

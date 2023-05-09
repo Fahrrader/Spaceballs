@@ -9,31 +9,28 @@ mod projectiles;
 mod scenes;
 mod teams;
 
-pub use crate::ai::{handle_ai_input, AIActionRoutine};
-pub use crate::characters::{
+pub use ai::{handle_ai_input, AIActionRoutine};
+pub use characters::{
     calculate_character_velocity, handle_gun_picking, handle_inventory_layout_change,
     handle_letting_gear_go, PlayerCharacterBundle,
 };
-pub use crate::controls::{
+pub use controls::{
     handle_gamepad_connections, handle_online_player_input, process_input, CharacterActionInput,
     InputHandlingSet,
 };
-pub use crate::guns::{
-    handle_gun_arriving_at_rest, handle_gun_idle_bobbing, handle_gun_ownership_change,
-    handle_gunfire, Equipped, Gun, GunBundle, GunPreset,
-};
-pub use crate::health::{handle_death, Dying, Health};
-pub use crate::multiplayer::{
+pub use guns::{systems::*, Equipped, Gun, GunBundle, GunPreset};
+pub use health::{handle_death, Dying, Health};
+pub use multiplayer::{
     detect_desync, start_matchbox_socket, wait_for_players, GGRSConfig, GGRSPlugin, GGRSSchedule,
     PlayerCount,
 };
-pub use crate::physics::{
+pub use physics::{
     handle_entities_out_of_bounds, ActiveEvents, RectangularObstacleBundle,
     SpaceballsPhysicsPlugin, Velocity, CHUNK_SIZE,
 };
-pub use crate::projectiles::{handle_bullet_collision_events, handle_railgun_penetration_damage};
-pub use crate::scenes::{summon_scene, SceneArg};
-pub use crate::teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
+pub use projectiles::handle_bullet_collision_events;
+pub use scenes::{summon_scene, SceneArg};
+pub use teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 
 pub use bevy::prelude::*;
 pub use bevy::render::camera::{camera_system, RenderTarget};
@@ -48,7 +45,7 @@ use bevy::reflect::ReflectFromReflect;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use clap::Parser;
 
-use crate::scenes::OptionalSceneArg;
+use scenes::OptionalSceneArg;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 

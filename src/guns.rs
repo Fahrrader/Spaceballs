@@ -2,7 +2,7 @@ use crate::characters::CHARACTER_SPEED;
 use crate::controls::CharacterActionInput;
 use crate::guns::stats::ProjectileSpawnSpace;
 use crate::physics::{KinematicsBundle, OngoingCollisions, RigidBody, Sensor, Velocity};
-use crate::projectiles::BulletBundle;
+use crate::projectiles::ProjectileBundle;
 use crate::teams::{team_color, Team, TeamNumber};
 use crate::EntropyGenerator;
 use bevy::math::{Quat, Vec2, Vec3};
@@ -15,12 +15,13 @@ use bevy::utils::default;
 use std::f32::consts::PI;
 use std::time::Duration;
 
+pub mod additives;
 pub mod colours;
 mod presets;
 mod stats;
 
 pub use colours::GUN_TRANSPARENCY;
-pub use presets::{GunPreset, RAIL_GUN_DAMAGE_PER_SECOND};
+pub use presets::GunPreset;
 pub use stats::GunPersistentStats;
 
 /// The gun is slightly darker than the main color of the character body to be distinct.
@@ -234,7 +235,7 @@ impl Gun {
         team: &Team,
         character_transform: &mut Transform,
         fast_forward_rounds: Option<(u128, u128)>,
-    ) -> (Vec<BulletBundle>, u128) {
+    ) -> (Vec<ProjectileBundle>, u128) {
         let gun_stats = self.preset.stats();
         let (gun_scale, _, gun_translation) = gun_transform.to_scale_rotation_translation();
         let bullet_spawn_distance = gun_stats.get_bullet_spawn_offset(gun_scale);
@@ -278,7 +279,7 @@ impl Gun {
                     ),
                 };
 
-                let mut bullet = BulletBundle::new(
+                let mut bullet = ProjectileBundle::new(
                     self.preset,
                     team.0,
                     bullet_transform,
@@ -326,132 +327,138 @@ pub struct Equipped {
     pub by: Option<Entity>,
 }
 
-/// System to spawn projectiles out of guns and keep track of their firing cooldowns, magazine sizes, and character recoil.
-pub fn handle_gunfire(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query_weapons: Query<(&mut Gun, &GlobalTransform, &Equipped)>,
-    // todo:mp event for movement instead?
-    mut query_characters: Query<(&CharacterActionInput, &Team, &mut Transform)>,
-) {
-    for (mut gun, gun_transform, equipped) in query_weapons.iter_mut() {
-        if equipped.by.is_none() {
-            continue;
-        }
+pub mod systems {
+    use super::*;
 
-        let (wants_to_fire, wants_to_reload, team, mut transform) = query_characters
-            .get_mut(
-                equipped
-                    .by
-                    .expect("Should've checked if it was none! The gun is not equipped by anyone."),
-            )
-            .map(|(input, team, transform)| (input.fire, input.reload, team, transform))
-            .unwrap();
+    pub use super::additives::railgun::handle_railgun_penetration_damage;
 
-        if wants_to_reload {
-            gun.start_reloading();
-        }
+    /// System to spawn projectiles out of guns and keep track of their firing cooldowns, magazine sizes, and character recoil.
+    pub fn handle_gunfire(
+        mut commands: Commands,
+        time: Res<Time>,
+        mut query_weapons: Query<(&mut Gun, &GlobalTransform, &Equipped)>,
+        // todo:mp event for movement instead?
+        mut query_characters: Query<(&CharacterActionInput, &Team, &mut Transform)>,
+    ) {
+        for (mut gun, gun_transform, equipped) in query_weapons.iter_mut() {
+            if equipped.by.is_none() {
+                continue;
+            }
 
-        let cooldown_time_previously_elapsed = gun.fire_cooldown.elapsed().as_nanos();
-        if gun.tick_cooldowns(time.delta()) && wants_to_fire {
-            let cooldown_time_elapsed = cooldown_time_previously_elapsed + time.delta().as_nanos();
-            let cooldown_duration = gun.fire_cooldown.duration().as_nanos();
-            let cooldown_times_over = cooldown_time_elapsed / cooldown_duration;
-            let cooldown_latest_time_elapsed = cooldown_time_elapsed % cooldown_duration;
+            let (wants_to_fire, wants_to_reload, team, mut transform) =
+                query_characters
+                    .get_mut(equipped.by.expect(
+                        "Should've checked if it was none! The gun is not equipped by anyone.",
+                    ))
+                    .map(|(input, team, transform)| (input.fire, input.reload, team, transform))
+                    .unwrap();
 
-            let gun_type = gun.preset;
+            if wants_to_reload {
+                gun.start_reloading();
+            }
 
-            // todo add a ray cast from the body to the gun barrel to check for collisions
-            // but currently it's kinda like shooting from cover / over shoulder, fun
+            let cooldown_time_previously_elapsed = gun.fire_cooldown.elapsed().as_nanos();
+            if gun.tick_cooldowns(time.delta()) && wants_to_fire {
+                let cooldown_time_elapsed =
+                    cooldown_time_previously_elapsed + time.delta().as_nanos();
+                let cooldown_duration = gun.fire_cooldown.duration().as_nanos();
+                let cooldown_times_over = cooldown_time_elapsed / cooldown_duration;
+                let cooldown_latest_time_elapsed = cooldown_time_elapsed % cooldown_duration;
 
-            let (bullets, _rounds_fired) = gun.fire_and_produce_projectiles(
-                gun_transform,
-                team,
-                &mut transform,
-                Some((cooldown_times_over, cooldown_latest_time_elapsed)),
-            );
+                let gun_type = gun.preset;
 
-            if gun_type.has_extra_projectile_components() {
-                for bullet in bullets {
-                    let mut bullet_commands = commands.spawn(bullet);
-                    // Add any extra components that a bullet should have
-                    gun_type.add_projectile_components(&mut bullet_commands);
+                // todo add a ray cast from the body to the gun barrel to check for collisions
+                // but currently it's kinda like shooting from cover / over shoulder, fun
+
+                let (bullets, _rounds_fired) = gun.fire_and_produce_projectiles(
+                    gun_transform,
+                    team,
+                    &mut transform,
+                    Some((cooldown_times_over, cooldown_latest_time_elapsed)),
+                );
+
+                if gun_type.has_extra_projectile_components() {
+                    for bullet in bullets {
+                        let mut bullet_commands = commands.spawn(bullet);
+                        // Add any extra components that a bullet should have
+                        gun_type.add_projectile_components(&mut bullet_commands);
+                    }
+                } else {
+                    commands.spawn_batch(bullets);
                 }
-            } else {
-                commands.spawn_batch(bullets);
             }
         }
     }
-}
 
-pub fn handle_gun_ownership_change(
-    mut commands: Commands,
-    mut q_guns: Query<(&Gun, &mut Sprite, &Equipped, Entity), Changed<Equipped>>,
-    // maybe with character component if ever present
-    q_characters: Query<&Team, With<Children>>,
-) {
-    for (gun, mut sprite, equipped, entity) in q_guns.iter_mut() {
-        if equipped.by.is_none() {
-            commands.entity(entity).remove::<Equipped>();
+    pub fn handle_gun_ownership_change(
+        mut commands: Commands,
+        mut q_guns: Query<(&Gun, &mut Sprite, &Equipped, Entity), Changed<Equipped>>,
+        // maybe with character component if ever present
+        q_characters: Query<&Team, With<Children>>,
+    ) {
+        for (gun, mut sprite, equipped, entity) in q_guns.iter_mut() {
+            if equipped.by.is_none() {
+                commands.entity(entity).remove::<Equipped>();
+                // Gun::reset_transform(gun.preset, &mut transform);
+                // *transform = Transform::from(*global_transform);
+                Gun::team_paint(gun.preset, &mut sprite, None);
+                continue;
+            }
+
+            let owner = equipped
+                .by
+                .expect("Should've checked if it was none! The gun is not equipped by anyone.");
+            let team = q_characters
+                .get(owner)
+                .expect("Couldn't find the entity the gun is equipped by!");
+            Gun::team_paint(gun.preset, &mut sprite, Some(team.0));
             // Gun::reset_transform(gun.preset, &mut transform);
-            // *transform = Transform::from(*global_transform);
-            Gun::team_paint(gun.preset, &mut sprite, None);
-            continue;
+        }
+    }
+
+    /// System to make weapons more noticeable when not equipped and otherwise at rest.
+    pub fn handle_gun_idle_bobbing(
+        time: Res<Time>,
+        // make sure that only the transform's scale changes, and doesn't affect the collider
+        mut query_weapons: Query<&mut Transform, (With<Gun>, With<Sensor>, Without<Equipped>)>,
+    ) {
+        fn eval_bobbing(a: f32, cos_dt: f32) -> f32 {
+            // a crutch for the time being. if frame time is too low (as when the window is not focused on),
+            // cos_dt gets so big that it breaks the function.
+            (a + cos_dt).clamp(1. - GUN_BOBBING_AMPLITUDE, 1. + GUN_BOBBING_AMPLITUDE)
         }
 
-        let owner = equipped
-            .by
-            .expect("Should've checked if it was none! The gun is not equipped by anyone.");
-        let team = q_characters
-            .get(owner)
-            .expect("Couldn't find the entity the gun is equipped by!");
-        Gun::team_paint(gun.preset, &mut sprite, Some(team.0));
-        // Gun::reset_transform(gun.preset, &mut transform);
-    }
-}
+        if query_weapons.is_empty() {
+            return;
+        }
 
-/// System to make weapons more noticeable when not equipped and otherwise at rest.
-pub fn handle_gun_idle_bobbing(
-    time: Res<Time>,
-    // make sure that only the transform's scale changes, and doesn't affect the collider
-    mut query_weapons: Query<&mut Transform, (With<Gun>, With<Sensor>, Without<Equipped>)>,
-) {
-    fn eval_bobbing(a: f32, cos_dt: f32) -> f32 {
-        // a crutch for the time being. if frame time is too low (as when the window is not focused on),
-        // cos_dt gets so big that it breaks the function.
-        (a + cos_dt).clamp(1. - GUN_BOBBING_AMPLITUDE, 1. + GUN_BOBBING_AMPLITUDE)
+        let time_cos_dt = -GUN_BOBBING_TEMPO
+            * GUN_BOBBING_AMPLITUDE
+            * (GUN_BOBBING_TEMPO as f64 * time.elapsed_seconds_f64()).sin() as f32
+            * time.delta_seconds();
+
+        for mut transform in query_weapons.iter_mut() {
+            transform.scale = Vec3::new(
+                eval_bobbing(transform.scale.x, time_cos_dt),
+                eval_bobbing(transform.scale.y, time_cos_dt),
+                transform.scale.z,
+            );
+        }
     }
 
-    if query_weapons.is_empty() {
-        return;
-    }
-
-    let time_cos_dt = -GUN_BOBBING_TEMPO
-        * GUN_BOBBING_AMPLITUDE
-        * (GUN_BOBBING_TEMPO as f64 * time.elapsed_seconds_f64()).sin() as f32
-        * time.delta_seconds();
-
-    for mut transform in query_weapons.iter_mut() {
-        transform.scale = Vec3::new(
-            eval_bobbing(transform.scale.x, time_cos_dt),
-            eval_bobbing(transform.scale.y, time_cos_dt),
-            transform.scale.z,
-        );
-    }
-}
-
-/// System to strip the thrown guns of flying components if they have arrived within the threshold of rest.
-pub fn handle_gun_arriving_at_rest(
-    mut commands: Commands,
-    mut query_weapons: Query<
-        (&Velocity, &mut RigidBody, Entity),
-        (With<Gun>, Without<Equipped>, Without<Sensor>),
-    >,
-) {
-    for (velocity, mut body_type, entity) in query_weapons.iter_mut() {
-        if GUN_MAX_BOBBING_VELOCITY_SQR > velocity.linvel.length_squared() {
-            commands.entity(entity).insert(Sensor);
-            *body_type = RigidBody::Fixed;
+    /// System to strip the thrown guns of flying components if they have arrived within the threshold of rest.
+    pub fn handle_gun_arriving_at_rest(
+        mut commands: Commands,
+        mut query_weapons: Query<
+            (&Velocity, &mut RigidBody, Entity),
+            (With<Gun>, Without<Equipped>, Without<Sensor>),
+        >,
+    ) {
+        for (velocity, mut body_type, entity) in query_weapons.iter_mut() {
+            if GUN_MAX_BOBBING_VELOCITY_SQR > velocity.linvel.length_squared() {
+                commands.entity(entity).insert(Sensor);
+                *body_type = RigidBody::Fixed;
+            }
         }
     }
 }

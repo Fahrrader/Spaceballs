@@ -1,10 +1,10 @@
 // todo make it a separate crate -- take common consts and types outside, too
 use crate::characters::{CHARACTER_MAX_HEALTH, CHARACTER_SIZE, CHARACTER_SPEED};
+use crate::guns::additives::*;
 use crate::guns::colours::GunColour;
 use crate::guns::stats::{GunPersistentStats, ProjectileSpawnSpace};
 use crate::health::HitPoints;
 use crate::physics::{ContinuousCollisionDetection, OngoingCollisions, Sensor};
-use crate::projectiles::RailGunThing;
 use crate::Color;
 use bevy::ecs::system::EntityCommands;
 use bevy::reflect::{FromReflect, Reflect};
@@ -54,7 +54,7 @@ impl GunPreset {
             GunPreset::Imprecise => &IMPRECISE,
             GunPreset::Scattershot => &SCATTERSHOT,
             GunPreset::Typhoon => &TYPHOON,
-            GunPreset::RailGun => &RAIL_GUN,
+            GunPreset::RailGun => &RAILGUN,
             GunPreset::LaserGun => &LASER_GUN,
         }
     }
@@ -71,7 +71,7 @@ impl GunPreset {
         match self {
             GunPreset::RailGun => {
                 add_projectile_components!(
-                    RailGunThing,
+                    railgun::RailGunThing,
                     Sensor,
                     OngoingCollisions::default(),
                     ContinuousCollisionDetection { enabled: true },
@@ -150,16 +150,10 @@ pub const TYPHOON: GunPersistentStats = GunPersistentStats {
     ..REGULAR
 };
 
-/// Due to the rail gun's penetrative properties, damage is applied per second of travel inside a body.
-/// Correlates heavily with projectile speed. Used by a special system.
-pub const RAIL_GUN_DAMAGE_PER_SECOND: HitPoints = CHARACTER_MAX_HEALTH / 5.0 // under a normal angle and fully crossing the body, should kill in [5] hits
-    * RAIL_GUN.projectile_speed
-    / CHARACTER_SIZE;
-
 /// Fast and furious. Penetrates foes, walls, and lusty Argonian maids like butter.
-pub const RAIL_GUN: GunPersistentStats = GunPersistentStats {
+pub const RAILGUN: GunPersistentStats = GunPersistentStats {
     gun_neutral_color: GunColour::new(Color::SILVER),
-    // Impact damage is nullified. See [`RAIL_GUN_DAMAGE_PER_SECOND`] for penetration damage.
+    // Impact damage is nullified. See [`railgun::PENETRATION_DAMAGE_PER_SECOND`] for penetration damage.
     projectile_damage: 0.0,
     projectile_speed: CHARACTER_SIZE * 15.0,
     projectile_elasticity: 0.0,
