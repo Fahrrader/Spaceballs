@@ -24,7 +24,8 @@ pub use crate::guns::{
 };
 pub use crate::health::{handle_death, Dying, Health};
 pub use crate::multiplayer::{
-    start_matchbox_socket, wait_for_players, GGRSConfig, GGRSPlugin, GGRSSchedule, PlayerCount,
+    detect_desync, start_matchbox_socket, wait_for_players, GGRSConfig, GGRSPlugin, GGRSSchedule,
+    PlayerCount,
 };
 pub use crate::physics::{
     handle_entities_out_of_bounds, ActiveEvents, RectangularObstacleBundle,
@@ -156,7 +157,7 @@ pub fn handle_browser_window_resizing(
 #[cfg(target_arch = "wasm32")]
 pub fn create_window(width: f32, height: f32) -> Window {
     Window {
-        title: "Cosmic Spaceball Tactical Action Arena".to_string(),
+        title: "Cosmic Spaceball Tactical Action Arena".to_owned(),
         resolution: (width, height).into(),
         // scale_factor_override: Some(1.0),
         // fill the entire browser window
@@ -171,9 +172,9 @@ pub fn create_window(width: f32, height: f32) -> Window {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn create_window(width: f32, height: f32) -> Window {
     Window {
-        title: "Cosmic Spaceball Tactical Action Arena".to_string(),
+        title: "Cosmic Spaceball Tactical Action Arena".to_owned(),
         resolution: (width, height).into(),
-        // todo uncomment if window size must be fixed (events of resizing at the window creation still apply)
+        // uncomment if window size must be fixed (events of resizing at the window creation still apply)
         // resizable: false,
         ..default()
     }

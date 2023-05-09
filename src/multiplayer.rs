@@ -5,6 +5,7 @@ use crate::{info, GameState};
 use bevy::core::{Pod, Zeroable};
 use bevy::prelude::{Commands, NextState, Res, ResMut, Resource};
 use bevy::reflect::{FromReflect, Reflect};
+use bevy_ggrs::ggrs::DesyncDetection;
 use bevy_ggrs::{ggrs, Session};
 use bevy_matchbox::prelude::{MatchboxSocket, PeerId, SingleChannel};
 
@@ -17,18 +18,23 @@ use bevy_matchbox::prelude::{MatchboxSocket, PeerId, SingleChannel};
 // https://johanhelsing.studio/cargospace
 pub const MATCHBOX_ADDR: &str = "ws://localhost:3536/spaceballs?next=2";
 
+pub const MAINTAINED_FPS: usize = 60;
+pub const MAX_PREDICTION_FRAMES: usize = 5;
+pub const INPUT_DELAY: usize = 2;
+
+// Having a load screen of just one frame helps with desync issues, some report.
+
 /// Expected - and maximum - player count for the game session.
 #[derive(Resource)]
 pub struct PlayerCount(pub usize);
 
 /// Struct onto which the GGRS config's types are mapped.
+#[derive(Debug)]
 pub struct GGRSConfig;
 
 // todo:mp state sync with the host -- at least compare it once in a while to complain (debug only)
 // will need it anyway for drop-in
 impl ggrs::Config for GGRSConfig {
-    // 4 directions, fire, reload and 2 interact actions fit perfectly in a single byte
-    // but todo:mp rework for a more complex struct
     type Input = GGRSInput;
     type State = u8;
     // Matchbox' WebRtcSocket addresses are called `PeerId`s
@@ -69,7 +75,14 @@ pub fn wait_for_players(
     // create a GGRS P2P session
     let mut session_builder = ggrs::SessionBuilder::<GGRSConfig>::new()
         .with_num_players(player_count.0)
-        .with_input_delay(2);
+        .with_fps(MAINTAINED_FPS)
+        .expect("Invalid FPS")
+        .with_max_prediction_window(MAX_PREDICTION_FRAMES)
+        // just in case *shrug*
+        .with_desync_detection_mode(DesyncDetection::On {
+            interval: MAINTAINED_FPS as u32,
+        })
+        .with_input_delay(INPUT_DELAY);
 
     for (i, player) in players.into_iter().enumerate() {
         session_builder = session_builder
@@ -88,6 +101,22 @@ pub fn wait_for_players(
 
     commands.insert_resource(Session::P2PSession(ggrs_session));
     next_state.set(GameState::InGame);
+}
+
+// delete probably, it does not detect desync in the rolled-back components (transform)
+pub fn detect_desync(session: ResMut<Session<GGRSConfig>>) {
+    if let Session::P2PSession(p2p_session) = session.into_inner() {
+        let events = p2p_session.events();
+        if events.len() != 0 {
+            println!("GGRS got {} events.", events.len());
+            for event in events {
+                /*if matches!(event, GGRSEvent::DesyncDetected { .. }) {
+                    println!("Desync detected: {:?}", event);
+                }*/
+                println!("Hi, I'm {:?}", event);
+            }
+        }
+    }
 }
 
 /// Players' input data structure, used and encoded by GGRS and exchanged over the internet.

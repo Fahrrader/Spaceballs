@@ -79,6 +79,11 @@ fn main() {
                 .after(InputHandlingSet::InputReading)
                 .in_schedule(GGRSSchedule),
         )
+        .add_system(
+            detect_desync
+                .in_schedule(GGRSSchedule)
+                .run_if(in_state(GameState::InGame)),
+        )
         .add_system(handle_entities_out_of_bounds)
         .add_system(handle_bullet_collision_events)
         .add_system(handle_railgun_penetration_damage)
