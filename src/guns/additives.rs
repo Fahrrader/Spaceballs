@@ -43,3 +43,7 @@ pub mod railgun {
         }
     }
 }
+
+pub mod systems {
+    pub use super::railgun::handle_railgun_penetration_damage;
+}

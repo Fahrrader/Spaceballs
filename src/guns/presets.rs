@@ -45,6 +45,28 @@ pub enum GunPreset {
     // not really a gun, but why not -- TRAVEL THROUGH TIME?? (forward, like do some stuff in advance) - also, reverse entropy
 }
 
+macro_rules! generate_projectile_components_fns {
+    ($($preset:path => [$($component:expr),* $(,)?]),* $(,)?) => {
+        /// Insert extra components into a projectile that should be there, determined by its preset.
+        pub fn add_projectile_components(&self, projectile_commands: &mut EntityCommands) {
+            match self {
+                $($preset => {
+                    $(projectile_commands.insert($component);)*
+                },)*
+                _ => {}
+            };
+        }
+
+        /// Does a projectile need to have extra components inserted into it, according to its gun preset?
+        pub fn has_extra_projectile_components(&self) -> bool {
+            match self {
+                $($preset => true,)*
+                _ => false,
+            }
+        }
+    }
+}
+
 impl GunPreset {
     /// Map of an enum of a weapon to its constant stats, hopefully converted to a look-up table on compilation.
     #[inline]
@@ -59,36 +81,14 @@ impl GunPreset {
         }
     }
 
-    /// Insert extra components into a projectile that should be there, determined by its preset.
-    pub fn add_projectile_components(&self, projectile_commands: &mut EntityCommands) {
-        /// Inserts components onto a projectile repeatedly.
-        macro_rules! add_projectile_components {
-            ($($e:expr),* $(,)?) => {
-                $(projectile_commands.insert($e));*
-            }
-        }
-
-        match self {
-            GunPreset::RailGun => {
-                add_projectile_components!(
-                    railgun::RailGunThing,
-                    Sensor,
-                    OngoingCollisions::default(),
-                    ContinuousCollisionDetection { enabled: true },
-                );
-            }
-            _ => {}
-        };
-    }
-
-    /// Does a projectile need to have extra components inserted into it, according to its gun preset?
-    // todo probably use a macro to generate the two functions together, if the number of guns becomes too many
-    pub fn has_extra_projectile_components(&self) -> bool {
-        match self {
-            GunPreset::RailGun => true,
-            _ => false,
-        }
-    }
+    generate_projectile_components_fns!(
+        GunPreset::RailGun => [
+            railgun::RailGunThing,
+            Sensor,
+            OngoingCollisions::default(),
+            ContinuousCollisionDetection { enabled: true },
+        ],
+    );
 }
 
 /// Regular, default gun. Shoots straight. Trusty and simple.

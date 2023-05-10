@@ -328,9 +328,8 @@ pub struct Equipped {
 }
 
 pub mod systems {
+    pub use super::additives::systems::*;
     use super::*;
-
-    pub use super::additives::railgun::handle_railgun_penetration_damage;
 
     /// System to spawn projectiles out of guns and keep track of their firing cooldowns, magazine sizes, and character recoil.
     pub fn handle_gunfire(
