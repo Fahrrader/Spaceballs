@@ -4,7 +4,7 @@ use crate::guns::{Equipped, Gun, GunBundle, GunPreset};
 use crate::health::{Health, HitPoints};
 use crate::physics::{
     popular_collider, ActiveEvents, CollisionLayer, KinematicsBundle, OngoingCollisions, RigidBody,
-    Sensor, Velocity,
+    Velocity,
 };
 use crate::teams::{team_color, Team, TeamNumber};
 use crate::EntropyGenerator;
@@ -206,17 +206,12 @@ fn equip_gear(
     gear_transform: Option<&mut Transform>,
 ) {
     commands.entity(char_entity).add_child(gear_entity);
-    commands
-        .entity(gear_entity)
-        .remove::<KinematicsBundle>()
-        .remove::<Sensor>()
-        .insert(Equipped {
-            by: Some(char_entity),
-        });
 
-    if let Some(such) = gear_transform {
-        Gun::reset_transform(gun_preset, such);
-    }
+    let mut gear_commands = commands.entity(gear_entity);
+    Gun::reset_to_default(&mut gear_commands, gun_preset, gear_transform);
+    gear_commands.insert(Equipped {
+        by: Some(char_entity),
+    });
 }
 
 /// Un-attach something equipped on some entity and give it physics.

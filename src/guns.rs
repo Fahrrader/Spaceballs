@@ -1,10 +1,13 @@
 use crate::characters::CHARACTER_SPEED;
 use crate::controls::CharacterActionInput;
 use crate::guns::stats::ProjectileSpawnSpace;
-use crate::physics::{KinematicsBundle, OngoingCollisions, RigidBody, Sensor, Velocity};
+use crate::physics::{
+    ColliderScale, KinematicsBundle, OngoingCollisions, RigidBody, Sensor, Velocity,
+};
 use crate::projectiles::ProjectileBundle;
 use crate::teams::{team_color, Team, TeamNumber};
 use crate::EntropyGenerator;
+use bevy::ecs::system::EntityCommands;
 use bevy::math::{Quat, Vec2, Vec3};
 use bevy::prelude::{
     Bundle, Changed, Children, Commands, Component, Entity, GlobalTransform, Query,
@@ -152,11 +155,22 @@ impl Gun {
     }
 
     /// Reset everything about the gun's transform, replacing the component's parts with their default state.
-    pub fn reset_transform(preset: GunPreset, transform: &mut Transform) {
-        let preset_transform = preset.stats().get_transform();
-        transform.translation = preset_transform.translation;
-        transform.rotation = preset_transform.rotation;
-        transform.scale = preset_transform.scale;
+    pub fn reset_to_default(
+        entity_commands: &mut EntityCommands,
+        preset: GunPreset,
+        transform_to_reset: Option<&mut Transform>,
+    ) {
+        entity_commands
+            .remove::<KinematicsBundle>()
+            .remove::<Sensor>()
+            .remove::<ColliderScale>();
+
+        if let Some(transform) = transform_to_reset {
+            let preset_transform = preset.stats().get_transform();
+            transform.translation = preset_transform.translation;
+            transform.rotation = preset_transform.rotation;
+            transform.scale = preset_transform.scale;
+        }
     }
 
     /// Make a gun look in line with a team's color or neutral (usually when not equipped by anybody).
@@ -389,7 +403,7 @@ pub mod systems {
         }
     }
 
-    pub fn handle_gun_ownership_change(
+    pub fn handle_gun_ownership_cosmetic_change(
         mut commands: Commands,
         mut q_guns: Query<(&Gun, &mut Sprite, &Equipped, Entity), Changed<Equipped>>,
         // maybe with character component if ever present
@@ -398,8 +412,6 @@ pub mod systems {
         for (gun, mut sprite, equipped, entity) in q_guns.iter_mut() {
             if equipped.by.is_none() {
                 commands.entity(entity).remove::<Equipped>();
-                // Gun::reset_transform(gun.preset, &mut transform);
-                // *transform = Transform::from(*global_transform);
                 Gun::team_paint(gun.preset, &mut sprite, None);
                 continue;
             }
@@ -411,7 +423,6 @@ pub mod systems {
                 .get(owner)
                 .expect("Couldn't find the entity the gun is equipped by!");
             Gun::team_paint(gun.preset, &mut sprite, Some(team.0));
-            // Gun::reset_transform(gun.preset, &mut transform);
         }
     }
 
@@ -455,7 +466,10 @@ pub mod systems {
     ) {
         for (velocity, mut body_type, entity) in query_weapons.iter_mut() {
             if GUN_MAX_BOBBING_VELOCITY_SQR > velocity.linvel.length_squared() {
-                commands.entity(entity).insert(Sensor);
+                commands
+                    .entity(entity)
+                    .insert(Sensor)
+                    .insert(ColliderScale::Absolute(Vec2::ONE));
                 *body_type = RigidBody::Fixed;
             }
         }

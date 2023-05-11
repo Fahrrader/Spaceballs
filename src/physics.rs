@@ -10,8 +10,8 @@ use bevy::utils::HashSet;
 use bevy_rapier2d::prelude::*;
 
 pub use bevy_rapier2d::prelude::{
-    ActiveEvents, Ccd as ContinuousCollisionDetection, CollisionEvent, CollisionGroups, RigidBody,
-    Sensor, Velocity,
+    ActiveEvents, Ccd as ContinuousCollisionDetection, ColliderScale, CollisionEvent,
+    CollisionGroups, RigidBody, Sensor, Velocity,
 };
 
 /// The size of a standard world cell chunk. Useful to keep about the same as a character's body size to configure the terrain easier.

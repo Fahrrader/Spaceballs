@@ -45,7 +45,7 @@ pub enum GunPreset {
     // not really a gun, but why not -- TRAVEL THROUGH TIME?? (forward, like do some stuff in advance) - also, reverse entropy
 }
 
-macro_rules! generate_projectile_components_fns {
+macro_rules! generate_extra_projectile_components_fns {
     ($($preset:path => [$($component:expr),* $(,)?]),* $(,)?) => {
         /// Insert extra components into a projectile that should be there, determined by its preset.
         pub fn add_projectile_components(&self, projectile_commands: &mut EntityCommands) {
@@ -81,7 +81,7 @@ impl GunPreset {
         }
     }
 
-    generate_projectile_components_fns!(
+    generate_extra_projectile_components_fns!(
         GunPreset::RailGun => [
             railgun::RailGunThing,
             Sensor,

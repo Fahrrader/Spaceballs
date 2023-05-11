@@ -88,11 +88,11 @@ fn main() {
         .add_system(handle_bullet_collision_events)
         .add_system(handle_railgun_penetration_damage)
         .add_systems((
-            handle_gun_ownership_change,
-            // todo:mp does it run anyway after rollback because "changed"?
+            handle_gun_ownership_cosmetic_change,
+            // todo:mp does it run anyway after rollback because "changed"? in any case, both should maybe be in rollback
             handle_inventory_layout_change,
-            handle_gun_idle_bobbing,
             handle_gun_arriving_at_rest,
+            handle_gun_idle_bobbing,
         ))
         // probably execute latest -- todo:mp add to GGRS?
         .add_system(
