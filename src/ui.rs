@@ -1,31 +1,51 @@
-use crate::Color;
+use bevy::prelude::{
+    Color, Commands, Component, DespawnRecursiveExt, Entity, Interaction, Query, With,
+};
 
-/// The gun is slightly transparent to let the players see the projectiles and whatnot underneath,
-/// since the gun doesn't have a collider.
-pub const GUN_TRANSPARENCY: f32 = 0.95;
+pub mod menu;
+mod menu_builder;
 
-/// Wrapper to guarantee the sprite transparency.
-pub struct GunColour(pub Color);
+/// Generic system that takes a component as a parameter, and will despawn all entities with that component.
+fn despawn_node<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: Commands) {
+    for entity in &to_despawn {
+        commands.entity(entity).despawn_recursive();
+    }
+}
 
-impl GunColour {
-    pub(crate) const fn new(color: Color) -> Self {
-        if let Color::Rgba {
-            red,
-            green,
-            blue,
-            alpha: _,
-        } = color
-        {
-            return GunColour(Color::Rgba {
-                red,
-                green,
-                blue,
-                alpha: GUN_TRANSPARENCY,
-            });
+#[derive(Component, Default)]
+struct ColorInteractionMap {
+    default: Option<Color>,
+    hovered: Option<Color>,
+    clicked: Option<Color>,
+}
+
+impl ColorInteractionMap {
+    pub fn new(states: impl IntoIterator<Item = (Interaction, Option<Color>)>) -> Self {
+        let mut map = Self::default();
+
+        for (interaction, maybe_color) in states {
+            match interaction {
+                Interaction::None => map.default = maybe_color,
+                Interaction::Hovered => map.hovered = maybe_color,
+                Interaction::Clicked => map.clicked = maybe_color,
+            }
         }
 
-        panic!("Incorrect color type supplied!");
+        map
     }
+
+    pub fn get(&self, state: Interaction) -> Option<&Color> {
+        match state {
+            Interaction::None => self.default.as_ref(),
+            Interaction::Hovered => self.hovered.as_ref(),
+            Interaction::Clicked => self.clicked.as_ref(),
+        }
+    }
+}
+
+#[allow(dead_code)]
+pub mod colors {
+    use bevy::prelude::Color;
 
     /// <div style="background-color:rgb(30.6%, 43.1%, 50.6%); width: 10px; padding: 10px; border: 1px solid;"></div>
     pub const AEGEAN: Color = Color::rgb(0.306, 0.431, 0.506);

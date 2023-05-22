@@ -1,12 +1,12 @@
 // todo make it a separate crate -- take common consts and types outside, too
 use crate::characters::{CHARACTER_MAX_HEALTH, CHARACTER_SIZE, CHARACTER_SPEED};
 use crate::guns::additives::*;
-use crate::guns::colours::GunColour;
-use crate::guns::stats::{GunPersistentStats, ProjectileSpawnSpace};
+use crate::guns::stats::{GunColour, GunPersistentStats, ProjectileSpawnSpace};
 use crate::health::HitPoints;
 use crate::physics::{ContinuousCollisionDetection, OngoingCollisions, Sensor};
-use crate::Color;
+use crate::ui::colors;
 use bevy::ecs::system::EntityCommands;
+use bevy::prelude::Color;
 use bevy::reflect::{FromReflect, Reflect};
 use std::f32::consts::PI;
 use std::time::Duration;
@@ -58,7 +58,7 @@ macro_rules! generate_extra_projectile_components_fns {
         }
 
         /// Does a projectile need to have extra components inserted into it, according to its gun preset?
-        pub fn has_extra_projectile_components(&self) -> bool {
+        pub const fn has_extra_projectile_components(&self) -> bool {
             match self {
                 $($preset => true,)*
                 _ => false,
@@ -118,7 +118,7 @@ pub const REGULAR: GunPersistentStats = GunPersistentStats {
 
 /// An experimental "upgrade" over a regular gun. Faster, inaccurate, doesn't hit as hard.
 pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
-    gun_neutral_color: GunColour::new(GunColour::DARK_CHESTNUT),
+    gun_neutral_color: GunColour::new(colors::DARK_CHESTNUT),
     projectile_spread_angle: PI / 12.,
     projectile_damage: BULLET_DAMAGE * 1.1,
     projectile_speed: BULLET_SPEED * 2.,
@@ -129,7 +129,7 @@ pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
 
 /// Shotgun. Individual pellets don't hit as hard and spread apart with time, but devastating at close range.
 pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
-    gun_neutral_color: GunColour::new(GunColour::BRASS),
+    gun_neutral_color: GunColour::new(colors::BRASS),
     projectile_spread_angle: PI / 6.,
     projectile_damage: BULLET_DAMAGE * 0.85,
     projectiles_per_shot: 12,
@@ -140,7 +140,7 @@ pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
 
 /// Discombobulate foes surrounding you with this. Spreads many projectiles in a circle.
 pub const TYPHOON: GunPersistentStats = GunPersistentStats {
-    gun_neutral_color: GunColour::new(GunColour::CORAL),
+    gun_neutral_color: GunColour::new(colors::CORAL),
     projectile_spread_angle: 2. * PI,
     projectile_spawn_point: ProjectileSpawnSpace::Perimeter,
     projectile_damage: BULLET_DAMAGE * 0.4,

@@ -8,6 +8,7 @@ mod physics;
 mod projectiles;
 mod scenes;
 mod teams;
+mod ui;
 
 pub use ai::{handle_ai_input, AIActionRoutine};
 pub use characters::{
@@ -25,12 +26,13 @@ pub use multiplayer::{
     PlayerCount,
 };
 pub use physics::{
-    handle_entities_out_of_bounds, ActiveEvents, RectangularObstacleBundle,
+    handle_entities_out_of_bounds, ActiveEvents, RectangularObstacleBundle, Sleeping,
     SpaceballsPhysicsPlugin, Velocity, CHUNK_SIZE,
 };
 pub use projectiles::handle_bullet_collision_events;
 pub use scenes::{summon_scene, SceneArg};
 pub use teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
+pub use ui::menu::MenuPlugin;
 
 pub use bevy::prelude::*;
 pub use bevy::render::camera::{camera_system, RenderTarget};
@@ -41,6 +43,7 @@ pub use rand::{
     Rng, SeedableRng,
 };
 
+use bevy::core_pipeline::bloom::{BloomPrefilterSettings, BloomSettings};
 use bevy::reflect::ReflectFromReflect;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use clap::Parser;
@@ -52,10 +55,29 @@ use wasm_bindgen::prelude::*;
 /// Client's current state of the game.
 #[derive(States, Clone, Default, Eq, PartialEq, Debug, Hash)]
 pub enum GameState {
-    // MainMenu,
     #[default]
+    MainMenu,
     Matchmaking,
     InGame,
+}
+
+pub fn standard_setup(mut commands: Commands) {
+    commands.spawn((
+        Camera2dBundle {
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
+            ..default()
+        },
+        BloomSettings {
+            prefilter_settings: BloomPrefilterSettings {
+                threshold: 0.5,
+                threshold_softness: 0.0, // play around
+            },
+            ..default()
+        },
+    ));
 }
 
 /// State of chaos!

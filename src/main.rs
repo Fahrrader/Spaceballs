@@ -1,3 +1,5 @@
+#[cfg(feature = "diagnostic")]
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use cosmic_spaceball_tactical_action_arena::*;
 
 fn main() {
@@ -12,8 +14,10 @@ fn main() {
     GGRSPlugin::<GGRSConfig>::new()
         .with_input_system(process_input)
         .register_rollback_resource::<EntropyGenerator>()
+        .register_rollback_component::<GlobalTransform>()
         .register_rollback_component::<Transform>()
         .register_rollback_component::<Velocity>()
+        .register_rollback_component::<Sleeping>()
         .register_rollback_component::<ActiveEvents>()
         .register_rollback_component::<CharacterActionInput>()
         .register_rollback_component::<AIActionRoutine>()
@@ -24,25 +28,26 @@ fn main() {
         // .register_rollback_component::<Children>()
         .build(&mut app);
 
+    #[cfg(feature = "diagnostic")]
+    app.add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default());
+
     app.insert_resource(ClearColor(Color::BLACK))
         .insert_resource(scene_arg)
+        .insert_resource(PlayerCount(1))
         .insert_resource(EntropyGenerator::new(42))
         .insert_resource(RapierConfiguration {
             gravity: Vec2::default(),
             ..default()
         })
-        // make plugins, register all respective types, will make development easier
-        //.register_type::<CharacterActionInput>()
+        .add_state::<GameState>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(create_window(800., 800.)),
             ..default()
         }))
+        //.add_plugin(MenuPlugin)
         .add_plugin(RapierPhysicsPlugin::<()>::default())
         .add_plugin(SpaceballsPhysicsPlugin)
-        /*.add_plugin(LogDiagnosticsPlugin::default())
-        .add_plugin(FrameTimeDiagnosticsPlugin::default())*/
-        // todo summon scene only on InGame
-        .add_state::<GameState>()
         .configure_sets(
             // ggrs couldn't give two flying shits about this one
             (
@@ -51,9 +56,10 @@ fn main() {
             )
                 .chain(),
         )
-        .add_startup_systems((summon_scene, start_matchbox_socket))
+        .add_startup_system(standard_setup)
+        .add_system(start_matchbox_socket.in_schedule(OnEnter(GameState::Matchmaking)))
         .add_system(wait_for_players.run_if(in_state(GameState::Matchmaking)))
-        //.add_system(summon_scene.in_schedule(OnEnter(GameState::InGame)))
+        .add_system(summon_scene.in_schedule(OnEnter(GameState::InGame)))
         .add_system(handle_gamepad_connections)
         // todo:mp action routine gets abnormally long if in rollback together with ai input, might be interesting to look into
         .add_system(

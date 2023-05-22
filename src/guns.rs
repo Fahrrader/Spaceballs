@@ -19,11 +19,9 @@ use std::f32::consts::PI;
 use std::time::Duration;
 
 pub mod additives;
-pub mod colours;
 mod presets;
 mod stats;
 
-pub use colours::GUN_TRANSPARENCY;
 pub use presets::GunPreset;
 pub use stats::GunPersistentStats;
 
@@ -176,9 +174,7 @@ impl Gun {
     /// Make a gun look in line with a team's color or neutral (usually when not equipped by anybody).
     pub fn team_paint(preset: GunPreset, sprite: &mut Sprite, team_number: Option<TeamNumber>) {
         if let Some(team_number) = team_number {
-            sprite.color = (team_color(team_number) * GUN_COLOR_MULTIPLIER)
-                .set_a(GUN_TRANSPARENCY)
-                .as_rgba();
+            sprite.color = (team_color(team_number) * GUN_COLOR_MULTIPLIER).into();
         } else {
             sprite.color = preset.stats().gun_neutral_color.0;
         }
@@ -391,6 +387,9 @@ pub mod systems {
                 );
 
                 if gun_type.has_extra_projectile_components() {
+                    /* todo maybe eventually
+                    let bullets = bullets.into_iter().map(|default_bundle| (default_bundle, gun_type.get_extra_projectile_components())).collect();
+                    commands.spawn_batch(bullets);*/
                     for bullet in bullets {
                         let mut bullet_commands = commands.spawn(bullet);
                         // Add any extra components that a bullet should have

@@ -45,6 +45,7 @@ impl ggrs::Config for GGRSConfig {
 pub fn start_matchbox_socket(mut commands: Commands) {
     let room_url = MATCHBOX_ADDR;
     info!("connecting to matchbox server: {:?}", room_url);
+    // todo:mp don't do it if players are all local -- and also remove resource if disconnecting
     commands.insert_resource(MatchboxSocket::new_ggrs(room_url));
 }
 

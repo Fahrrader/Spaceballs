@@ -1,9 +1,70 @@
-use crate::guns::colours::GunColour;
 use crate::guns::{GUN_VELOCITY_DAMPING_RATIO, GUN_Z_LAYER};
 use crate::physics::{popular_collider, CollisionLayer, KinematicsBundle, RigidBody};
 use bevy::math::Vec3;
-use bevy::prelude::Transform;
+use bevy::prelude::{Color, Transform};
 use std::time::Duration;
+
+/// The gun is slightly transparent to let the players see the projectiles and whatnot underneath,
+/// since the gun doesn't have a collider.
+pub const GUN_TRANSPARENCY: f32 = 0.95;
+
+/// Wrapper to guarantee the sprite transparency.
+pub struct GunColour(pub Color);
+
+impl GunColour {
+    pub const fn new(color: Color) -> Self {
+        GunColour(Self::get(color))
+    }
+
+    pub const fn get(color: Color) -> Color {
+        match color {
+            Color::Rgba {
+                red, green, blue, ..
+            } => Color::Rgba {
+                red,
+                green,
+                blue,
+                alpha: GUN_TRANSPARENCY,
+            },
+            Color::RgbaLinear {
+                red, green, blue, ..
+            } => Color::RgbaLinear {
+                red,
+                green,
+                blue,
+                alpha: GUN_TRANSPARENCY,
+            },
+            Color::Hsla {
+                hue,
+                saturation,
+                lightness,
+                ..
+            } => Color::Hsla {
+                hue,
+                saturation,
+                lightness,
+                alpha: GUN_TRANSPARENCY,
+            },
+            Color::Lcha {
+                lightness,
+                chroma,
+                hue,
+                ..
+            } => Color::Lcha {
+                lightness,
+                chroma,
+                hue,
+                alpha: GUN_TRANSPARENCY,
+            },
+        }
+    }
+}
+
+impl From<Color> for GunColour {
+    fn from(value: Color) -> Self {
+        GunColour::new(value)
+    }
+}
 
 /// Enum listing the possibilities where the projectile should spawn when shot out of a gun.
 pub enum ProjectileSpawnSpace {

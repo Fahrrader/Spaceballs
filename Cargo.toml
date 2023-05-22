@@ -12,7 +12,7 @@ bevy = { version = "0.10", features = ["dynamic_linking"] }
 
 [dependencies]
 bevy = "0.10"
-bevy_rapier2d = { version = "0.21.0", features = ["enhanced-determinism"]} # serde-serialize, debug-render
+bevy_rapier2d = { version = "0.21.0", features = ["enhanced-determinism"] } # serde-serialize, debug-render
 bevy_ggrs = { version = "0.12", features = ["wasm-bindgen"] }
 bevy_matchbox = { version = "0.6", features = ["ggrs"] }
 bytemuck = "1.5"
@@ -22,8 +22,11 @@ clap = { version = "4", features = ["derive"] }
 console_error_panic_hook = "0.1"
 wasm-bindgen = "*"
 
+[features]
+diagnostic = []
+
 [profile.release]
-opt-level = 's'
+opt-level = 'z'
 lto = 'thin'
 codegen-units = 1
 
