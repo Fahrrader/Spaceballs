@@ -172,32 +172,6 @@ fn set_main_menu_state(mut menu_state: ResMut<NextState<MenuState>>) {
     menu_state.set(MenuState::Main);
 }
 
-build_menu_system!(
-    setup_main_menu,
-    Main {
-        Column {
-            Title,
-            //node_background_color = colors::PEACH.with_a(0.3).into(),
-            Buttons [
-                (MenuButtonAction::SinglePlayer, "Singleplayer"),
-                (MenuButtonAction::MultiPlayer, "Multiplayer"),
-            ],
-            {
-                button_color = colors::NEON_PINK.into(),
-                button_text_hovered_color = Some(colors::LEMON.into()),
-                button_font_size = 24.0,
-                Buttons [
-                    (MenuButtonAction::Controls, "Controls"),
-                    (MenuButtonAction::Settings, "Settings"),
-                ],
-            },
-            Buttons [
-                (MenuButtonAction::Quit, "Quit"),
-            ],
-        },
-    },
-);
-
 /* Main menu UI structure
 * singleplayer {
     * scene select {  } (grid of available levels)
@@ -241,16 +215,42 @@ blurry top node
  */
 
 build_menu_system!(
+    setup_main_menu,
+    Main {
+        Column {
+            Title,
+            //node_background_color = colors::PEACH.with_a(0.3).into(),
+            Buttons [
+                (MenuButtonAction::SinglePlayer, "Singleplayer"),
+                (MenuButtonAction::MultiPlayer, "Multiplayer"),
+            ],
+            {
+                button_color = colors::NEON_PINK.into(),
+                button_text_hovered_color = Some(colors::LEMON.into()),
+                button_font_size = 24.0,
+                Buttons [
+                    (MenuButtonAction::Controls, "Controls"),
+                    (MenuButtonAction::Settings, "Settings"),
+                ],
+            },
+            Buttons [
+                (MenuButtonAction::Quit, "Quit"),
+            ],
+        },
+    },
+);
+
+build_menu_system!(
     setup_settings_menu,
     Settings {
         Column {
-            /*Text [
+            Text [
+                "Haha you expected settings, but it was me, Dio!\n",
                 {
                     text_color = colors::LAVENDER,
                     "Go back to the playroom, stud.\n",
                 },
-                "Haha you expected settings, but it was me, Dio!\n",
-            ],*/
+            ],
             Buttons [
                 (MenuButtonAction::QuitToMenu, "Back"),
             ],

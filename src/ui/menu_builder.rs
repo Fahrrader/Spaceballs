@@ -130,6 +130,11 @@ macro_rules! build_menu_item {
         $crate::build_title!($parent, $menu_shared_vars);
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
     };
+    // Creating a text field out of sections
+    ($parent:expr, $menu_shared_vars:ident, Text [ $($text:tt)* ], $($rest:tt)*) => {
+        $crate::build_text!($parent, $menu_shared_vars, $($text)*);
+        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    };
     // Handling buttons, their action component and text
     ($parent:expr, $menu_shared_vars:ident, Buttons [ $($buttons:tt)* ], $($rest:tt)*) => {
         $crate::build_buttons!($parent, $menu_shared_vars, $($buttons)*);
@@ -251,6 +256,55 @@ macro_rules! build_title {
                 .with_text_alignment(TextAlignment::Center),
         );
     };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! build_text {
+    ($parent:expr, $menu_shared_vars:ident, $($body:tt)*) => {
+        let mut sections = vec![];
+        let text_style = TextStyle {
+            font_size: $menu_shared_vars.text_font_size,
+            color: $menu_shared_vars.text_color,
+            font: $menu_shared_vars.font.clone(),
+        };
+        $crate::create_text_sections!($parent, $menu_shared_vars, sections, text_style, $($body)*);
+        $parent.spawn(
+            TextBundle::from_sections(sections)
+                .with_text_alignment(TextAlignment::Center),
+        );
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! create_text_sections {
+    // Handling shared variable changes
+    ($parent:expr, $menu_shared_vars:ident, $sections:ident, $text_style:ident, $shared_menu_var:ident = $new_value:expr, $($rest:tt)*) => {
+        $crate::change_menu_environment_context!($parent, $menu_shared_vars, $shared_menu_var = $new_value);
+        let text_style = TextStyle {
+            font_size: $menu_shared_vars.text_font_size,
+            color: $menu_shared_vars.text_color,
+            font: $menu_shared_vars.font.clone(),
+        };
+        $crate::create_text_sections!($parent, $menu_shared_vars, $sections, text_style, $($rest)*);
+    };
+    // Creating nested blocks, thus offering ability to apply and afterwards revert changes to shared variables
+    ($parent:expr, $menu_shared_vars:ident, $sections:ident, $text_style:ident, { $($body:tt)* }, $($rest:tt)*) => {
+        {
+            $crate::create_text_sections!($parent, $menu_shared_vars, $sections, $text_style, $($body)*);
+        }
+        $crate::create_text_sections!($parent, $menu_shared_vars, $sections, $text_style, $($rest)*);
+    };
+    ($parent:expr, $menu_shared_vars:ident, $sections:ident, $text_style:ident, $text:expr, $($rest:tt)*) => {
+        let text_section = TextSection::new(
+            $text,
+            $text_style.clone(),
+        );
+        $sections.push(text_section);
+        $crate::create_text_sections!($parent, $menu_shared_vars, $sections, $text_style, $($rest)*);
+    };
+    ($parent:expr, $menu_shared_vars:ident, $sections:ident, $text_style:ident,) => {};
 }
 
 #[doc(hidden)]
