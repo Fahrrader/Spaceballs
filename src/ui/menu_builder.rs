@@ -1,7 +1,7 @@
-use crate::ui::menu::{MenuButtonAction, DEFAULT_BUTTON_COLOR, TEXT_COLOR};
-#[allow(unused_imports)]
-use crate::ui::menu::{HOVERED_BUTTON_COLOR, PRESSED_BUTTON_COLOR};
+//use crate::ui::menu::MenuButtonAction;
 use crate::ui::ColorInteractionMap;
+#[allow(unused_imports)]
+use crate::ui::{DEFAULT_BUTTON_COLOR, HOVERED_BUTTON_COLOR, PRESSED_BUTTON_COLOR, TEXT_COLOR};
 use bevy::prelude::*;
 
 pub(crate) struct MenuBuildingEnvironment<'a> {
@@ -20,31 +20,29 @@ pub(crate) struct MenuBuildingEnvironment<'a> {
     pub button_size: Size,
     pub button_margin: UiRect,
     pub text_color: Color,
-    /// If None, uses [`button_color`]
-    pub button_text_color: Option<Color>,
-    /// If None, uses [`button_hovered_color`]
-    pub button_text_hovered_color: Option<Color>,
-    /// If None, uses [`button_pressed_color`]
-    pub button_text_pressed_color: Option<Color>,
-    /// If None, uses [`DEFAULT_BUTTON_COLOR`]
-    pub button_color: Option<Color>,
-    /// If None, uses [`HOVERED_BUTTON_COLOR`]
+    pub button_color: Color,
+    /// If None, will not be changed on interaction
     pub button_hovered_color: Option<Color>,
-    /// If None, uses [`PRESSED_BUTTON_COLOR`]
+    /// If None, will not be changed on interaction
     pub button_pressed_color: Option<Color>,
+    pub button_text_color: InheritedColor,
+    /// If None, will not be changed on interaction
+    pub button_text_hovered_color: Option<InheritedColor>,
+    /// If None, will not be changed on interaction
+    pub button_text_pressed_color: Option<InheritedColor>,
     pub outline_width: Val,
 }
 
 impl<'a> MenuBuildingEnvironment<'a> {
     pub fn default(asset_server: &'a ResMut<'a, AssetServer>) -> Self {
         let font = asset_server.load("fonts/Spacerunner.otf");
-        let text_font_size = 40.0;
+        let text_font_size = 30.0;
         let button_font_size = text_font_size;
         let title_font_size = 60.0;
 
         let title_margin = UiRect::all(Val::Px(50.0));
         let button_size = Size::new(Val::Px(390.0), Val::Px(65.0));
-        let button_margin = UiRect::all(Val::Px(4.0));
+        let button_margin = UiRect::all(Val::Px(8.0));
         let outline_width = Val::Px(4.0);
 
         Self {
@@ -60,12 +58,12 @@ impl<'a> MenuBuildingEnvironment<'a> {
             button_size,
             button_margin,
             text_color: TEXT_COLOR,
-            button_text_color: None,
-            button_text_hovered_color: None,
-            button_text_pressed_color: None,
-            button_color: None,
-            button_hovered_color: None,
-            button_pressed_color: None,
+            button_color: DEFAULT_BUTTON_COLOR,
+            button_hovered_color: Some(HOVERED_BUTTON_COLOR),
+            button_pressed_color: Some(PRESSED_BUTTON_COLOR),
+            button_text_color: InheritedColor::Inherit,
+            button_text_hovered_color: Some(InheritedColor::Inherit),
+            button_text_pressed_color: Some(InheritedColor::Inherit),
             outline_width,
         }
     }
@@ -73,6 +71,36 @@ impl<'a> MenuBuildingEnvironment<'a> {
     // pub fn load_asset<T: Asset, P: Into<AssetPath<'a>>>(&self, path: P) -> Handle<T> {
     //     self.asset_server.load(path)
     // }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum InheritedColor {
+    Inherit,
+    Own(Color),
+}
+
+impl From<Color> for InheritedColor {
+    fn from(color: Color) -> Self {
+        InheritedColor::Own(color)
+    }
+}
+
+impl InheritedColor {
+    pub fn try_resolve(&self, parent_color: Option<Color>) -> Result<Color, &str> {
+        match self {
+            InheritedColor::Own(color) => Ok(*color),
+            InheritedColor::Inherit => parent_color.ok_or(
+                "Did not provide parent color, while the inherited color does not have its Own.",
+            ),
+        }
+    }
+
+    pub fn resolve(&self, parent_color: Color) -> Color {
+        match self {
+            InheritedColor::Own(color) => *color,
+            InheritedColor::Inherit => parent_color,
+        }
+    }
 }
 
 #[macro_export]
@@ -117,7 +145,7 @@ macro_rules! build_menu_item {
         $crate::build_menu_screen!($parent, $menu_shared_vars, $menu, $($body)*);
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
     };
-    // Adding a custom bundle to the parent
+    // Spawning a custom bundle under the parent
     ($parent:expr, $menu_shared_vars:ident, ($custom_bundle:expr), $($rest:tt)*) => {
         $parent.spawn($custom_bundle);
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
@@ -132,7 +160,7 @@ macro_rules! build_menu_item {
     ($parent:expr, $menu_shared_vars:ident, { $($body:tt)* }, $($rest:tt)*) => {
         //$parent.spawn(NodeBundle::default()).with_children(|parent| {
         {
-            $crate::build_menu_item!(parent, $menu_shared_vars, $($body)*);
+            $crate::build_menu_item!($parent, $menu_shared_vars, $($body)*);
         }
         //});
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
@@ -228,9 +256,8 @@ macro_rules! build_title {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! build_buttons {
+    //                                                                 $(+ $extra:tt)*, )*) => { ...
     ($parent:expr, $menu_shared_vars:ident, $(($action:expr, $text:expr),)*) => {
-        let button_color = $menu_shared_vars.button_color.unwrap_or(DEFAULT_BUTTON_COLOR);
-
         let button_style = Style {
             size: $menu_shared_vars.button_size,
             margin: $menu_shared_vars.button_margin,
@@ -240,9 +267,26 @@ macro_rules! build_buttons {
         };
         let button_text_style = TextStyle {
             font_size: $menu_shared_vars.button_font_size,
-            color: $menu_shared_vars.button_text_color.unwrap_or(button_color),
+            color: $menu_shared_vars.button_text_color.resolve($menu_shared_vars.button_color),
             font: $menu_shared_vars.font.clone(),
         };
+
+        let mut button_interaction_colors = if $menu_shared_vars.button_hovered_color.is_some() || $menu_shared_vars.button_pressed_color.is_some() {
+            ColorInteractionMap::from(vec![
+                (Interaction::None, Some($menu_shared_vars.button_color)),
+                (Interaction::Hovered, $menu_shared_vars.button_hovered_color),
+                (Interaction::Clicked, $menu_shared_vars.button_pressed_color),
+            ]).into()
+        } else { None };
+
+        let button_text_interaction_colors = if $menu_shared_vars.button_text_hovered_color.is_some() || $menu_shared_vars.button_text_pressed_color.is_some() {
+            ColorInteractionMap::from([
+                (Interaction::None, $menu_shared_vars.button_text_color.try_resolve(Some($menu_shared_vars.button_color)).ok()),
+                (Interaction::Hovered, $menu_shared_vars.button_text_hovered_color.and_then(|color| color.try_resolve($menu_shared_vars.button_hovered_color).ok())),
+                (Interaction::Clicked, $menu_shared_vars.button_text_pressed_color.and_then(|color| color.try_resolve($menu_shared_vars.button_pressed_color).ok())),
+            ]).into()
+        } else { None };
+
         $(
             let mut entity_commands = $parent.spawn((
                 ButtonBundle {
@@ -252,37 +296,31 @@ macro_rules! build_buttons {
                 },
                 $action,
             ));
-            let color_states = if $menu_shared_vars.button_color.is_some() || $menu_shared_vars.button_hovered_color.is_some() || $menu_shared_vars.button_pressed_color.is_some() {
-                let states = [
-                    (Interaction::None, $menu_shared_vars.button_color),
-                    (Interaction::Hovered, $menu_shared_vars.button_hovered_color),
-                    (Interaction::Clicked, $menu_shared_vars.button_pressed_color),
-                ];
-
-                states.into()
-            } else { None };
 
             entity_commands.with_children(|parent| {
+                $crate::ui::menu_builder::outline_parent(parent, $menu_shared_vars.outline_width, $menu_shared_vars.button_color, button_interaction_colors);
+
                 let mut entity_commands = parent.spawn(TextBundle::from_section(
                     $text,
                     button_text_style.clone(),
                 ));
 
-                let states = [
-                    (Interaction::None, $menu_shared_vars.button_text_color.or($menu_shared_vars.button_color)),
-                    (Interaction::Hovered, $menu_shared_vars.button_text_hovered_color.or($menu_shared_vars.button_hovered_color)),
-                    (Interaction::Clicked, $menu_shared_vars.button_text_pressed_color.or($menu_shared_vars.button_pressed_color)),
-                ];
-                if states.iter().map(|(_, opt)| opt).any(Option::is_some) {
-                    entity_commands.insert(ColorInteractionMap::new(states.iter().copied()));
+                if let Some(states) = button_text_interaction_colors {
+                    entity_commands.insert(states);
+                    if button_interaction_colors.is_none() {
+                        button_interaction_colors = Some(vec![].into());
+                    }
                 }
-
-                $crate::ui::menu_builder::outline_parent(parent, $menu_shared_vars.outline_width, button_color, color_states);
             });
+
+            if let Some(states) = button_interaction_colors {
+                entity_commands.insert(states);
+            }
         )*
     };
 }
 
+/*
 #[doc(hidden)]
 pub(crate) fn build_scene_select_grid(
     parent: &mut ChildBuilder,
@@ -311,13 +349,13 @@ pub(crate) fn build_scene_select_grid(
                 outline_parent(parent, Val::Px(4.), DEFAULT_BUTTON_COLOR, None);
             });
     }
-}
+}*/
 
 pub(crate) fn outline_parent(
     child_builder: &mut ChildBuilder,
     outline_width: Val,
     color: Color,
-    color_states: Option<[(Interaction, Option<Color>); 3]>,
+    color_states: Option<ColorInteractionMap>,
 ) {
     let background_color = color.into();
 
@@ -335,12 +373,17 @@ pub(crate) fn outline_parent(
             ..default()
         });
         if let Some(states) = color_states {
-            entity_commander.insert(ColorInteractionMap::new(states.iter().copied()));
+            entity_commander.insert(states);
         }
     };
 
     spawn_outline_bar(
         UiRect::top(Val::Percent(0.)),
+        (Val::Percent(100.), outline_width).into(),
+    );
+
+    spawn_outline_bar(
+        UiRect::top(Val::Percent(100.)),
         (Val::Percent(100.), outline_width).into(),
     );
 
@@ -352,10 +395,5 @@ pub(crate) fn outline_parent(
     spawn_outline_bar(
         UiRect::right(Val::Percent(0.)),
         (outline_width, Val::Percent(100.)).into(),
-    );
-
-    spawn_outline_bar(
-        UiRect::bottom(Val::Percent(0.)),
-        (Val::Percent(100.), outline_width).into(),
     );
 }

@@ -1,4 +1,3 @@
-use crate::ui::menu_builder::outline_parent;
 use crate::ui::{colors, despawn_node, ColorInteractionMap};
 use crate::{build_menu_system, GameState};
 use bevy::app::AppExit;
@@ -65,100 +64,85 @@ pub(crate) enum MenuButtonAction {
     Quit,
 }
 
-// todo useless, delete
 /// Tag component used to mark which setting is currently selected.
 #[derive(Component)]
 struct SelectedOption;
 
-pub(crate) const TEXT_COLOR: Color = colors::AERO_BLUE;
-pub(crate) const DEFAULT_BUTTON_COLOR: Color = Color::YELLOW_GREEN;
-pub(crate) const HOVERED_BUTTON_COLOR: Color = TEXT_COLOR;
-//const HOVERED_PRESSED_BUTTON: Color = colors::AERO_BLUE;
-pub(crate) const PRESSED_BUTTON_COLOR: Color = Color::CYAN;
-
 /// Handle changing all buttons' colors based on mouse interaction.
 fn handle_button_style_change(
-    mut interaction_query: Query<
+    interaction_query: Query<
         (
             &Interaction,
-            &mut BackgroundColor,
-            Option<&ColorInteractionMap>,
-            Option<&Children>,
             Option<&SelectedOption>,
+            &ColorInteractionMap,
+            Entity,
         ),
-        (Changed<Interaction>, With<Button>),
+        Changed<Interaction>,
     >,
     mut text_children_query: Query<(&mut Text, Option<&ColorInteractionMap>)>,
-    mut node_children_query: Query<
-        (
-            &mut BackgroundColor,
-            Option<&ColorInteractionMap>,
-            Option<&Children>,
-        ),
-        (Without<Button>, Without<Text>),
-    >,
+    mut node_children_query: Query<(
+        &mut BackgroundColor,
+        Option<&ColorInteractionMap>,
+        Option<&Children>,
+    )>,
 ) {
     fn distill_color(
         interaction: Interaction,
-        color_interaction_map: Option<&ColorInteractionMap>,
+        node_colors: Option<&ColorInteractionMap>,
+        default_colors: &ColorInteractionMap,
+        present_color: Color,
     ) -> (Color, bool) {
-        match color_interaction_map.and_then(|map| map.get(interaction)) {
-            Some(color) => (*color, true),
-            None => {
-                let default_color = match interaction {
-                    Interaction::Clicked => PRESSED_BUTTON_COLOR,
-                    Interaction::Hovered => HOVERED_BUTTON_COLOR,
-                    Interaction::None => DEFAULT_BUTTON_COLOR,
-                };
-                (default_color, false)
-            }
+        match node_colors.and_then(|map| map.get(interaction)) {
+            Some(color) => (*color, node_colors.unwrap().has_color(present_color)),
+            None => match default_colors.get(interaction) {
+                Some(color) => (*color, default_colors.has_color(present_color)),
+                None => (present_color, false),
+            },
         }
     }
 
-    fn paint_background(
-        background: &mut BackgroundColor,
-        new_color: Color,
-        should_ignore_transparency: bool,
-    ) {
-        if should_ignore_transparency || background.0 != Color::NONE {
-            *background = new_color.into();
-        }
-    }
-
-    fn paint_children(
+    fn paint_nodes(
         interaction: Interaction,
+        default_colors: &ColorInteractionMap,
         children: &Vec<Entity>,
         text_children_query: &mut Query<(&mut Text, Option<&ColorInteractionMap>)>,
-        node_children_query: &mut Query<
-            (
-                &mut BackgroundColor,
-                Option<&ColorInteractionMap>,
-                Option<&Children>,
-            ),
-            (Without<Button>, Without<Text>),
-        >,
+        node_children_query: &mut Query<(
+            &mut BackgroundColor,
+            Option<&ColorInteractionMap>,
+            Option<&Children>,
+        )>,
     ) {
         for &child in children.iter() {
             if let Ok((mut text, color_interaction_map)) = text_children_query.get_mut(child) {
-                let (color, _) = distill_color(interaction, color_interaction_map);
+                let (color, _) = distill_color(
+                    interaction,
+                    color_interaction_map,
+                    default_colors,
+                    Color::WHITE,
+                );
                 for mut section in text.sections.iter_mut() {
                     section.style.color = color;
                 }
             }
 
-            if let Ok((mut bg_color, color_interaction_map, more_children)) =
+            if let Ok((mut background, color_interaction_map, more_children)) =
                 node_children_query.get_mut(child)
             {
-                let (color, should_ignore_transparency) =
-                    distill_color(interaction, color_interaction_map);
-                if color_interaction_map.is_some() {
-                    paint_background(&mut bg_color, color, should_ignore_transparency);
+                let (new_color, should_paint) = distill_color(
+                    interaction,
+                    color_interaction_map,
+                    default_colors,
+                    background.0,
+                );
+                if should_paint {
+                    *background = new_color.into();
                 }
 
                 if let Some(more_children) = more_children {
                     let children_cloned = more_children.iter().cloned().collect();
-                    paint_children(
+                    paint_nodes(
                         interaction,
+                        default_colors,
                         &children_cloned,
                         text_children_query,
                         node_children_query,
@@ -168,27 +152,16 @@ fn handle_button_style_change(
         }
     }
 
-    for (interaction, mut color, color_interaction_map, children, selected) in
-        interaction_query.iter_mut()
-    {
+    for (interaction, selected, color_interaction_map, entity) in interaction_query.iter() {
         let interaction = match (*interaction, selected) {
-            (Interaction::None, Some(_)) => Interaction::Clicked,
+            (Interaction::None, Some(_)) => Interaction::Hovered,
             _ => *interaction,
         };
-        let (new_color, should_ignore_transparency) =
-            distill_color(interaction, color_interaction_map);
 
-        if color_interaction_map.is_some() {
-            paint_background(&mut color, new_color, should_ignore_transparency);
-        }
-
-        if children.is_none() {
-            continue;
-        }
-        let children_cloned = children.unwrap().iter().cloned().collect();
-        paint_children(
+        paint_nodes(
             interaction,
-            &children_cloned,
+            color_interaction_map,
+            &vec![entity],
             &mut text_children_query,
             &mut node_children_query,
         );
@@ -204,15 +177,15 @@ build_menu_system!(
     Main {
         Column {
             Title,
-            node_background_color = colors::PEACH.with_a(0.3).into(),
+            //node_background_color = colors::PEACH.with_a(0.3).into(),
             Buttons [
                 (MenuButtonAction::SinglePlayer, "Singleplayer"),
                 (MenuButtonAction::MultiPlayer, "Multiplayer"),
             ],
-            Column {
+            {
                 button_color = colors::NEON_PINK.into(),
-                button_text_hovered_color = colors::LEMON.into(),
-                button_font_size = 16.0,
+                button_text_hovered_color = Some(colors::LEMON.into()),
+                button_font_size = 24.0,
                 Buttons [
                     (MenuButtonAction::Controls, "Controls"),
                     (MenuButtonAction::Settings, "Settings"),
@@ -224,139 +197,6 @@ build_menu_system!(
         },
     },
 );
-/*
-fn setup_main_menu(mut commands: Commands, asset_server: ResMut<AssetServer>) {
-    build_menu!(
-        Main {
-            Column {
-                //Title,
-                Buttons [
-                    (MenuButtonAction::SinglePlayer, "Singleplayer"),
-                    (MenuButtonAction::MultiPlayer, "Multiplayer"),
-                    (MenuButtonAction::Controls, "Controls"),
-                    (MenuButtonAction::Settings, "Settings"),
-                    (MenuButtonAction::Quit, "Quit"),
-                ],
-            }
-        }
-    );
-
-    let title_text_style = TextStyle {
-        font: font.clone(),
-        font_size: 60.0,
-        color: TEXT_COLOR,
-    };
-
-    let button_text_style = TextStyle {
-        font_size: 40.0,
-        color: DEFAULT_BUTTON_COLOR,
-        font: font.clone(),
-    };
-
-    // Common style for all buttons on the screen
-    let button_style = Style {
-        size: Size::new(Val::Px(300.0), Val::Px(65.0)),
-        margin: UiRect::all(Val::Px(4.0)),
-        justify_content: JustifyContent::Center,
-        align_items: AlignItems::Center,
-        ..default()
-    };
-
-    commands
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
-                ..default()
-            },
-            OnMenu::<menu_state::Main>::default(),
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn(NodeBundle {
-                    style: Style {
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    // background_color: Color::CRIMSON.into(),
-                    ..default()
-                })
-                .with_children(|parent| {
-                    // Display the game name
-                    parent.spawn(
-                        TextBundle::from_section(
-                            "Cosmic\nSpaceball\nTactical Action Arena",
-                            title_text_style.clone(),
-                        )
-                            .with_style(Style {
-                                margin: UiRect::all(Val::Px(50.0)),
-                                ..default()
-                            })
-                            .with_text_alignment(TextAlignment::Center),
-                    );
-
-                    // todo unite under one node bundle, keep it constrained so that title text doesn't shift around
-                    // Display three buttons for each action available from the main menu:
-                    // - play, multiplayer
-                    // - controls
-                    // - settings
-                    // - quit
-                    for (action, text) in [
-                        (MenuButtonAction::SinglePlayer, "Play"),
-                        (MenuButtonAction::Controls, "Controls"),
-                        (MenuButtonAction::Settings, "Settings"),
-                        // don't display if on web!
-                        (MenuButtonAction::Quit, "Quit"),
-                    ] {
-                        parent
-                            .spawn((
-                                ButtonBundle {
-                                    style: button_style.clone(),
-                                    background_color: Color::NONE.into(),
-                                    ..default()
-                                },
-                                action,
-                            ))
-                            .with_children(|parent| {
-                                parent.spawn(TextBundle::from_section(
-                                    text,
-                                    button_text_style.clone(),
-                                ));
-
-                                outline_parent(parent, Val::Px(4.), DEFAULT_BUTTON_COLOR);
-                            });
-                    }
-                });
-        });
-}*/
-
-/*fn setup_singleplayer_menu(mut commands: Commands, asset_server: ResMut<AssetServer>) {
-    let font = asset_server.load("fonts/Spacerunner.otf");
-
-    /* layout:
-    * text { Haha you expected settings, but it was me, Dio!\nGo back to the playroom, stud.}
-    * button { Back }
-     */
-
-    build_menu!(
-        OnSinglePlayerMenu {
-            Column {
-                Text(
-                    (Haha you expected settings, but it was me, Dio!),
-                    (Go back to the playroom, stud.)
-                ),
-                Buttons [
-                    (MenuButtonAction::BackToMainMenu, "Back"),
-                ],
-            }
-        }
-    );
-}*/
 
 /* Main menu UI structure
 * singleplayer {
@@ -400,93 +240,23 @@ blurry top node
 * quit
  */
 
-fn setup_settings_menu(mut commands: Commands, asset_server: ResMut<AssetServer>) {
-    let font = asset_server.load("fonts/Spacerunner.otf");
-
-    /* layout:
-     * text { Haha you expected settings, but it was me, Dio!\nGo back to the playroom, stud.}
-     * button { Back }
-     */
-
-    /*build_menu!(
-        OnSettingsMenuScreen {
-            Column {
-                Text(
-                    (Haha you expected settings, but it was me, Dio!),
-                    (Go back to the playroom, stud.)
-                ),
-                Buttons [
-                    (MenuButtonAction::BackToMainMenu, "Back"),
-                ],
-            }
-        }
-    );*/
-
-    let button_style = Style {
-        size: Size::new(Val::Px(250.0), Val::Px(65.0)),
-        margin: UiRect::all(Val::Px(20.0)),
-        justify_content: JustifyContent::Center,
-        align_items: AlignItems::Center,
-        ..default()
-    };
-
-    let button_text_style = TextStyle {
-        font_size: 40.0,
-        color: TEXT_COLOR,
-        font: font.clone(),
-    };
-
-    commands
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    size: Size::width(Val::Percent(100.0)),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..default()
+build_menu_system!(
+    setup_settings_menu,
+    Settings {
+        Column {
+            /*Text [
+                {
+                    text_color = colors::LAVENDER,
+                    "Go back to the playroom, stud.\n",
                 },
-                ..default()
-            },
-            OnMenu::<menu_state::Settings>::default(),
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn(NodeBundle {
-                    style: Style {
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    //background_color: Color::CRIMSON.into(),
-                    ..default()
-                })
-                .with_children(|parent| {
-                    for (action, text) in [
-                        //(MenuButtonAction::SettingsDisplay, "Display"),
-                        (MenuButtonAction::Quit, "Sound"),
-                        (MenuButtonAction::QuitToMenu, "Back"),
-                    ] {
-                        parent
-                            .spawn((
-                                ButtonBundle {
-                                    style: button_style.clone(),
-                                    background_color: Color::NONE.into(),
-                                    ..default()
-                                },
-                                action,
-                            ))
-                            .with_children(|parent| {
-                                parent.spawn(TextBundle::from_section(
-                                    text,
-                                    button_text_style.clone(),
-                                ));
-
-                                outline_parent(parent, Val::Px(4.), DEFAULT_BUTTON_COLOR, None);
-                            });
-                    }
-                });
-        });
-}
+                "Haha you expected settings, but it was me, Dio!\n",
+            ],*/
+            Buttons [
+                (MenuButtonAction::QuitToMenu, "Back"),
+            ],
+        },
+    },
+);
 
 fn handle_menu_actions(
     interaction_query: Query<

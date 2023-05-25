@@ -12,10 +12,16 @@ fn despawn_node<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: 
     }
 }
 
-#[derive(Component, Default)]
-struct ColorInteractionMap {
+pub const TEXT_COLOR: Color = colors::AERO_BLUE;
+pub const DEFAULT_BUTTON_COLOR: Color = Color::YELLOW_GREEN;
+pub const HOVERED_BUTTON_COLOR: Color = TEXT_COLOR;
+//const HOVERED_PRESSED_BUTTON: Color = colors::AERO_BLUE;
+pub const PRESSED_BUTTON_COLOR: Color = Color::CYAN;
+
+#[derive(Component, Default, Clone, Copy, Debug)]
+pub(crate) struct ColorInteractionMap {
     default: Option<Color>,
-    hovered: Option<Color>,
+    selected: Option<Color>,
     clicked: Option<Color>,
 }
 
@@ -26,7 +32,7 @@ impl ColorInteractionMap {
         for (interaction, maybe_color) in states {
             match interaction {
                 Interaction::None => map.default = maybe_color,
-                Interaction::Hovered => map.hovered = maybe_color,
+                Interaction::Hovered => map.selected = maybe_color,
                 Interaction::Clicked => map.clicked = maybe_color,
             }
         }
@@ -34,12 +40,22 @@ impl ColorInteractionMap {
         map
     }
 
-    pub fn get(&self, state: Interaction) -> Option<&Color> {
+    pub const fn get(&self, state: Interaction) -> Option<&Color> {
         match state {
             Interaction::None => self.default.as_ref(),
-            Interaction::Hovered => self.hovered.as_ref(),
+            Interaction::Hovered => self.selected.as_ref(),
             Interaction::Clicked => self.clicked.as_ref(),
         }
+    }
+
+    pub fn has_color(&self, color: Color) -> bool {
+        self.default == Some(color) || self.selected == Some(color) || self.clicked == Some(color)
+    }
+}
+
+impl<T: IntoIterator<Item = (Interaction, Option<Color>)>> From<T> for ColorInteractionMap {
+    fn from(states: T) -> Self {
+        Self::new(states)
     }
 }
 
