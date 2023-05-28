@@ -1,6 +1,6 @@
 use crate::ui::{colors, despawn_node, ColorInteractionMap};
-use crate::{build_menu_system, GameState};
-use bevy::app::AppExit;
+use crate::{build_menu_plugin, GameState};
+use bevy::app::{AppExit, PluginGroupBuilder};
 use bevy::prelude::*;
 
 macro_rules! generate_menu_states {
@@ -40,6 +40,18 @@ struct OnMenu<T> {
 }
 
 impl<T> Default for OnMenu<T> {
+    fn default() -> Self {
+        Self {
+            _marker: std::marker::PhantomData,
+        }
+    }
+}
+
+struct SingleMenuPlugin<T> {
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T> Default for SingleMenuPlugin<T> {
     fn default() -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -214,49 +226,89 @@ blurry top node
 * quit
  */
 
-build_menu_system!(
-    setup_main_menu,
-    Main {
-        Column {
-            Title,
-            //node_background_color = colors::PEACH.with_a(0.3).into(),
+build_menu_plugin!(
+    (setup_main_menu, Main),
+    Column {
+        Title,
+        //node_background_color = colors::PEACH.with_a(0.3).into(),
+        Buttons [
+            (MenuButtonAction::SinglePlayer, "Singleplayer"),
+            (MenuButtonAction::MultiPlayer, "Multiplayer"),
+        ],
+        {
+            button_color = colors::NEON_PINK.into(),
+            button_text_hovered_color = Some(colors::LEMON.into()),
+            button_font_size = 24.0,
             Buttons [
-                (MenuButtonAction::SinglePlayer, "Singleplayer"),
-                (MenuButtonAction::MultiPlayer, "Multiplayer"),
-            ],
-            {
-                button_color = colors::NEON_PINK.into(),
-                button_text_hovered_color = Some(colors::LEMON.into()),
-                button_font_size = 24.0,
-                Buttons [
-                    (MenuButtonAction::Controls, "Controls"),
-                    (MenuButtonAction::Settings, "Settings"),
-                ],
-            },
-            Buttons [
-                (MenuButtonAction::Quit, "Quit"),
+                (MenuButtonAction::Controls, "Controls"),
+                (MenuButtonAction::Settings, "Settings"),
             ],
         },
+        Buttons [
+            (MenuButtonAction::Quit, "Quit"),
+        ],
     },
 );
 
-build_menu_system!(
-    setup_settings_menu,
-    Settings {
-        Column {
-            Text [
-                "Haha you expected settings, but it was me, Dio!\n",
-                {
-                    text_color = colors::LAVENDER,
-                    "Go back to the playroom, stud.\n",
-                },
-            ],
-            Buttons [
-                (MenuButtonAction::QuitToMenu, "Back"),
-            ],
-        },
+build_menu_plugin!(
+    (setup_settings_menu, Settings),
+    Column {
+        Text [
+            "Haha you expected settings, but it was me, ",
+            {
+                text_color = colors::LEMON,
+                "Dio",
+            },
+            "!\n",
+            text_color = colors::LAVENDER,
+            "Go back to the playroom, stud.\n",
+        ],
+        Buttons [
+            (MenuButtonAction::QuitToMenu, "Back"),
+        ],
     },
 );
+
+build_menu_plugin!(
+    (setup_controls_menu, Controls),
+    Column {
+        Buttons [
+            (MenuButtonAction::QuitToMenu, "Back"),
+        ],
+    },
+);
+
+build_menu_plugin!(
+    (setup_multiplayer_menu, MultiPlayer),
+    Column {
+        Text [
+            "Multiplayer",
+        ],
+        Buttons [
+            (MenuButtonAction::JoinGame, "Join Game"),
+            (MenuButtonAction::HostGame, "Host Game"),
+            (MenuButtonAction::QuitToMenu, "Back"),
+        ],
+    },
+);
+
+/// Systems to handle the menu screens setup and despawning
+struct MenuSetupPlugins;
+
+impl PluginGroup for MenuSetupPlugins {
+    fn build(self) -> PluginGroupBuilder {
+        use menu_state::*;
+
+        PluginGroupBuilder::start::<Self>()
+            .add(SingleMenuPlugin::<Main>::default())
+            //.add(SingleMenuPlugin::<SinglePlayer>::default())
+            .add(SingleMenuPlugin::<MultiPlayer>::default())
+            //.add(SingleMenuPlugin::<MatchMaker>::default())
+            //.add(SingleMenuPlugin::<MatchBrowser>::default())
+            .add(SingleMenuPlugin::<Controls>::default())
+            .add(SingleMenuPlugin::<Settings>::default())
+    }
+}
 
 fn handle_menu_actions(
     interaction_query: Query<
@@ -275,7 +327,7 @@ fn handle_menu_actions(
                     game_state.set(GameState::Matchmaking);
                     menu_state.set(MenuState::Disabled);
                 }
-                MenuButtonAction::MultiPlayer => {}
+                MenuButtonAction::MultiPlayer => menu_state.set(MenuState::MultiPlayer),
                 MenuButtonAction::SelectScene(_) => {}
                 MenuButtonAction::HostGame => {}
                 MenuButtonAction::JoinGame => {}
@@ -304,17 +356,13 @@ pub struct MenuPlugin;
 // todo I want them blooms on the UI. Figure out how to do blooms!
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        use menu_state::*;
-
         app
             // At start, the menu is not enabled. This will be changed in `menu_setup` when
             // entering the `GameState::Menu` state.
             // Current screen in the menu is handled by an independent state from `GameState`
             .add_state::<MenuState>()
+            .add_plugins(MenuSetupPlugins)
             .add_system(set_main_menu_state.in_schedule(OnEnter(GameState::MainMenu)))
-            // Systems to handle the main menu screen
-            .add_system(setup_main_menu.in_schedule(OnEnter(MenuState::Main)))
-            .add_system(despawn_node::<OnMenu<Main>>.in_schedule(OnExit(MenuState::Main)))
             .add_systems(
                 (
                     handle_menu_actions
@@ -325,10 +373,7 @@ impl Plugin for MenuPlugin {
                         .run_if(in_state(GameState::MainMenu)),
                 )
                     .in_base_set(CoreSet::Update),
-            )
-            // Systems to handle the settings menu screen
-            .add_system(setup_settings_menu.in_schedule(OnEnter(MenuState::Settings)))
-            .add_system(despawn_node::<OnMenu<Settings>>.in_schedule(OnExit(MenuState::Settings)));
+            );
         // Systems to handle the display settings screen
         /*.add_systems(
             OnEnter(MenuState::SettingsDisplay),

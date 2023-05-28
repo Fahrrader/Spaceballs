@@ -12,12 +12,6 @@ fn despawn_node<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: 
     }
 }
 
-pub const TEXT_COLOR: Color = colors::AERO_BLUE;
-pub const DEFAULT_BUTTON_COLOR: Color = Color::YELLOW_GREEN;
-pub const HOVERED_BUTTON_COLOR: Color = TEXT_COLOR;
-//const HOVERED_PRESSED_BUTTON: Color = colors::AERO_BLUE;
-pub const PRESSED_BUTTON_COLOR: Color = Color::CYAN;
-
 #[derive(Component, Default, Clone, Copy, Debug)]
 pub(crate) struct ColorInteractionMap {
     default: Option<Color>,

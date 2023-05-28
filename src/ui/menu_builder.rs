@@ -1,15 +1,11 @@
 //use crate::ui::menu::MenuButtonAction;
-use crate::ui::ColorInteractionMap;
-#[allow(unused_imports)]
-use crate::ui::{DEFAULT_BUTTON_COLOR, HOVERED_BUTTON_COLOR, PRESSED_BUTTON_COLOR, TEXT_COLOR};
+use crate::ui::{colors, ColorInteractionMap};
 use bevy::prelude::*;
 
 pub(crate) struct MenuBuildingEnvironment<'a> {
     // maybe do something about privacy here
     // pub(crate) asset_server: &'a ResMut<'a, AssetServer>,
     pub font: Handle<Font>,
-    /// Specifically the background color of a menu screen.
-    pub menu_background_color: Color,
     /// Generally the background color of a UI node, use with caution with alpha stacking.
     pub node_background_color: Color,
     pub title: &'a str,
@@ -19,6 +15,7 @@ pub(crate) struct MenuBuildingEnvironment<'a> {
     pub title_margin: UiRect,
     pub button_size: Size,
     pub button_margin: UiRect,
+    pub title_color: Color,
     pub text_color: Color,
     pub button_color: Color,
     /// If None, will not be changed on interaction
@@ -48,7 +45,6 @@ impl<'a> MenuBuildingEnvironment<'a> {
         Self {
             // asset_server,
             font,
-            menu_background_color: Color::NONE,
             node_background_color: Color::NONE,
             title: "Cosmic\nSpaceball\nTactical Action Arena".into(),
             text_font_size,
@@ -57,10 +53,11 @@ impl<'a> MenuBuildingEnvironment<'a> {
             title_margin,
             button_size,
             button_margin,
-            text_color: TEXT_COLOR,
-            button_color: DEFAULT_BUTTON_COLOR,
-            button_hovered_color: Some(HOVERED_BUTTON_COLOR),
-            button_pressed_color: Some(PRESSED_BUTTON_COLOR),
+            title_color: colors::AERO_BLUE,
+            text_color: colors::AERO_BLUE,
+            button_color: Color::YELLOW_GREEN,
+            button_hovered_color: Some(colors::AERO_BLUE),
+            button_pressed_color: Some(Color::CYAN),
             button_text_color: InheritedColor::Inherit,
             button_text_hovered_color: Some(InheritedColor::Inherit),
             button_text_pressed_color: Some(InheritedColor::Inherit),
@@ -104,30 +101,48 @@ impl InheritedColor {
 }
 
 #[macro_export]
+macro_rules! build_menu_plugin {
+    (($system_name:ident, $menu:ident), $($body:tt)*) => {
+        $crate::build_menu_system!(($system_name, $menu), $($body)*);
+
+        impl Plugin for SingleMenuPlugin<menu_state::$menu> {
+            fn build(&self, app: &mut App) {
+                app
+                    .add_system($system_name.in_schedule(OnEnter(MenuState::$menu)))
+                    .add_system(despawn_node::<OnMenu<menu_state::$menu>>.in_schedule(OnExit(MenuState::$menu)))
+                ;
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! build_menu_system {
-    ($system:ident, $($body:tt)*) => {
-        fn $system(mut commands: Commands, asset_server: ResMut<AssetServer>) {
+    (($system_name:ident, $menu:ident), $($body:tt)*) => {
+        fn $system_name(mut commands: Commands, asset_server: ResMut<AssetServer>) {
             // Configuration values
             let menu_env = $crate::ui::menu_builder::MenuBuildingEnvironment::default(&asset_server);
-
-            $crate::build_menu_item!(commands, menu_env, $($body)*);
+            $crate::build_layout!(commands, menu_env, Screen, (OnMenu::<menu_state::$menu>::default(),), { $($body)* });
         }
+    };
+}
+
+#[macro_export]
+macro_rules! build_menu {
+    ($commands:expr, $asset_server:expr, $($body:tt)*) => {
+        // Configuration values
+        let menu_env = $crate::ui::menu_builder::MenuBuildingEnvironment::default(&$asset_server);
+        $crate::build_menu_item!($commands, menu_env, $($body)*);
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! build_menu_item {
-    // Handling a Column layout
-    ($parent:expr, $menu_shared_vars:ident, Column { $($body:tt)* }, $($rest:tt)*) => {
-        // Create the column element and recursively add its the body as its children
-        $crate::build_column!($parent, $menu_shared_vars, $($body)*);
-        // Recurse on the rest
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
-    };
     // Printing the game's name
     ($parent:expr, $menu_shared_vars:ident, Title, $($rest:tt)*) => {
         $crate::build_title!($parent, $menu_shared_vars);
+        // Recurse on the rest
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
     };
     // Creating a text field out of sections
@@ -145,9 +160,13 @@ macro_rules! build_menu_item {
         $crate::change_menu_environment_context!($parent, $menu_shared_vars, $shared_menu_var = $new_value);
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
     };
-    // Creating menu screen to cover the whole window
-    ($parent:expr, $menu_shared_vars:ident, $menu:ident { $($body:tt)* }, $($rest:tt)*) => {
-        $crate::build_menu_screen!($parent, $menu_shared_vars, $menu, $($body)*);
+    // Creating a menu layout
+    ($parent:expr, $menu_shared_vars:ident, $layout:ident { $($body:tt)* }, $($rest:tt)*) => {
+        $crate::build_layout!($parent, $menu_shared_vars, $layout, (), { $($body)* });
+        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    };
+    ($parent:expr, $menu_shared_vars:ident, $layout:ident + ($($extra_component:expr,)*) { $($body:tt)* }, $($rest:tt)*) => {
+        $crate::build_layout!($parent, $menu_shared_vars, $layout, ($($extra_component,)*), { $($body)* });
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
     };
     // Spawning a custom bundle under the parent
@@ -195,46 +214,40 @@ macro_rules! change_menu_environment_context {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! build_menu_screen {
-    ($parent:expr, $menu_shared_vars:ident, $menu:ident, $($body:tt)*) => {
+macro_rules! build_layout {
+    // Covering whole screen (or available area)
+    ($parent:expr, $menu_shared_vars:ident, Screen, ($($extra_component:expr,)*), { $($body:tt)* }) => {
+        let style = Style {
+            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..default()
+        };
+        $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
+    };
+    // Creating a column
+    ($parent:expr, $menu_shared_vars:ident, Column, ($($extra_component:expr,)*), { $($body:tt)* }) => {
+        let style = Style {
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            ..default()
+        };
+        $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
+    };
+    // Handling arranged layout's style
+    ($parent:expr, $menu_shared_vars:ident, $style:expr, ($($extra_component:expr,)*), $($body:tt)*) => {
         $parent.spawn((
             NodeBundle {
-                style: Style {
-                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
-                background_color: $menu_shared_vars.menu_background_color.into(),
+                style: $style,
+                background_color: $menu_shared_vars.node_background_color.into(),
                 ..default()
-            },
-            OnMenu::<menu_state::$menu>::default(),
+            }
+            $(, $extra_component)*
         ))
         .with_children(|parent| {
             $crate::build_menu_item!(parent, $menu_shared_vars, $($body)*);
         });
-    }
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! build_column {
-    ($parent:expr, $menu_shared_vars:ident, $($body:tt)*) => {
-        $parent.spawn(
-            NodeBundle {
-                style: Style {
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                background_color: $menu_shared_vars.node_background_color.into(),
-                ..default()
-            }
-        )
-        .with_children(|parent| {
-            $crate::build_menu_item!(parent, $menu_shared_vars, $($body)*);
-        });
-    }
+    };
 }
 
 #[doc(hidden)]
@@ -243,7 +256,7 @@ macro_rules! build_title {
     ($parent:expr, $menu_shared_vars:ident) => {
         let title_text_style = TextStyle {
             font_size: $menu_shared_vars.title_font_size,
-            color: $menu_shared_vars.text_color,
+            color: $menu_shared_vars.title_color,
             font: $menu_shared_vars.font.clone(),
         };
 
