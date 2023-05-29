@@ -86,10 +86,9 @@ fn handle_button_style_change(
         (
             &Interaction,
             Option<&SelectedOption>,
-            &ColorInteractionMap,
             Entity,
         ),
-        Changed<Interaction>,
+        (With<ColorInteractionMap>, Changed<Interaction>),
     >,
     mut text_children_query: Query<(&mut Text, Option<&ColorInteractionMap>)>,
     mut node_children_query: Query<(
@@ -100,22 +99,20 @@ fn handle_button_style_change(
 ) {
     fn distill_color(
         interaction: Interaction,
-        node_colors: Option<&ColorInteractionMap>,
-        default_colors: &ColorInteractionMap,
+        node_colors: &ColorInteractionMap,
         present_color: Color,
-    ) -> (Color, bool) {
-        match node_colors.and_then(|map| map.get(interaction)) {
-            Some(color) => (*color, node_colors.unwrap().has_color(present_color)),
-            None => match default_colors.get(interaction) {
-                Some(color) => (*color, default_colors.has_color(present_color)),
-                None => (present_color, false),
-            },
-        }
+        // node_entity: Entity,
+    ) -> Option<Color> {
+        node_colors.get(interaction).copied()
+            .filter(|_| node_colors.has_color(present_color))
+            .or_else(|| {
+                // warn!("UI entity {} has a color interaction map but possesses a color outside of it. Didn't paint over.", node_entity.index());
+                None
+            })
     }
 
     fn paint_nodes(
         interaction: Interaction,
-        default_colors: &ColorInteractionMap,
         children: &Vec<Entity>,
         text_children_query: &mut Query<(&mut Text, Option<&ColorInteractionMap>)>,
         node_children_query: &mut Query<(
@@ -126,35 +123,39 @@ fn handle_button_style_change(
     ) {
         for &child in children.iter() {
             if let Ok((mut text, color_interaction_map)) = text_children_query.get_mut(child) {
-                let (color, _) = distill_color(
-                    interaction,
-                    color_interaction_map,
-                    default_colors,
-                    Color::WHITE,
-                );
-                for mut section in text.sections.iter_mut() {
-                    section.style.color = color;
+                if let Some(color_interaction_map) = color_interaction_map {
+                    // Currently no support for multi-colored texts
+                    for mut section in text.sections.iter_mut() {
+                        let new_color = distill_color(
+                            interaction,
+                            color_interaction_map,
+                            section.style.color,
+                        );
+                        if let Some(new_color) = new_color {
+                            section.style.color = new_color;
+                        }
+                    }
                 }
             }
 
             if let Ok((mut background, color_interaction_map, more_children)) =
                 node_children_query.get_mut(child)
             {
-                let (new_color, should_paint) = distill_color(
-                    interaction,
-                    color_interaction_map,
-                    default_colors,
-                    background.0,
-                );
-                if should_paint {
-                    *background = new_color.into();
+                if let Some(color_interaction_map) = color_interaction_map {
+                    let new_color = distill_color(
+                        interaction,
+                        color_interaction_map,
+                        background.0,
+                    );
+                    if let Some(new_color) = new_color {
+                        *background = new_color.into();
+                    }
                 }
 
                 if let Some(more_children) = more_children {
                     let children_cloned = more_children.iter().cloned().collect();
                     paint_nodes(
                         interaction,
-                        default_colors,
                         &children_cloned,
                         text_children_query,
                         node_children_query,
@@ -164,7 +165,7 @@ fn handle_button_style_change(
         }
     }
 
-    for (interaction, selected, color_interaction_map, entity) in interaction_query.iter() {
+    for (interaction, selected, entity) in interaction_query.iter() {
         let interaction = match (*interaction, selected) {
             (Interaction::None, Some(_)) => Interaction::Hovered,
             _ => *interaction,
@@ -172,7 +173,6 @@ fn handle_button_style_change(
 
         paint_nodes(
             interaction,
-            color_interaction_map,
             &vec![entity],
             &mut text_children_query,
             &mut node_children_query,

@@ -338,7 +338,7 @@ macro_rules! build_buttons {
             font: $menu_shared_vars.font.clone(),
         };
 
-        let mut button_interaction_colors = if $menu_shared_vars.button_hovered_color.is_some() || $menu_shared_vars.button_pressed_color.is_some() {
+        let button_outline_interaction_colors = if $menu_shared_vars.button_hovered_color.is_some() || $menu_shared_vars.button_pressed_color.is_some() {
             ColorInteractionMap::from(vec![
                 (Interaction::None, Some($menu_shared_vars.button_color)),
                 (Interaction::Hovered, $menu_shared_vars.button_hovered_color),
@@ -364,8 +364,12 @@ macro_rules! build_buttons {
                 $action,
             ));
 
+            if button_outline_interaction_colors.is_some() || button_text_interaction_colors.is_some() {
+                entity_commands.insert(ColorInteractionMap::from([]));
+            }
+
             entity_commands.with_children(|parent| {
-                $crate::ui::menu_builder::outline_parent(parent, $menu_shared_vars.outline_width, $menu_shared_vars.button_color, button_interaction_colors);
+                $crate::ui::menu_builder::outline_parent(parent, $menu_shared_vars.outline_width, $menu_shared_vars.button_color, button_outline_interaction_colors);
 
                 let mut entity_commands = parent.spawn(TextBundle::from_section(
                     $text,
@@ -374,15 +378,8 @@ macro_rules! build_buttons {
 
                 if let Some(states) = button_text_interaction_colors {
                     entity_commands.insert(states);
-                    if button_interaction_colors.is_none() {
-                        button_interaction_colors = Some(vec![].into());
-                    }
                 }
             });
-
-            if let Some(states) = button_interaction_colors {
-                entity_commands.insert(states);
-            }
         )*
     };
 }
