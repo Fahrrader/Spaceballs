@@ -1,3 +1,4 @@
+use crate::ui::menu_builder::MaybeDefault;
 use crate::ui::{colors, despawn_node, ColorInteractionMap};
 use crate::{build_menu_plugin, GameState};
 use bevy::app::{AppExit, PluginGroupBuilder};
@@ -83,11 +84,7 @@ struct SelectedOption;
 /// Handle changing all buttons' colors based on mouse interaction.
 fn handle_button_style_change(
     interaction_query: Query<
-        (
-            &Interaction,
-            Option<&SelectedOption>,
-            Entity,
-        ),
+        (&Interaction, Option<&SelectedOption>, Entity),
         (With<ColorInteractionMap>, Changed<Interaction>),
     >,
     mut text_children_query: Query<(&mut Text, Option<&ColorInteractionMap>)>,
@@ -103,7 +100,9 @@ fn handle_button_style_change(
         present_color: Color,
         // node_entity: Entity,
     ) -> Option<Color> {
-        node_colors.get(interaction).copied()
+        node_colors
+            .get(interaction)
+            .copied()
             .filter(|_| node_colors.has_color(present_color))
             .or_else(|| {
                 // warn!("UI entity {} has a color interaction map but possesses a color outside of it. Didn't paint over.", node_entity.index());
@@ -126,11 +125,8 @@ fn handle_button_style_change(
                 if let Some(color_interaction_map) = color_interaction_map {
                     // Currently no support for multi-colored texts
                     for mut section in text.sections.iter_mut() {
-                        let new_color = distill_color(
-                            interaction,
-                            color_interaction_map,
-                            section.style.color,
-                        );
+                        let new_color =
+                            distill_color(interaction, color_interaction_map, section.style.color);
                         if let Some(new_color) = new_color {
                             section.style.color = new_color;
                         }
@@ -142,11 +138,7 @@ fn handle_button_style_change(
                 node_children_query.get_mut(child)
             {
                 if let Some(color_interaction_map) = color_interaction_map {
-                    let new_color = distill_color(
-                        interaction,
-                        color_interaction_map,
-                        background.0,
-                    );
+                    let new_color = distill_color(interaction, color_interaction_map, background.0);
                     if let Some(new_color) = new_color {
                         *background = new_color.into();
                     }
@@ -228,25 +220,33 @@ blurry top node
 
 build_menu_plugin!(
     (setup_main_menu, Main),
+    layout_alignment = AlignItems::Start.into(),
+    layout_height = Val::Percent(42.5).into(),
     Column {
-        Title,
-        //node_background_color = colors::PEACH.with_a(0.3).into(),
-        Buttons [
-            (MenuButtonAction::SinglePlayer, "Singleplayer"),
-            (MenuButtonAction::MultiPlayer, "Multiplayer"),
-        ],
-        {
-            button_color = colors::NEON_PINK.into(),
-            button_text_hovered_color = Some(colors::LEMON.into()),
-            button_font_size = 24.0,
+        text_font_size = 60.0,
+        Text [ "Cosmic\nSpaceball\nTactical Action Arena", ],
+    },
+    layout_alignment = MaybeDefault::default(),
+    layout_height = MaybeDefault::default(),
+    Bottom {
+        Column {
             Buttons [
-                (MenuButtonAction::Controls, "Controls"),
-                (MenuButtonAction::Settings, "Settings"),
+                (MenuButtonAction::SinglePlayer, "Singleplayer"),
+                (MenuButtonAction::MultiPlayer, "Multiplayer"),
+            ],
+            {
+                button_color = colors::NEON_PINK.into(),
+                button_text_hovered_color = Some(colors::LEMON.into()),
+                button_font_size = 24.0,
+                Buttons [
+                    (MenuButtonAction::Controls, "Controls"),
+                    (MenuButtonAction::Settings, "Settings"),
+                ],
+            },
+            Buttons [
+                (MenuButtonAction::Quit, "Quit"),
             ],
         },
-        Buttons [
-            (MenuButtonAction::Quit, "Quit"),
-        ],
     },
 );
 
@@ -263,6 +263,8 @@ build_menu_plugin!(
             text_color = colors::LAVENDER,
             "Go back to the playroom, stud.\n",
         ],
+    },
+    Bottom {
         Buttons [
             (MenuButtonAction::QuitToMenu, "Back"),
         ],
@@ -271,7 +273,7 @@ build_menu_plugin!(
 
 build_menu_plugin!(
     (setup_controls_menu, Controls),
-    Column {
+    Bottom {
         Buttons [
             (MenuButtonAction::QuitToMenu, "Back"),
         ],
@@ -280,15 +282,24 @@ build_menu_plugin!(
 
 build_menu_plugin!(
     (setup_multiplayer_menu, MultiPlayer),
-    Column {
-        Text [
-            "Multiplayer",
-        ],
-        Buttons [
-            (MenuButtonAction::JoinGame, "Join Game"),
-            (MenuButtonAction::HostGame, "Host Game"),
-            (MenuButtonAction::QuitToMenu, "Back"),
-        ],
+    // Top
+    {
+        layout_alignment = AlignItems::Start.into(),
+        layout_own_alignment = AlignSelf::Start.into(),
+        Column {
+            Text [
+                "Multiplayer",
+            ],
+        },
+    },
+    Bottom {
+        Column {
+            Buttons [
+                (MenuButtonAction::JoinGame, "Join Game"),
+                (MenuButtonAction::HostGame, "Host Game"),
+                (MenuButtonAction::QuitToMenu, "Back"),
+            ],
+        },
     },
 );
 

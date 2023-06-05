@@ -2,20 +2,21 @@
 use crate::ui::{colors, ColorInteractionMap};
 use bevy::prelude::*;
 
-pub(crate) struct MenuBuildingEnvironment<'a> {
+pub(crate) struct MenuBuildingEnvironment {
     // maybe do something about privacy here
     // pub(crate) asset_server: &'a ResMut<'a, AssetServer>,
     pub font: Handle<Font>,
     /// Generally the background color of a UI node, use with caution with alpha stacking.
     pub node_background_color: Color,
-    pub title: &'a str,
+    pub layout_width: MaybeDefault<Val>,
+    pub layout_height: MaybeDefault<Val>,
+    pub layout_alignment: MaybeDefault<AlignItems>,
+    pub layout_own_alignment: MaybeDefault<AlignSelf>,
+    pub layout_content: MaybeDefault<JustifyContent>,
     pub text_font_size: f32,
-    pub title_font_size: f32,
     pub button_font_size: f32,
-    pub title_margin: UiRect,
     pub button_size: Size,
     pub button_margin: UiRect,
-    pub title_color: Color,
     pub text_color: Color,
     pub button_color: Color,
     /// If None, will not be changed on interaction
@@ -30,14 +31,12 @@ pub(crate) struct MenuBuildingEnvironment<'a> {
     pub outline_width: Val,
 }
 
-impl<'a> MenuBuildingEnvironment<'a> {
-    pub fn default(asset_server: &'a ResMut<'a, AssetServer>) -> Self {
+impl MenuBuildingEnvironment {
+    pub fn default(asset_server: &ResMut<AssetServer>) -> Self {
         let font = asset_server.load("fonts/Spacerunner.otf");
         let text_font_size = 30.0;
         let button_font_size = text_font_size;
-        let title_font_size = 60.0;
 
-        let title_margin = UiRect::all(Val::Px(50.0));
         let button_size = Size::new(Val::Px(390.0), Val::Px(65.0));
         let button_margin = UiRect::all(Val::Px(8.0));
         let outline_width = Val::Px(4.0);
@@ -46,14 +45,15 @@ impl<'a> MenuBuildingEnvironment<'a> {
             // asset_server,
             font,
             node_background_color: Color::NONE,
-            title: "Cosmic\nSpaceball\nTactical Action Arena".into(),
+            layout_width: MaybeDefault::Default,
+            layout_height: MaybeDefault::Default,
+            layout_alignment: MaybeDefault::Default,
+            layout_own_alignment: MaybeDefault::Default,
+            layout_content: MaybeDefault::Default,
             text_font_size,
-            title_font_size,
             button_font_size,
-            title_margin,
             button_size,
             button_margin,
-            title_color: colors::AERO_BLUE,
             text_color: colors::AERO_BLUE,
             button_color: Color::YELLOW_GREEN,
             button_hovered_color: Some(colors::AERO_BLUE),
@@ -100,6 +100,35 @@ impl InheritedColor {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) enum MaybeDefault<T: Default + Copy> {
+    Some(T),
+    #[default]
+    Default,
+}
+
+impl<T: Default + Copy> MaybeDefault<T> {
+    pub fn get_or_default(&self) -> T {
+        match self {
+            MaybeDefault::Some(x) => *x,
+            MaybeDefault::Default => T::default(),
+        }
+    }
+
+    pub fn get_or(&self, default: T) -> T {
+        match self {
+            MaybeDefault::Some(x) => *x,
+            MaybeDefault::Default => default,
+        }
+    }
+}
+
+impl<T: Default + Copy> From<T> for MaybeDefault<T> {
+    fn from(value: T) -> Self {
+        MaybeDefault::Some(value)
+    }
+}
+
 #[macro_export]
 macro_rules! build_menu_plugin {
     (($system_name:ident, $menu:ident), $($body:tt)*) => {
@@ -139,12 +168,6 @@ macro_rules! build_menu {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! build_menu_item {
-    // Printing the game's name
-    ($parent:expr, $menu_shared_vars:ident, Title, $($rest:tt)*) => {
-        $crate::build_title!($parent, $menu_shared_vars);
-        // Recurse on the rest
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
-    };
     // Creating a text field out of sections
     ($parent:expr, $menu_shared_vars:ident, Text [ $($text:tt)* ], $($rest:tt)*) => {
         $crate::build_text!($parent, $menu_shared_vars, $($text)*);
@@ -182,11 +205,9 @@ macro_rules! build_menu_item {
 
     // Creating nested blocks, thus offering ability to apply and afterwards revert changes to shared variables
     ($parent:expr, $menu_shared_vars:ident, { $($body:tt)* }, $($rest:tt)*) => {
-        //$parent.spawn(NodeBundle::default()).with_children(|parent| {
         {
             $crate::build_menu_item!($parent, $menu_shared_vars, $($body)*);
         }
-        //});
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
     };
     // Exiting when there are no more tokens
@@ -219,17 +240,50 @@ macro_rules! build_layout {
     ($parent:expr, $menu_shared_vars:ident, Screen, ($($extra_component:expr,)*), { $($body:tt)* }) => {
         let style = Style {
             size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
+            align_items: $menu_shared_vars.layout_alignment.get_or_default(),
+            justify_content: $menu_shared_vars.layout_content.get_or(JustifyContent::Center),
+            padding: UiRect::all(Val::Percent(2.5)),
+            ..default()
+        };
+        $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
+    };
+    // Creating a container at the top of the screen
+    ($parent:expr, $menu_shared_vars:ident, Top, ($($extra_component:expr,)*), { $($body:tt)* }) => {
+        $crate::build_layout!($parent, $menu_shared_vars, _quarter_screen, UiRect::top(Val::Percent(0.)), ($($extra_component,)*), $($body)*);
+    };
+    // Creating a container at the bottom of the screen
+    ($parent:expr, $menu_shared_vars:ident, Bottom, ($($extra_component:expr,)*), { $($body:tt)* }) => {
+        $crate::build_layout!($parent, $menu_shared_vars, _quarter_screen, UiRect::bottom(Val::Percent(0.)), ($($extra_component,)*), $($body)*);
+    };
+    // Built-in quarter-screen container
+    ($parent:expr, $menu_shared_vars:ident, _quarter_screen, $position:expr, ($($extra_component:expr,)*), $($body:tt)*) => {
+        let style = Style {
+            size: Size::new($menu_shared_vars.layout_width.get_or_default(), $menu_shared_vars.layout_height.get_or(Val::Percent(25.))),
+            align_items: $menu_shared_vars.layout_alignment.get_or(AlignItems::End),
+            align_self: $menu_shared_vars.layout_own_alignment.get_or_default(),
+            justify_content: $menu_shared_vars.layout_content.get_or(JustifyContent::SpaceEvenly),
+            position_type: PositionType::Absolute,
+            position: $position,
+            margin: UiRect::all(Val::Percent(2.5)),
             ..default()
         };
         $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
     };
     // Creating a column
     ($parent:expr, $menu_shared_vars:ident, Column, ($($extra_component:expr,)*), { $($body:tt)* }) => {
+        $crate::build_layout!($parent, $menu_shared_vars, _column, FlexDirection::Column, ($($extra_component,)*), $($body)*);
+    };
+    ($parent:expr, $menu_shared_vars:ident, ColumnReverse, ($($extra_component:expr,)*), { $($body:tt)* }) => {
+        $crate::build_layout!($parent, $menu_shared_vars, _column, FlexDirection::ColumnReverse, ($($extra_component,)*), $($body)*);
+    };
+    // Built-in column
+    ($parent:expr, $menu_shared_vars:ident, _column, $flex_direction:path, ($($extra_component:expr,)*), $($body:tt)*) => {
         let style = Style {
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
+            size: Size::new($menu_shared_vars.layout_width.get_or_default(), $menu_shared_vars.layout_height.get_or_default()),
+            align_items: $menu_shared_vars.layout_alignment.get_or(AlignItems::Center),
+            align_self: $menu_shared_vars.layout_own_alignment.get_or_default(),
+            justify_content: $menu_shared_vars.layout_content.get_or(JustifyContent::SpaceEvenly),
+            flex_direction: $flex_direction,
             ..default()
         };
         $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
@@ -247,27 +301,6 @@ macro_rules! build_layout {
         .with_children(|parent| {
             $crate::build_menu_item!(parent, $menu_shared_vars, $($body)*);
         });
-    };
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! build_title {
-    ($parent:expr, $menu_shared_vars:ident) => {
-        let title_text_style = TextStyle {
-            font_size: $menu_shared_vars.title_font_size,
-            color: $menu_shared_vars.title_color,
-            font: $menu_shared_vars.font.clone(),
-        };
-
-        $parent.spawn(
-            TextBundle::from_section($menu_shared_vars.title, title_text_style)
-                .with_style(Style {
-                    margin: $menu_shared_vars.title_margin,
-                    ..default()
-                })
-                .with_text_alignment(TextAlignment::Center),
-        );
     };
 }
 
