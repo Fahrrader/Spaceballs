@@ -2,33 +2,65 @@
 use crate::ui::{colors, ColorInteractionMap};
 use bevy::prelude::*;
 
-pub(crate) struct MenuBuildingEnvironment {
+macro_rules! make_menu_building_environment {
+    {$($(#[$doc:meta])? $field:ident: $typ:ty $(,)?)*} => {
+        pub(crate) struct MenuBuildingEnvironment {
+            $(
+                $(#[$doc])?
+                pub $field: $typ,
+            )*
+            pub temporaries: TempMenuBuildingEnvironment,
+        }
+
+        #[derive(Clone, Debug, Default)]
+        pub(crate) struct TempMenuBuildingEnvironment {
+            $(
+                $(#[$doc])?
+                pub $field: Option<$typ>,
+            )*
+        }
+
+        impl MenuBuildingEnvironment {
+            pub fn unite_with_temporaries(&mut self) -> Self {
+                Self {
+                    $(
+                        $field: $crate::get!(self.$field),
+                    )*
+                    temporaries: default(),
+                }
+                //self.take_temporaries();
+            }
+        }
+    };
+}
+
+make_menu_building_environment! {
     // maybe do something about privacy here
     // pub(crate) asset_server: &'a ResMut<'a, AssetServer>,
-    pub font: Handle<Font>,
+    font: Handle<Font>,
     /// Generally the background color of a UI node, use with caution with alpha stacking.
-    pub node_background_color: Color,
-    pub layout_width: MaybeDefault<Val>,
-    pub layout_height: MaybeDefault<Val>,
-    pub layout_alignment: MaybeDefault<AlignItems>,
-    pub layout_own_alignment: MaybeDefault<AlignSelf>,
-    pub layout_content: MaybeDefault<JustifyContent>,
-    pub text_font_size: f32,
-    pub button_font_size: f32,
-    pub button_size: Size,
-    pub button_margin: UiRect,
-    pub text_color: Color,
-    pub button_color: Color,
+    node_background_color: Color,
+    layout_width: MaybeDefault<Val>,
+    layout_height: MaybeDefault<Val>,
+    layout_alignment: MaybeDefault<AlignItems>,
+    layout_own_alignment: MaybeDefault<AlignSelf>,
+    layout_content: MaybeDefault<JustifyContent>,
+    text_font_size: f32,
+    button_font_size: f32,
+    button_size: Size,
+    button_margin: UiRect,
+    text_color: Color,
+    button_color: Color,
     /// If None, will not be changed on interaction
-    pub button_hovered_color: Option<Color>,
+    button_hovered_color: Option<Color>,
     /// If None, will not be changed on interaction
-    pub button_pressed_color: Option<Color>,
-    pub button_text_color: InheritedColor,
+    button_pressed_color: Option<Color>,
+    button_text_color: InheritedColor,
     /// If None, will not be changed on interaction
-    pub button_text_hovered_color: Option<InheritedColor>,
+    button_text_hovered_color: Option<InheritedColor>,
     /// If None, will not be changed on interaction
-    pub button_text_pressed_color: Option<InheritedColor>,
-    pub outline_width: Val,
+    button_text_pressed_color: Option<InheritedColor>,
+    outline_width: Val,
 }
 
 impl MenuBuildingEnvironment {
@@ -62,12 +94,38 @@ impl MenuBuildingEnvironment {
             button_text_hovered_color: Some(InheritedColor::Inherit),
             button_text_pressed_color: Some(InheritedColor::Inherit),
             outline_width,
+            temporaries: TempMenuBuildingEnvironment::default(),
         }
+    }
+
+    pub fn reset_temporaries(&mut self) {
+        self.temporaries = default()
     }
 
     // pub fn load_asset<T: Asset, P: Into<AssetPath<'a>>>(&self, path: P) -> Handle<T> {
     //     self.asset_server.load(path)
     // }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! get {
+    ($environment:ident.font) => {
+        $environment.temporaries.font
+            .clone()
+            .unwrap_or_else(|| $environment.font.clone())
+    };
+    ($environment:ident.$variable:ident) => {
+        $environment.temporaries.$variable.unwrap_or($environment.$variable)
+    };
+    ($environment:ident, $($variable:ident $(,)?)*) => {
+        ($(
+            $crate::get!($environment.$variable),
+        )*)
+    };
+    ($environment:ident) => {
+        $environment.unite_with_temporaries()
+    };
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -87,7 +145,7 @@ impl InheritedColor {
         match self {
             InheritedColor::Own(color) => Ok(*color),
             InheritedColor::Inherit => parent_color.ok_or(
-                "Did not provide parent color, while the inherited color does not have its Own.",
+                "Did not provide parent color, while the inherited color does not have its `Own`.",
             ),
         }
     }
@@ -150,7 +208,8 @@ macro_rules! build_menu_system {
     (($system_name:ident, $menu:ident), $($body:tt)*) => {
         fn $system_name(mut commands: Commands, asset_server: ResMut<AssetServer>) {
             // Configuration values
-            let menu_env = $crate::ui::menu_builder::MenuBuildingEnvironment::default(&asset_server);
+            #[allow(unused_mut)]
+            let mut menu_env = $crate::ui::menu_builder::MenuBuildingEnvironment::default(&asset_server);
             $crate::build_layout!(commands, menu_env, Screen, (OnMenu::<menu_state::$menu>::default(),), { $($body)* });
         }
     };
@@ -183,11 +242,17 @@ macro_rules! build_menu_item {
         $crate::change_menu_environment_context!($parent, $menu_shared_vars, $shared_menu_var = $new_value);
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
     };
+    // Changing one of the shared menu building variables for the current scope -- but only once
+    ($parent:expr, $menu_shared_vars:ident, once $shared_menu_var:ident = $new_value:expr, $($rest:tt)*) => {
+        $crate::change_menu_environment_context!($parent, $menu_shared_vars, once $shared_menu_var = $new_value);
+        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    };
     // Creating a menu layout
     ($parent:expr, $menu_shared_vars:ident, $layout:ident { $($body:tt)* }, $($rest:tt)*) => {
         $crate::build_layout!($parent, $menu_shared_vars, $layout, (), { $($body)* });
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
     };
+    // Creating a menu layout with extra components attached to the node
     ($parent:expr, $menu_shared_vars:ident, $layout:ident + ($($extra_component:expr,)*) { $($body:tt)* }, $($rest:tt)*) => {
         $crate::build_layout!($parent, $menu_shared_vars, $layout, ($($extra_component,)*), { $($body)* });
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
@@ -219,17 +284,33 @@ macro_rules! build_menu_item {
 macro_rules! change_menu_environment_context {
     // Separate `font`, as it does not implement the Copyable trait
     ($parent:expr, $menu_shared_vars:ident, font = $new_value:expr) => {
-        let $menu_shared_vars = $crate::ui::menu_builder::MenuBuildingEnvironment {
+        #[allow(unused_mut)]
+        let mut $menu_shared_vars = $crate::ui::menu_builder::MenuBuildingEnvironment {
             font: $new_value,
+            temporaries: $menu_shared_vars.temporaries.clone(),
             ..$menu_shared_vars
         };
     };
     ($parent:expr, $menu_shared_vars:ident, $shared_menu_var:ident = $new_value:expr) => {
-        let $menu_shared_vars = $crate::ui::menu_builder::MenuBuildingEnvironment {
+        #[allow(unused_mut)]
+        let mut $menu_shared_vars = $crate::ui::menu_builder::MenuBuildingEnvironment {
             $shared_menu_var: $new_value,
             font: $menu_shared_vars.font.clone(),
+            temporaries: $menu_shared_vars.temporaries.clone(),
             ..$menu_shared_vars
         };
+    };
+    ($parent:expr, $menu_shared_vars:ident, once $shared_menu_var:ident = $new_value:expr) => {
+        $menu_shared_vars.temporaries.$shared_menu_var = Some($new_value);
+        /*let $menu_shared_vars = $crate::ui::menu_builder::MenuBuildingEnvironment {
+            font: $menu_shared_vars.font.clone(),
+            temporaries: $crate::ui::menu_builder::TempMenuBuildingEnvironment {
+                $shared_menu_var: $new_value,
+                font: $menu_shared_vars.temporaries.font.clone(),
+                ..$menu_shared_vars.temporaries
+            }
+            ..$menu_shared_vars
+        };*/
     };
 }
 
@@ -238,10 +319,11 @@ macro_rules! change_menu_environment_context {
 macro_rules! build_layout {
     // Covering whole screen (or available area)
     ($parent:expr, $menu_shared_vars:ident, Screen, ($($extra_component:expr,)*), { $($body:tt)* }) => {
+        let (layout_alignment, layout_content) = $crate::get!($menu_shared_vars, layout_alignment, layout_content);
         let style = Style {
             size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-            align_items: $menu_shared_vars.layout_alignment.get_or_default(),
-            justify_content: $menu_shared_vars.layout_content.get_or(JustifyContent::Center),
+            align_items: layout_alignment.get_or_default(),
+            justify_content: layout_content.get_or(JustifyContent::Center),
             padding: UiRect::all(Val::Percent(2.5)),
             ..default()
         };
@@ -257,11 +339,12 @@ macro_rules! build_layout {
     };
     // Built-in quarter-screen container
     ($parent:expr, $menu_shared_vars:ident, _quarter_screen, $position:expr, ($($extra_component:expr,)*), $($body:tt)*) => {
+        let msv = $crate::get!($menu_shared_vars);
         let style = Style {
-            size: Size::new($menu_shared_vars.layout_width.get_or_default(), $menu_shared_vars.layout_height.get_or(Val::Percent(25.))),
-            align_items: $menu_shared_vars.layout_alignment.get_or(AlignItems::End),
-            align_self: $menu_shared_vars.layout_own_alignment.get_or_default(),
-            justify_content: $menu_shared_vars.layout_content.get_or(JustifyContent::SpaceEvenly),
+            size: Size::new(msv.layout_width.get_or_default(), msv.layout_height.get_or(Val::Percent(25.))),
+            align_items: msv.layout_alignment.get_or(AlignItems::End),
+            align_self: msv.layout_own_alignment.get_or_default(),
+            justify_content: msv.layout_content.get_or(JustifyContent::SpaceEvenly),
             position_type: PositionType::Absolute,
             position: $position,
             margin: UiRect::all(Val::Percent(2.5)),
@@ -278,11 +361,12 @@ macro_rules! build_layout {
     };
     // Built-in column
     ($parent:expr, $menu_shared_vars:ident, _column, $flex_direction:path, ($($extra_component:expr,)*), $($body:tt)*) => {
+        let msv = $crate::get!($menu_shared_vars);
         let style = Style {
-            size: Size::new($menu_shared_vars.layout_width.get_or_default(), $menu_shared_vars.layout_height.get_or_default()),
-            align_items: $menu_shared_vars.layout_alignment.get_or(AlignItems::Center),
-            align_self: $menu_shared_vars.layout_own_alignment.get_or_default(),
-            justify_content: $menu_shared_vars.layout_content.get_or(JustifyContent::SpaceEvenly),
+            size: Size::new(msv.layout_width.get_or_default(), msv.layout_height.get_or_default()),
+            align_items: msv.layout_alignment.get_or(AlignItems::Center),
+            align_self: msv.layout_own_alignment.get_or_default(),
+            justify_content: msv.layout_content.get_or(JustifyContent::SpaceEvenly),
             flex_direction: $flex_direction,
             ..default()
         };
@@ -290,15 +374,16 @@ macro_rules! build_layout {
     };
     // Handling arranged layout's style
     ($parent:expr, $menu_shared_vars:ident, $style:expr, ($($extra_component:expr,)*), $($body:tt)*) => {
-        $parent.spawn((
+        let mut entity_commands = $parent.spawn((
             NodeBundle {
                 style: $style,
-                background_color: $menu_shared_vars.node_background_color.into(),
+                background_color: $crate::get!($menu_shared_vars.node_background_color).into(),
                 ..default()
             }
             $(, $extra_component)*
-        ))
-        .with_children(|parent| {
+        ));
+        $menu_shared_vars.reset_temporaries();
+        entity_commands.with_children(|parent| {
             $crate::build_menu_item!(parent, $menu_shared_vars, $($body)*);
         });
     };
@@ -309,12 +394,7 @@ macro_rules! build_layout {
 macro_rules! build_text {
     ($parent:expr, $menu_shared_vars:ident, $($body:tt)*) => {
         let mut sections = vec![];
-        let text_style = TextStyle {
-            font_size: $menu_shared_vars.text_font_size,
-            color: $menu_shared_vars.text_color,
-            font: $menu_shared_vars.font.clone(),
-        };
-        $crate::create_text_sections!($parent, $menu_shared_vars, sections, text_style, $($body)*);
+        $crate::create_text_sections!($parent, $menu_shared_vars, sections, $($body)*);
         $parent.spawn(
             TextBundle::from_sections(sections)
                 .with_text_alignment(TextAlignment::Center),
@@ -326,31 +406,36 @@ macro_rules! build_text {
 #[macro_export]
 macro_rules! create_text_sections {
     // Handling shared variable changes
-    ($parent:expr, $menu_shared_vars:ident, $sections:ident, $text_style:ident, $shared_menu_var:ident = $new_value:expr, $($rest:tt)*) => {
+    ($parent:expr, $menu_shared_vars:ident, $sections:ident, $shared_menu_var:ident = $new_value:expr, $($rest:tt)*) => {
         $crate::change_menu_environment_context!($parent, $menu_shared_vars, $shared_menu_var = $new_value);
-        let text_style = TextStyle {
-            font_size: $menu_shared_vars.text_font_size,
-            color: $menu_shared_vars.text_color,
-            font: $menu_shared_vars.font.clone(),
-        };
-        $crate::create_text_sections!($parent, $menu_shared_vars, $sections, text_style, $($rest)*);
+        $crate::create_text_sections!($parent, $menu_shared_vars, $sections, $($rest)*);
+    };
+    // Handling shared variable changes -- but only for a single use
+    ($parent:expr, $menu_shared_vars:ident, $sections:ident, once $shared_menu_var:ident = $new_value:expr, $($rest:tt)*) => {
+        $crate::change_menu_environment_context!($parent, $menu_shared_vars, once $shared_menu_var = $new_value);
+        $crate::create_text_sections!($parent, $menu_shared_vars, $sections, $($rest)*);
     };
     // Creating nested blocks, thus offering ability to apply and afterwards revert changes to shared variables
-    ($parent:expr, $menu_shared_vars:ident, $sections:ident, $text_style:ident, { $($body:tt)* }, $($rest:tt)*) => {
+    ($parent:expr, $menu_shared_vars:ident, $sections:ident, { $($body:tt)* }, $($rest:tt)*) => {
         {
-            $crate::create_text_sections!($parent, $menu_shared_vars, $sections, $text_style, $($body)*);
+            $crate::create_text_sections!($parent, $menu_shared_vars, $sections, $($body)*);
         }
-        $crate::create_text_sections!($parent, $menu_shared_vars, $sections, $text_style, $($rest)*);
+        $crate::create_text_sections!($parent, $menu_shared_vars, $sections, $($rest)*);
     };
-    ($parent:expr, $menu_shared_vars:ident, $sections:ident, $text_style:ident, $text:expr, $($rest:tt)*) => {
+    ($parent:expr, $menu_shared_vars:ident, $sections:ident, $text:expr, $($rest:tt)*) => {
         let text_section = TextSection::new(
             $text,
-            $text_style.clone(),
+            TextStyle {
+                font_size: $crate::get!($menu_shared_vars.text_font_size),
+                color: $crate::get!($menu_shared_vars.text_color),
+                font: $crate::get!($menu_shared_vars.font),
+            },
         );
         $sections.push(text_section);
-        $crate::create_text_sections!($parent, $menu_shared_vars, $sections, $text_style, $($rest)*);
+        $menu_shared_vars.reset_temporaries();
+        $crate::create_text_sections!($parent, $menu_shared_vars, $sections, $($rest)*);
     };
-    ($parent:expr, $menu_shared_vars:ident, $sections:ident, $text_style:ident,) => {};
+    ($parent:expr, $menu_shared_vars:ident, $sections:ident,) => {};
 }
 
 #[doc(hidden)]
@@ -358,40 +443,46 @@ macro_rules! create_text_sections {
 macro_rules! build_buttons {
     //                                                                 $(+ $extra:tt)*, )*) => { ...
     ($parent:expr, $menu_shared_vars:ident, $(($action:expr, $text:expr),)*) => {
+        let msv = $crate::get!($menu_shared_vars);
+        $menu_shared_vars.reset_temporaries();
+
         let button_style = Style {
-            size: $menu_shared_vars.button_size,
-            margin: $menu_shared_vars.button_margin,
+            size: msv.button_size,
+            margin: msv.button_margin,
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
             ..default()
         };
         let button_text_style = TextStyle {
-            font_size: $menu_shared_vars.button_font_size,
-            color: $menu_shared_vars.button_text_color.resolve($menu_shared_vars.button_color),
-            font: $menu_shared_vars.font.clone(),
+            font_size: msv.button_font_size,
+            color: msv.button_text_color.resolve(msv.button_color),
+            font: msv.font,
         };
 
-        let button_outline_interaction_colors = if $menu_shared_vars.button_hovered_color.is_some() || $menu_shared_vars.button_pressed_color.is_some() {
+        let button_outline_interaction_colors = if msv.button_hovered_color.is_some() || msv.button_pressed_color.is_some() {
             ColorInteractionMap::from(vec![
-                (Interaction::None, Some($menu_shared_vars.button_color)),
-                (Interaction::Hovered, $menu_shared_vars.button_hovered_color),
-                (Interaction::Clicked, $menu_shared_vars.button_pressed_color),
+                (Interaction::None, Some(msv.button_color)),
+                (Interaction::Hovered, msv.button_hovered_color),
+                (Interaction::Clicked, msv.button_pressed_color),
             ]).into()
         } else { None };
 
-        let button_text_interaction_colors = if $menu_shared_vars.button_text_hovered_color.is_some() || $menu_shared_vars.button_text_pressed_color.is_some() {
+        let button_text_interaction_colors = if msv.button_text_hovered_color.is_some() || msv.button_text_pressed_color.is_some() {
             ColorInteractionMap::from([
-                (Interaction::None, $menu_shared_vars.button_text_color.try_resolve(Some($menu_shared_vars.button_color)).ok()),
-                (Interaction::Hovered, $menu_shared_vars.button_text_hovered_color.and_then(|color| color.try_resolve($menu_shared_vars.button_hovered_color).ok())),
-                (Interaction::Clicked, $menu_shared_vars.button_text_pressed_color.and_then(|color| color.try_resolve($menu_shared_vars.button_pressed_color).ok())),
+                (Interaction::None, msv.button_text_color.try_resolve(Some(msv.button_color)).ok()),
+                (Interaction::Hovered, msv.button_text_hovered_color.and_then(|color| color.try_resolve(msv.button_hovered_color).ok())),
+                (Interaction::Clicked, msv.button_text_pressed_color.and_then(|color| color.try_resolve(msv.button_pressed_color).ok())),
             ]).into()
         } else { None };
 
+        let background_color = msv.node_background_color.into();
+        let outline_width = msv.outline_width;
+        let button_color = msv.button_color;
         $(
             let mut entity_commands = $parent.spawn((
                 ButtonBundle {
                     style: button_style.clone(),
-                    background_color: $menu_shared_vars.node_background_color.into(),
+                    background_color,
                     ..default()
                 },
                 $action,
@@ -402,7 +493,7 @@ macro_rules! build_buttons {
             }
 
             entity_commands.with_children(|parent| {
-                $crate::ui::menu_builder::outline_parent(parent, $menu_shared_vars.outline_width, $menu_shared_vars.button_color, button_outline_interaction_colors);
+                $crate::ui::menu_builder::outline_parent(parent, outline_width, button_color, button_outline_interaction_colors);
 
                 let mut entity_commands = parent.spawn(TextBundle::from_section(
                     $text,

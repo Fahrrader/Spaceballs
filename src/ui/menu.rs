@@ -1,4 +1,3 @@
-use crate::ui::menu_builder::MaybeDefault;
 use crate::ui::{colors, despawn_node, ColorInteractionMap};
 use crate::{build_menu_plugin, GameState};
 use bevy::app::{AppExit, PluginGroupBuilder};
@@ -220,14 +219,12 @@ blurry top node
 
 build_menu_plugin!(
     (setup_main_menu, Main),
-    layout_alignment = AlignItems::Start.into(),
-    layout_height = Val::Percent(42.5).into(),
+    once layout_alignment = AlignItems::Start.into(),
+    once layout_height = Val::Percent(42.5).into(),
     Column {
         text_font_size = 60.0,
         Text [ "Cosmic\nSpaceball\nTactical Action Arena", ],
     },
-    layout_alignment = MaybeDefault::default(),
-    layout_height = MaybeDefault::default(),
     Bottom {
         Column {
             Buttons [
@@ -255,10 +252,8 @@ build_menu_plugin!(
     Column {
         Text [
             "Haha you expected settings, but it was me, ",
-            {
-                text_color = colors::LEMON,
-                "Dio",
-            },
+            once text_color = colors::LEMON,
+            "Dio",
             "!\n",
             text_color = colors::LAVENDER,
             "Go back to the playroom, stud.\n",
@@ -282,15 +277,12 @@ build_menu_plugin!(
 
 build_menu_plugin!(
     (setup_multiplayer_menu, MultiPlayer),
-    // Top
-    {
-        layout_alignment = AlignItems::Start.into(),
-        layout_own_alignment = AlignSelf::Start.into(),
-        Column {
-            Text [
-                "Multiplayer",
-            ],
-        },
+    once layout_alignment = AlignItems::Start.into(),
+    once layout_own_alignment = AlignSelf::Start.into(),
+    Column {
+        Text [
+            "Multiplayer",
+        ],
     },
     Bottom {
         Column {
