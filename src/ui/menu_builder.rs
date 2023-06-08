@@ -2,6 +2,11 @@
 use crate::ui::{colors, ColorInteractionMap};
 use bevy::prelude::*;
 
+pub const DEFAULT_TEXT_COLOR: Color = colors::AERO_BLUE;
+pub const DEFAULT_BUTTON_COLOR: Color = Color::YELLOW_GREEN;
+pub const DEFAULT_BUTTON_HOVERED_COLOR: Color = colors::AERO_BLUE;
+pub const DEFAULT_BUTTON_PRESSED_COLOR: Color = Color::CYAN;
+
 macro_rules! make_menu_building_environment {
     {$($(#[$doc:meta])? $field:ident: $typ:ty $(,)?)*} => {
         pub(crate) struct MenuBuildingEnvironment {
@@ -86,10 +91,10 @@ impl MenuBuildingEnvironment {
             button_font_size,
             button_size,
             button_margin,
-            text_color: colors::AERO_BLUE,
-            button_color: Color::YELLOW_GREEN,
-            button_hovered_color: Some(colors::AERO_BLUE),
-            button_pressed_color: Some(Color::CYAN),
+            text_color: DEFAULT_TEXT_COLOR,
+            button_color: DEFAULT_BUTTON_COLOR,
+            button_hovered_color: Some(DEFAULT_BUTTON_HOVERED_COLOR),
+            button_pressed_color: Some(DEFAULT_BUTTON_PRESSED_COLOR),
             button_text_color: InheritedColor::Inherit,
             button_text_hovered_color: Some(InheritedColor::Inherit),
             button_text_pressed_color: Some(InheritedColor::Inherit),
@@ -229,7 +234,17 @@ macro_rules! build_menu {
 macro_rules! build_menu_item {
     // Creating a text field out of sections
     ($parent:expr, $menu_shared_vars:ident, Text [ $($text:tt)* ], $($rest:tt)*) => {
-        $crate::build_text!($parent, $menu_shared_vars, $($text)*);
+        $crate::build_text!($parent, $menu_shared_vars, (), $($text)*);
+        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    };
+    // Creating a text field out of sections
+    ($parent:expr, $menu_shared_vars:ident, Text + ($($extra_components:expr,)*) [ $($text:tt)* ], $($rest:tt)*) => {
+        $crate::build_text!($parent, $menu_shared_vars, ($($extra_components,)*), $($text)*);
+        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    };
+    // Creating a text field out of sections with optional components
+    ($parent:expr, $menu_shared_vars:ident, Text [ $($text:tt)* ] + ($($extra_components:expr,)*), $($rest:tt)*) => {
+        $crate::build_text!($parent, $menu_shared_vars, ($($extra_components,)*), $($text)*);
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
     };
     // Handling buttons, their action component and text
@@ -392,13 +407,14 @@ macro_rules! build_layout {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! build_text {
-    ($parent:expr, $menu_shared_vars:ident, $($body:tt)*) => {
+    ($parent:expr, $menu_shared_vars:ident, ($($extra_components:expr,)*), $($body:tt)*) => {
         let mut sections = vec![];
         $crate::create_text_sections!($parent, $menu_shared_vars, sections, $($body)*);
-        $parent.spawn(
+        $parent.spawn((
             TextBundle::from_sections(sections)
                 .with_text_alignment(TextAlignment::Center),
-        );
+            $($extra_components,)*
+        ));
     };
 }
 

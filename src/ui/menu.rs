@@ -1,3 +1,4 @@
+use crate::ui::menu_builder::DEFAULT_TEXT_COLOR;
 use crate::ui::{colors, despawn_node, ColorInteractionMap};
 use crate::{build_menu_plugin, GameState};
 use bevy::app::{AppExit, PluginGroupBuilder};
@@ -223,7 +224,19 @@ build_menu_plugin!(
     once layout_height = Val::Percent(42.5).into(),
     Column {
         text_font_size = 60.0,
-        Text [ "Cosmic\nSpaceball\nTactical Action Arena", ],
+        Text [
+            "Cosmic\n",
+            once text_font_size = 72.0,
+            once text_color = colors::LEMON,
+            "Spaceball\n",
+            "Tactical Action Arena",
+        ] + (
+            ColorInteractionMap::from([
+                (Interaction::None, Some(DEFAULT_TEXT_COLOR.with_a(0.99))),
+                (Interaction::Hovered, Some(colors::LEMON)),
+            ]),
+            Interaction::None,
+        ),
     },
     Bottom {
         Column {
