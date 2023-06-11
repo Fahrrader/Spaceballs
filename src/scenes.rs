@@ -8,14 +8,11 @@ use bevy::prelude::{Commands, Res, ResMut, Resource, Transform};
 use std::f32::consts::PI;
 
 /// Specifier of the scene which to load.
-#[derive(clap::ValueEnum, Clone)]
+#[derive(clap::ValueEnum, Resource, Clone, Copy, Debug)]
 pub enum SceneArg {
     Experimental,
     Lite,
 }
-
-#[derive(Resource, Clone)]
-pub struct OptionalSceneArg(pub Option<SceneArg>);
 
 impl TryFrom<String> for SceneArg {
     type Error = &'static str;
@@ -32,12 +29,12 @@ impl TryFrom<String> for SceneArg {
 /// System to spawn a scene, the choice of which is based on the scene specifier resource.
 pub fn summon_scene(
     commands: Commands,
-    scene: Res<OptionalSceneArg>,
+    scene: Option<Res<SceneArg>>,
     random_state: ResMut<EntropyGenerator>,
 ) {
-    match &scene.into_inner().0 {
+    match scene {
         None => setup_lite(commands, random_state),
-        Some(scene) => match scene {
+        Some(scene) => match scene.into_inner() {
             SceneArg::Experimental => setup_experimental(commands, random_state),
             SceneArg::Lite => setup_lite(commands, random_state),
         },

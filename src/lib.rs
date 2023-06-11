@@ -32,7 +32,7 @@ pub use physics::{
 pub use projectiles::handle_bullet_collision_events;
 pub use scenes::{summon_scene, SceneArg};
 pub use teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
-pub use ui::menu::MenuPlugin;
+pub use ui::menu::{MenuPlugin, MenuState};
 
 pub use bevy::prelude::*;
 pub use bevy::render::camera::{camera_system, RenderTarget};
@@ -48,7 +48,6 @@ use bevy::reflect::ReflectFromReflect;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use clap::Parser;
 
-use scenes::OptionalSceneArg;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -210,15 +209,15 @@ struct Cli {
 
 /// Try to get input from the command line interface on which scene to load.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn parse_scene_ext_input() -> OptionalSceneArg {
+pub fn parse_scene_ext_input() -> Option<SceneArg> {
     let args = Cli::parse();
-    OptionalSceneArg(args.scene)
+    args.scene
 }
 
 /// Try to get input from the JS side's URL arguments on which scene to load.
 #[cfg(target_arch = "wasm32")]
-pub fn parse_scene_ext_input() -> OptionalSceneArg {
-    OptionalSceneArg(get_scene_from_js().try_into().ok())
+pub fn parse_scene_ext_input() -> Option<SceneArg> {
+    get_scene_from_js().try_into().ok()
 }
 
 #[cfg(not(target_arch = "wasm32"))]

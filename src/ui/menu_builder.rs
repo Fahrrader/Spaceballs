@@ -49,7 +49,7 @@ make_menu_building_environment! {
     layout_height: MaybeDefault<Val>,
     layout_alignment: MaybeDefault<AlignItems>,
     layout_own_alignment: MaybeDefault<AlignSelf>,
-    layout_content: MaybeDefault<JustifyContent>,
+    justify_content: MaybeDefault<JustifyContent>,
     text_font_size: f32,
     button_font_size: f32,
     button_size: Size,
@@ -86,7 +86,7 @@ impl MenuBuildingEnvironment {
             layout_height: MaybeDefault::Default,
             layout_alignment: MaybeDefault::Default,
             layout_own_alignment: MaybeDefault::Default,
-            layout_content: MaybeDefault::Default,
+            justify_content: MaybeDefault::Default,
             text_font_size,
             button_font_size,
             button_size,
@@ -124,9 +124,7 @@ macro_rules! get {
         $environment.temporaries.$variable.unwrap_or($environment.$variable)
     };
     ($environment:ident, $($variable:ident $(,)?)*) => {
-        ($(
-            $crate::get!($environment.$variable),
-        )*)
+        ( $($crate::get!($environment.$variable),)* )
     };
     ($environment:ident) => {
         $environment.unite_with_temporaries()
@@ -334,11 +332,12 @@ macro_rules! change_menu_environment_context {
 macro_rules! build_layout {
     // Covering whole screen (or available area)
     ($parent:expr, $menu_shared_vars:ident, Screen, ($($extra_component:expr,)*), { $($body:tt)* }) => {
-        let (layout_alignment, layout_content) = $crate::get!($menu_shared_vars, layout_alignment, layout_content);
+        let msv = $crate::get!($menu_shared_vars);
         let style = Style {
-            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-            align_items: layout_alignment.get_or_default(),
-            justify_content: layout_content.get_or(JustifyContent::Center),
+            size: Size::new(msv.layout_width.get_or(Val::Percent(100.)), msv.layout_height.get_or(Val::Percent(100.))),
+            align_items: msv.layout_alignment.get_or_default(),
+            align_self: msv.layout_own_alignment.get_or_default(),
+            justify_content: msv.justify_content.get_or(JustifyContent::Center),
             padding: UiRect::all(Val::Percent(2.5)),
             ..default()
         };
@@ -359,7 +358,7 @@ macro_rules! build_layout {
             size: Size::new(msv.layout_width.get_or_default(), msv.layout_height.get_or(Val::Percent(25.))),
             align_items: msv.layout_alignment.get_or(AlignItems::End),
             align_self: msv.layout_own_alignment.get_or_default(),
-            justify_content: msv.layout_content.get_or(JustifyContent::SpaceEvenly),
+            justify_content: msv.justify_content.get_or(JustifyContent::Center),
             position_type: PositionType::Absolute,
             position: $position,
             margin: UiRect::all(Val::Percent(2.5)),
@@ -381,8 +380,19 @@ macro_rules! build_layout {
             size: Size::new(msv.layout_width.get_or_default(), msv.layout_height.get_or_default()),
             align_items: msv.layout_alignment.get_or(AlignItems::Center),
             align_self: msv.layout_own_alignment.get_or_default(),
-            justify_content: msv.layout_content.get_or(JustifyContent::SpaceEvenly),
+            justify_content: msv.justify_content.get_or(JustifyContent::Center),
             flex_direction: $flex_direction,
+            ..default()
+        };
+        $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
+    };
+    ($parent:expr, $menu_shared_vars:ident, Node, ($($extra_component:expr,)*), { $($body:tt)* }) => {
+        let msv = $crate::get!($menu_shared_vars);
+        let style = Style {
+            size: Size::new(msv.layout_width.get_or_default(), msv.layout_height.get_or_default()),
+            align_items: msv.layout_alignment.get_or_default(),
+            align_self: msv.layout_own_alignment.get_or_default(),
+            justify_content: msv.justify_content.get_or_default(),
             ..default()
         };
         $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
@@ -409,10 +419,17 @@ macro_rules! build_layout {
 macro_rules! build_text {
     ($parent:expr, $menu_shared_vars:ident, ($($extra_components:expr,)*), $($body:tt)*) => {
         let mut sections = vec![];
+        let bundle_msv = $menu_shared_vars.unite_with_temporaries();
         $crate::create_text_sections!($parent, $menu_shared_vars, sections, $($body)*);
         $parent.spawn((
             TextBundle::from_sections(sections)
-                .with_text_alignment(TextAlignment::Center),
+                .with_text_alignment(TextAlignment::Center)
+                .with_style(Style {
+                    align_items: bundle_msv.layout_alignment.get_or_default(),
+                    align_self: bundle_msv.layout_own_alignment.get_or_default(),
+                    justify_content: bundle_msv.justify_content.get_or_default(),
+                    ..default()
+                }),
             $($extra_components,)*
         ));
     };
@@ -514,7 +531,7 @@ macro_rules! build_buttons {
                 let mut entity_commands = parent.spawn(TextBundle::from_section(
                     $text,
                     button_text_style.clone(),
-                ));
+                ).with_text_alignment(TextAlignment::Center));
 
                 if let Some(states) = button_text_interaction_colors {
                     entity_commands.insert(states);
@@ -566,6 +583,7 @@ pub(crate) fn outline_parent(
     let mut spawn_outline_bar = |position: UiRect, size: Size| {
         let mut entity_commander = child_builder.spawn(NodeBundle {
             style: Style {
+                align_self: AlignSelf::Start,
                 position_type: PositionType::Absolute,
                 position,
                 size,
@@ -587,7 +605,7 @@ pub(crate) fn outline_parent(
     );
 
     spawn_outline_bar(
-        UiRect::top(Val::Percent(100.)),
+        UiRect::bottom(Val::Px(-1.)),
         (Val::Percent(100.), outline_width).into(),
     );
 
@@ -598,6 +616,6 @@ pub(crate) fn outline_parent(
 
     spawn_outline_bar(
         UiRect::right(Val::Percent(0.)),
-        (outline_width, Val::Percent(100.)).into(),
+        (outline_width, Val::Percent(100.1)).into(),
     );
 }

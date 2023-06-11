@@ -33,7 +33,6 @@ fn main() {
         .add_plugin(FrameTimeDiagnosticsPlugin::default());
 
     app.insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(scene_arg)
         .insert_resource(PlayerCount(1))
         .insert_resource(EntropyGenerator::new(42))
         .insert_resource(RapierConfiguration {
@@ -111,6 +110,13 @@ fn main() {
             calculate_main_camera_projection_scale
                 .before(camera_system::<OrthographicProjection>)
                 .in_base_set(CoreSet::PostUpdate),
-        )
-        .run();
+        );
+
+    if let Some(scene) = scene_arg {
+        app.insert_resource(scene)
+            .insert_resource(State::<GameState>(GameState::Matchmaking))
+            .insert_resource(State::<MenuState>(MenuState::Disabled));
+    }
+
+    app.run();
 }

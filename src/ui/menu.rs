@@ -1,6 +1,6 @@
 use crate::ui::menu_builder::DEFAULT_TEXT_COLOR;
-use crate::ui::{colors, despawn_node, ColorInteractionMap};
-use crate::{build_menu_plugin, GameState};
+use crate::ui::{colors, despawn_node, ColorInteractionMap, CurrentFocus, Focus};
+use crate::{build_menu_plugin, GameState, PlayerCount, SceneArg};
 use bevy::app::{AppExit, PluginGroupBuilder};
 use bevy::prelude::*;
 
@@ -8,7 +8,7 @@ macro_rules! generate_menu_states {
     ($($state:ident),* $(,)?) => {
         /// State used for the current menu screen.
         #[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
-        enum MenuState {
+        pub enum MenuState {
             $($state,)*
             #[default]
             Disabled,
@@ -67,9 +67,11 @@ pub(crate) enum MenuButtonAction {
     MultiPlayer,
     // Quickmatch?
     // Match Browser?
-    SelectScene(usize),
     JoinGame,
     HostGame,
+    SelectScene(SceneArg),
+    StartSinglePlayerGame,
+    StartMultiPlayerGame,
     Controls,
     Settings,
     QuitToMenu,
@@ -77,15 +79,14 @@ pub(crate) enum MenuButtonAction {
     Quit,
 }
 
-/// Tag component used to mark which setting is currently selected.
-#[derive(Component)]
-struct SelectedOption;
-
 /// Handle changing all buttons' colors based on mouse interaction.
 fn handle_button_style_change(
     interaction_query: Query<
-        (&Interaction, Option<&SelectedOption>, Entity),
-        (With<ColorInteractionMap>, Changed<Interaction>),
+        (&Interaction, Option<&Focus<SceneArg>>, Entity),
+        (
+            With<ColorInteractionMap>,
+            Or<(Changed<Interaction>, Changed<Focus<SceneArg>>)>,
+        ),
     >,
     mut text_children_query: Query<(&mut Text, Option<&ColorInteractionMap>)>,
     mut node_children_query: Query<(
@@ -157,9 +158,9 @@ fn handle_button_style_change(
         }
     }
 
-    for (interaction, selected, entity) in interaction_query.iter() {
-        let interaction = match (*interaction, selected) {
-            (Interaction::None, Some(_)) => Interaction::Hovered,
+    for (interaction, focus, entity) in interaction_query.iter() {
+        let interaction = match (*interaction, focus) {
+            (Interaction::None, Some(&Focus::Focused(_))) => Interaction::Hovered,
             _ => *interaction,
         };
 
@@ -173,6 +174,7 @@ fn handle_button_style_change(
 }
 
 fn set_main_menu_state(mut menu_state: ResMut<NextState<MenuState>>) {
+    bevy::log::warn!("I greeted!");
     menu_state.set(MenuState::Main);
 }
 
@@ -233,7 +235,8 @@ build_menu_plugin!(
         ] + (
             ColorInteractionMap::from([
                 (Interaction::None, Some(DEFAULT_TEXT_COLOR.with_a(0.99))),
-                (Interaction::Hovered, Some(colors::LEMON)),
+                (Interaction::Hovered, Some(DEFAULT_TEXT_COLOR.with_a(0.99))),
+                (Interaction::Clicked, Some(colors::LEMON)),
             ]),
             Interaction::None,
         ),
@@ -255,6 +258,58 @@ build_menu_plugin!(
             },
             Buttons [
                 (MenuButtonAction::Quit, "Quit"),
+            ],
+        },
+    },
+);
+
+build_menu_plugin!(
+    (setup_singleplayer_menu, SinglePlayer),
+    once layout_own_alignment = AlignSelf::Start.into(),
+    once layout_height = Val::Percent(50.).into(),
+    Column {
+        Column {
+            Text [
+                "Singleplayer",
+            ],
+        },
+        once layout_own_alignment = AlignSelf::Start.into(),
+        once layout_height = Val::Percent(90.).into(),
+        Column {
+            Node {
+                button_size = Size::new(Val::Px(330.0), Val::Px(165.0)),
+                Buttons [
+                    (MenuButtonAction::SelectScene(SceneArg::Lite), "Scene\nLite"),
+                    (MenuButtonAction::SelectScene(SceneArg::Experimental), "Scene\nExperimental"),
+                ],
+            },
+        },
+    },
+    Bottom {
+        Column {
+            Buttons [
+                (MenuButtonAction::StartSinglePlayerGame, "Start Game"),
+                (MenuButtonAction::QuitToMenu, "Back"),
+            ],
+        },
+    },
+);
+
+build_menu_plugin!(
+    (setup_multiplayer_menu, MultiPlayer),
+    once layout_alignment = AlignItems::Start.into(),
+    once layout_own_alignment = AlignSelf::Start.into(),
+    Column {
+        Text [
+            "Multiplayer",
+        ],
+    },
+    Bottom {
+        Column {
+            Buttons [
+                (MenuButtonAction::JoinGame, "Join Game"),
+                (MenuButtonAction::HostGame, "Host Game"),
+                (MenuButtonAction::QuitToMenu, "Back"),
             ],
         },
     },
@@ -288,26 +343,6 @@ build_menu_plugin!(
     },
 );
 
-build_menu_plugin!(
-    (setup_multiplayer_menu, MultiPlayer),
-    once layout_alignment = AlignItems::Start.into(),
-    once layout_own_alignment = AlignSelf::Start.into(),
-    Column {
-        Text [
-            "Multiplayer",
-        ],
-    },
-    Bottom {
-        Column {
-            Buttons [
-                (MenuButtonAction::JoinGame, "Join Game"),
-                (MenuButtonAction::HostGame, "Host Game"),
-                (MenuButtonAction::QuitToMenu, "Back"),
-            ],
-        },
-    },
-);
-
 /// Systems to handle the menu screens setup and despawning
 struct MenuSetupPlugins;
 
@@ -317,7 +352,7 @@ impl PluginGroup for MenuSetupPlugins {
 
         PluginGroupBuilder::start::<Self>()
             .add(SingleMenuPlugin::<Main>::default())
-            //.add(SingleMenuPlugin::<SinglePlayer>::default())
+            .add(SingleMenuPlugin::<SinglePlayer>::default())
             .add(SingleMenuPlugin::<MultiPlayer>::default())
             //.add(SingleMenuPlugin::<MatchMaker>::default())
             //.add(SingleMenuPlugin::<MatchBrowser>::default())
@@ -327,38 +362,72 @@ impl PluginGroup for MenuSetupPlugins {
 }
 
 fn handle_menu_actions(
+    mut commands: Commands,
     interaction_query: Query<
-        (&Interaction, &MenuButtonAction),
+        (
+            &Interaction,
+            &MenuButtonAction,
+            /*Option<&Focus>,*/ Entity,
+        ),
         (Changed<Interaction>, With<Button>),
     >,
+    current_scene_focus: Option<Res<CurrentFocus<SceneArg>>>,
     mut app_exit_events: EventWriter<AppExit>,
     mut menu_state: ResMut<NextState<MenuState>>,
     mut game_state: ResMut<NextState<GameState>>,
 ) {
-    for (interaction, menu_button_action) in &interaction_query {
+    for (interaction, menu_button_action, entity) in &interaction_query {
         if *interaction == Interaction::Clicked {
             match menu_button_action {
                 MenuButtonAction::Quit => app_exit_events.send(AppExit),
-                MenuButtonAction::SinglePlayer => {
+                MenuButtonAction::SinglePlayer => menu_state.set(MenuState::SinglePlayer),
+                MenuButtonAction::MultiPlayer => menu_state.set(MenuState::MultiPlayer),
+                MenuButtonAction::HostGame => menu_state.set(MenuState::MatchMaker),
+                MenuButtonAction::JoinGame => menu_state.set(MenuState::MatchBrowser),
+                MenuButtonAction::SelectScene(scene) => {
+                    if let Some(focus) = &current_scene_focus {
+                        commands
+                            .entity(focus.entity)
+                            .insert(Focus::<SceneArg>::None);
+                    }
+                    commands.entity(entity).insert(Focus::<SceneArg>::focused());
+                    commands.insert_resource(CurrentFocus {
+                        entity,
+                        context: *scene,
+                    });
+                }
+                MenuButtonAction::StartSinglePlayerGame => {
+                    if current_scene_focus.is_none() {
+                        // notify the player?
+                        continue;
+                    }
+                    let scene_arg = current_scene_focus
+                        .as_ref()
+                        .expect("Scene must be selected first.")
+                        .context;
+                    commands.insert_resource(scene_arg);
+                    commands.insert_resource(PlayerCount(1));
+
                     game_state.set(GameState::Matchmaking);
                     menu_state.set(MenuState::Disabled);
                 }
-                MenuButtonAction::MultiPlayer => menu_state.set(MenuState::MultiPlayer),
-                MenuButtonAction::SelectScene(_) => {}
-                MenuButtonAction::HostGame => {}
-                MenuButtonAction::JoinGame => {}
+                MenuButtonAction::StartMultiPlayerGame => {
+                    if current_scene_focus.is_none() {
+                        // notify the player?
+                        continue;
+                    }
+                    let scene_arg = current_scene_focus
+                        .as_ref()
+                        .expect("Scene must be selected first.")
+                        .context;
+                    commands.insert_resource(scene_arg);
+                    commands.insert_resource(PlayerCount(2));
+
+                    game_state.set(GameState::Matchmaking);
+                    menu_state.set(MenuState::Disabled);
+                }
                 MenuButtonAction::Controls => menu_state.set(MenuState::Controls),
                 MenuButtonAction::Settings => menu_state.set(MenuState::Settings),
-                /*MenuButtonAction::SettingsDisplay => {
-                    menu_state.set(MenuState::SettingsDisplay);
-                }
-                MenuButtonAction::SettingsSound => {
-                    menu_state.set(MenuState::SettingsSound);
-                }
-                MenuButtonAction::BackToMainMenu => ,
-                MenuButtonAction::BackToSettings => {
-                    menu_state.set(MenuState::Settings);
-                }*/
                 // todo also set game state to main menu?
                 // add despawning system to the game that would trigger on exiting InGame state
                 MenuButtonAction::QuitToMenu => menu_state.set(MenuState::Main),
@@ -372,11 +441,8 @@ pub struct MenuPlugin;
 // todo I want them blooms on the UI. Figure out how to do blooms!
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app
-            // At start, the menu is not enabled. This will be changed in `menu_setup` when
-            // entering the `GameState::Menu` state.
-            // Current screen in the menu is handled by an independent state from `GameState`
-            .add_state::<MenuState>()
+        app.add_state::<MenuState>()
+            // Plugins responsible for spawning and despawning the menus
             .add_plugins(MenuSetupPlugins)
             .add_system(set_main_menu_state.in_schedule(OnEnter(GameState::MainMenu)))
             .add_systems(
