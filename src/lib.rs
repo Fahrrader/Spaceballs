@@ -22,8 +22,8 @@ pub use controls::{
 pub use guns::{systems::*, Equipped, Gun, GunBundle, GunPreset};
 pub use health::{handle_death, Dying, Health};
 pub use multiplayer::{
-    detect_desync, start_matchbox_socket, wait_for_players, GGRSConfig, GGRSPlugin, GGRSSchedule,
-    PlayerCount,
+    detect_desync, sever_connection, start_matchbox_socket, wait_for_players, GGRSConfig,
+    GGRSPlugin, GGRSSchedule, PlayerCount,
 };
 pub use physics::{
     handle_entities_out_of_bounds, ActiveEvents, RectangularObstacleBundle, Sleeping,

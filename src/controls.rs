@@ -8,7 +8,7 @@ use bevy::input::{
     },
     Axis, Input,
 };
-use bevy::prelude::{Commands, Component, EventReader, In, KeyCode, Query, Res, Resource};
+use bevy::prelude::{Commands, Component, EventReader, In, KeyCode, Local, Query, Res, Resource};
 use bevy::reflect::{FromReflect, Reflect};
 use bevy_ggrs::{ggrs, PlayerInputs};
 
@@ -63,11 +63,23 @@ impl CharacterActionInput {
 pub fn handle_online_player_input(
     inputs: Res<PlayerInputs<GGRSConfig>>,
     mut query: Query<(&mut CharacterActionInput, &PlayerControlled)>,
+    mut index_oob_timeout: Local<Vec<usize>>,
 ) {
     for (mut player_inputs, player) in query.iter_mut() {
-        // todo:mp check that the index is in bounds (i.e. player generation did not fuck up)
-        let (input, _) = inputs[player.handle];
-        *player_inputs = input.into();
+        match inputs.get(player.handle) {
+            Some(&(input, _)) => *player_inputs = input.into(),
+            None => {
+                // Report that the index is not in bounds (i.e. player generation fucked up)
+                if !index_oob_timeout.contains(&player.handle) {
+                    bevy::log::error!(
+                        "Player handle {} out of bounds when reading online inputs! Expected player count and the length of the received player inputs: {}.",
+                        player.handle,
+                        inputs.len(),
+                    );
+                    index_oob_timeout.push(player.handle);
+                }
+            }
+        };
     }
 }
 

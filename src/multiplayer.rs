@@ -7,7 +7,10 @@ use bevy::prelude::{Commands, NextState, Res, ResMut, Resource};
 use bevy::reflect::{FromReflect, Reflect};
 use bevy_ggrs::ggrs::DesyncDetection;
 use bevy_ggrs::{ggrs, Session};
-use bevy_matchbox::prelude::{MatchboxSocket, PeerId, SingleChannel};
+use bevy_matchbox::prelude::{
+    ChannelConfig, MatchboxSocket, PeerId, SingleChannel, WebRtcSocketBuilder,
+};
+use bevy_matchbox::CloseSocketExt;
 
 /// Common room address for all matches on the server! Oh it's going to be gloriously broken if left like this.
 // pub const ROOM_NAME: &str = "spaceballs";
@@ -42,11 +45,22 @@ impl ggrs::Config for GGRSConfig {
 }
 
 /// Initialize a socket for connecting to the matchbox server.
-pub fn start_matchbox_socket(mut commands: Commands) {
+pub fn start_matchbox_socket(mut commands: Commands, player_count: Res<PlayerCount>) {
     let room_url = MATCHBOX_ADDR;
+    let reconnect_attempts = if player_count.0 > 1 { Some(3) } else { None };
     info!("connecting to matchbox server: {:?}", room_url);
-    // todo:mp don't do it if players are all local -- and also remove resource if disconnecting
-    commands.insert_resource(MatchboxSocket::new_ggrs(room_url));
+    commands.insert_resource(MatchboxSocket::<SingleChannel>::from(
+        WebRtcSocketBuilder::new(room_url)
+            .reconnect_attempts(reconnect_attempts)
+            .add_channel(ChannelConfig::ggrs())
+            .build(),
+    ));
+}
+
+pub fn sever_connection(mut commands: Commands) {
+    commands.close_socket::<SingleChannel>();
+    commands.remove_resource::<Session<GGRSConfig>>();
+    // ... and maybe more
 }
 
 /// Initialize the multiplayer session.

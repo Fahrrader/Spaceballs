@@ -33,7 +33,6 @@ fn main() {
         .add_plugin(FrameTimeDiagnosticsPlugin::default());
 
     app.insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(PlayerCount(1))
         .insert_resource(EntropyGenerator::new(42))
         .insert_resource(RapierConfiguration {
             gravity: Vec2::default(),
@@ -59,6 +58,7 @@ fn main() {
         .add_system(start_matchbox_socket.in_schedule(OnEnter(GameState::Matchmaking)))
         .add_system(wait_for_players.run_if(in_state(GameState::Matchmaking)))
         .add_system(summon_scene.in_schedule(OnEnter(GameState::InGame)))
+        .add_system(sever_connection.in_schedule(OnExit(GameState::InGame)))
         .add_system(handle_gamepad_connections)
         // todo:mp action routine gets abnormally long if in rollback together with ai input, might be interesting to look into
         .add_system(
@@ -114,6 +114,7 @@ fn main() {
 
     if let Some(scene) = scene_arg {
         app.insert_resource(scene)
+            .insert_resource(PlayerCount(1))
             .insert_resource(State::<GameState>(GameState::Matchmaking))
             .insert_resource(State::<MenuState>(MenuState::Disabled));
     }

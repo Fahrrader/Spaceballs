@@ -1,7 +1,7 @@
 use crate::characters::{AICharacterBundle, BuildCharacter, PlayerCharacterBundle};
 use crate::{
-    EntropyGenerator, GunBundle, GunPreset, PlayerCount, RectangularObstacleBundle,
-    AI_DEFAULT_TEAM, CHUNK_SIZE, PLAYER_DEFAULT_TEAM, SCREEN_SPAN,
+    EntropyGenerator, GunBundle, GunPreset, RectangularObstacleBundle, AI_DEFAULT_TEAM, CHUNK_SIZE,
+    PLAYER_DEFAULT_TEAM, SCREEN_SPAN,
 };
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{Commands, Res, ResMut, Resource, Transform};
@@ -43,8 +43,6 @@ pub fn summon_scene(
 
 /// Set up a more complicated and chaotic scene with the latest features and experiments.
 pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<EntropyGenerator>) {
-    commands.insert_resource(PlayerCount(2));
-
     setup_base_arena(&mut commands);
 
     // Some guns before the player
@@ -108,8 +106,6 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<Entro
 
 /// Set up a lighter, stable scene. Considered default.
 pub fn setup_lite(mut commands: Commands, mut random_state: ResMut<EntropyGenerator>) {
-    commands.insert_resource(PlayerCount(1));
-
     setup_base_arena(&mut commands);
 
     PlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0).spawn_with_equipment(
