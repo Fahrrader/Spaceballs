@@ -1,6 +1,6 @@
 use crate::ui::menu_builder::DEFAULT_TEXT_COLOR;
-use crate::ui::{colors, despawn_node, ColorInteractionMap, CurrentFocus, Focus};
-use crate::{build_menu_plugin, GameState, PlayerCount, SceneArg};
+use crate::ui::{colors, despawn_node, ColorInteractionMap, Focus};
+use crate::{build_menu_plugin, GameState, PlayerCount, SceneSelector};
 use bevy::app::{AppExit, PluginGroupBuilder};
 use bevy::prelude::*;
 
@@ -69,7 +69,7 @@ pub(crate) enum MenuButtonAction {
     // Match Browser?
     JoinGame,
     HostGame,
-    SelectScene(SceneArg),
+    SelectScene(SceneSelector),
     StartSinglePlayerGame,
     StartMultiPlayerGame,
     Controls,
@@ -82,10 +82,10 @@ pub(crate) enum MenuButtonAction {
 /// Handle changing all buttons' colors based on mouse interaction.
 fn handle_button_style_change(
     interaction_query: Query<
-        (&Interaction, Option<&Focus<SceneArg>>, Entity),
+        (&Interaction, Option<&Focus<SceneSelector>>, Entity),
         (
             With<ColorInteractionMap>,
-            Or<(Changed<Interaction>, Changed<Focus<SceneArg>>)>,
+            Or<(Changed<Interaction>, Changed<Focus<SceneSelector>>)>,
         ),
     >,
     mut text_children_query: Query<(&mut Text, Option<&ColorInteractionMap>)>,
@@ -111,6 +111,16 @@ fn handle_button_style_change(
             })
     }
 
+    fn extract_color(
+        interaction: Interaction,
+        color: Color,
+        color_interaction_map: Option<&ColorInteractionMap>,
+    ) -> Color {
+        color_interaction_map
+            .and_then(|map| distill_color(interaction, map, color))
+            .unwrap_or(color)
+    }
+
     fn paint_nodes(
         interaction: Interaction,
         children: &Vec<Entity>,
@@ -121,29 +131,19 @@ fn handle_button_style_change(
             Option<&Children>,
         )>,
     ) {
-        for &child in children.iter() {
+        for &child in children {
             if let Ok((mut text, color_interaction_map)) = text_children_query.get_mut(child) {
-                if let Some(color_interaction_map) = color_interaction_map {
-                    // Currently no support for multi-colored texts
-                    for mut section in text.sections.iter_mut() {
-                        let new_color =
-                            distill_color(interaction, color_interaction_map, section.style.color);
-                        if let Some(new_color) = new_color {
-                            section.style.color = new_color;
-                        }
-                    }
-                }
+                text.sections.iter_mut().for_each(|section| {
+                    section.style.color =
+                        extract_color(interaction, section.style.color, color_interaction_map);
+                });
             }
 
             if let Ok((mut background, color_interaction_map, more_children)) =
                 node_children_query.get_mut(child)
             {
-                if let Some(color_interaction_map) = color_interaction_map {
-                    let new_color = distill_color(interaction, color_interaction_map, background.0);
-                    if let Some(new_color) = new_color {
-                        *background = new_color.into();
-                    }
-                }
+                *background =
+                    extract_color(interaction, background.0, color_interaction_map).into();
 
                 if let Some(more_children) = more_children {
                     let children_cloned = more_children.iter().cloned().collect();
@@ -174,7 +174,6 @@ fn handle_button_style_change(
 }
 
 fn set_main_menu_state(mut menu_state: ResMut<NextState<MenuState>>) {
-    bevy::log::warn!("I greeted!");
     menu_state.set(MenuState::Main);
 }
 
@@ -279,8 +278,8 @@ build_menu_plugin!(
             Node {
                 button_size = Size::new(Val::Px(330.0), Val::Px(165.0)),
                 Buttons [
-                    (MenuButtonAction::SelectScene(SceneArg::Lite), "Scene\nLite"),
-                    (MenuButtonAction::SelectScene(SceneArg::Experimental), "Scene\nExperimental"),
+                    (MenuButtonAction::SelectScene(SceneSelector::Lite), "Scene\nLite"),
+                    (MenuButtonAction::SelectScene(SceneSelector::Experimental), "Scene\nExperimental"),
                 ],
             },
         },
@@ -371,7 +370,8 @@ fn handle_menu_actions(
         ),
         (Changed<Interaction>, With<Button>),
     >,
-    current_scene_focus: Option<Res<CurrentFocus<SceneArg>>>,
+    // focus_query: Query<&Focus>,
+    mut scene_focus_query: Query<&mut Focus<SceneSelector>>,
     mut app_exit_events: EventWriter<AppExit>,
     mut menu_state: ResMut<NextState<MenuState>>,
     mut game_state: ResMut<NextState<GameState>>,
@@ -385,46 +385,50 @@ fn handle_menu_actions(
                 MenuButtonAction::HostGame => menu_state.set(MenuState::MatchMaker),
                 MenuButtonAction::JoinGame => menu_state.set(MenuState::MatchBrowser),
                 MenuButtonAction::SelectScene(scene) => {
-                    if let Some(focus) = &current_scene_focus {
-                        commands
-                            .entity(focus.entity)
-                            .insert(Focus::<SceneArg>::None);
+                    for mut focus in scene_focus_query.iter_mut() {
+                        if let Focus::Focused(_) = *focus {
+                            *focus = Focus::None;
+                        }
                     }
-                    commands.entity(entity).insert(Focus::<SceneArg>::focused());
-                    commands.insert_resource(CurrentFocus {
-                        entity,
-                        context: *scene,
-                    });
+                    commands
+                        .entity(entity)
+                        .insert(Focus::<SceneSelector>::Focused(*scene));
                 }
                 MenuButtonAction::StartSinglePlayerGame => {
-                    if current_scene_focus.is_none() {
-                        // notify the player?
-                        continue;
-                    }
-                    let scene_arg = current_scene_focus
-                        .as_ref()
-                        .expect("Scene must be selected first.")
-                        .context;
-                    commands.insert_resource(scene_arg);
-                    commands.insert_resource(PlayerCount(1));
+                    let scene_arg = scene_focus_query
+                        .iter()
+                        .find_map(|focus| focus.extract_context());
 
-                    game_state.set(GameState::Matchmaking);
-                    menu_state.set(MenuState::Disabled);
+                    match scene_arg {
+                        Some(context) => {
+                            commands.insert_resource(context);
+                            commands.insert_resource(PlayerCount(1));
+
+                            game_state.set(GameState::Matchmaking);
+                            menu_state.set(MenuState::Disabled);
+                        }
+                        None => {
+                            // notify the player?
+                        }
+                    }
                 }
                 MenuButtonAction::StartMultiPlayerGame => {
-                    if current_scene_focus.is_none() {
-                        // notify the player?
-                        continue;
-                    }
-                    let scene_arg = current_scene_focus
-                        .as_ref()
-                        .expect("Scene must be selected first.")
-                        .context;
-                    commands.insert_resource(scene_arg);
-                    commands.insert_resource(PlayerCount(2));
+                    let scene_arg = scene_focus_query
+                        .iter()
+                        .find_map(|focus| focus.extract_context());
 
-                    game_state.set(GameState::Matchmaking);
-                    menu_state.set(MenuState::Disabled);
+                    match scene_arg {
+                        Some(context) => {
+                            commands.insert_resource(context);
+                            commands.insert_resource(PlayerCount(2));
+
+                            game_state.set(GameState::Matchmaking);
+                            menu_state.set(MenuState::Disabled);
+                        }
+                        None => {
+                            // notify the player?
+                        }
+                    }
                 }
                 MenuButtonAction::Controls => menu_state.set(MenuState::Controls),
                 MenuButtonAction::Settings => menu_state.set(MenuState::Settings),

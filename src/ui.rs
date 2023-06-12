@@ -1,39 +1,31 @@
-use crate::SceneArg;
 use bevy::prelude::*;
-use std::marker::PhantomData;
 
 pub mod menu;
 mod menu_builder;
 
 /// Generic system that takes a component as a parameter, and will despawn all entities with that component.
 fn despawn_node<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: Commands) {
-    bevy::log::warn!("I despawned!");
     for entity in &to_despawn {
         commands.entity(entity).despawn_recursive();
     }
-    commands.remove_resource::<CurrentFocus>();
-    commands.remove_resource::<CurrentFocus<SceneArg>>();
-}
-
-/// Resource used to highlight and refer to an entity is currently selected.
-/// Since it is generic, it allows for multiple focuses in different contexts at once.
-#[derive(Resource, Clone, Copy, Debug)]
-pub struct CurrentFocus<Context = ()> {
-    pub entity: Entity,
-    pub context: Context,
 }
 
 /// Tag component used to mark highlighted and focusable entities.
 /// Since it is generic, it allows for multiple focuses with different contexts on an entity at once.
+///
+/// Beware that its uniqueness is expected, but might not be enforced outside of this crate.
 #[derive(Component, Clone, Copy, Debug)]
 pub enum Focus<Context = ()> {
     None,
-    Focused(PhantomData<Context>),
+    Focused(Context),
 }
 
-impl<T> Focus<T> {
-    pub fn focused() -> Self {
-        Self::Focused(default())
+impl<Context> Focus<Context> {
+    pub fn extract_context(self) -> Option<Context> {
+        match self {
+            Focus::Focused(context) => Some(context),
+            Focus::None => None,
+        }
     }
 }
 

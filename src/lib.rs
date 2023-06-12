@@ -30,7 +30,7 @@ pub use physics::{
     SpaceballsPhysicsPlugin, Velocity, CHUNK_SIZE,
 };
 pub use projectiles::handle_bullet_collision_events;
-pub use scenes::{summon_scene, SceneArg};
+pub use scenes::{summon_scene, SceneSelector};
 pub use teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 pub use ui::menu::{MenuPlugin, MenuState};
 
@@ -204,19 +204,19 @@ pub fn create_window(width: f32, height: f32) -> Window {
 struct Cli {
     /// The scene to load at the game start
     #[clap(value_enum, short, long)]
-    scene: Option<SceneArg>,
+    scene: Option<SceneSelector>,
 }
 
 /// Try to get input from the command line interface on which scene to load.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn parse_scene_ext_input() -> Option<SceneArg> {
+pub fn parse_scene_ext_input() -> Option<SceneSelector> {
     let args = Cli::parse();
     args.scene
 }
 
 /// Try to get input from the JS side's URL arguments on which scene to load.
 #[cfg(target_arch = "wasm32")]
-pub fn parse_scene_ext_input() -> Option<SceneArg> {
+pub fn parse_scene_ext_input() -> Option<SceneSelector> {
     get_scene_from_js().try_into().ok()
 }
 

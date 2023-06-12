@@ -9,18 +9,18 @@ use std::f32::consts::PI;
 
 /// Specifier of the scene which to load.
 #[derive(clap::ValueEnum, Resource, Clone, Copy, Debug)]
-pub enum SceneArg {
+pub enum SceneSelector {
     Experimental,
     Lite,
 }
 
-impl TryFrom<String> for SceneArg {
+impl TryFrom<String> for SceneSelector {
     type Error = &'static str;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
-            "experimental" | "exp" | "e" => Ok(SceneArg::Experimental),
-            "lite" | "l" => Ok(SceneArg::Lite),
+            "experimental" | "exp" | "e" => Ok(SceneSelector::Experimental),
+            "lite" | "l" => Ok(SceneSelector::Lite),
             _ => Err("Nothing too bad, should use the default scene"),
         }
     }
@@ -29,14 +29,14 @@ impl TryFrom<String> for SceneArg {
 /// System to spawn a scene, the choice of which is based on the scene specifier resource.
 pub fn summon_scene(
     commands: Commands,
-    scene: Option<Res<SceneArg>>,
+    scene: Option<Res<SceneSelector>>,
     random_state: ResMut<EntropyGenerator>,
 ) {
     match scene {
         None => setup_lite(commands, random_state),
         Some(scene) => match scene.into_inner() {
-            SceneArg::Experimental => setup_experimental(commands, random_state),
-            SceneArg::Lite => setup_lite(commands, random_state),
+            SceneSelector::Experimental => setup_experimental(commands, random_state),
+            SceneSelector::Lite => setup_lite(commands, random_state),
         },
     }
 }
