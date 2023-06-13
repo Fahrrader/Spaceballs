@@ -73,11 +73,17 @@ fn main() {
                 .in_schedule(GGRSSchedule),
         )
         .add_systems(
+            // todo:mp de-chain, group independent systems into sets
             (
                 calculate_character_velocity,
                 handle_gunfire,
                 handle_letting_gear_go,
                 handle_gun_picking,
+                handle_inventory_layout_change,
+                handle_gun_arriving_at_rest,
+                handle_bullet_collision_events,
+                handle_railgun_penetration_damage,
+                handle_death,
             )
                 .chain()
                 .in_set(InputHandlingSet::ResponseProcessing)
@@ -90,21 +96,10 @@ fn main() {
                 .run_if(in_state(GameState::InGame)),
         )
         .add_system(handle_entities_out_of_bounds)
-        .add_system(handle_bullet_collision_events)
-        .add_system(handle_railgun_penetration_damage)
         .add_systems((
             handle_gun_ownership_cosmetic_change,
-            // todo:mp does it run anyway after rollback because "changed"? in any case, both should maybe be in rollback
-            handle_inventory_layout_change,
-            handle_gun_arriving_at_rest,
             handle_gun_idle_bobbing,
         ))
-        // probably execute latest -- todo:mp add to GGRS?
-        .add_system(
-            handle_death
-                .after(handle_bullet_collision_events) // todo bullet collision plugin / system set
-                .after(handle_letting_gear_go),
-        )
         .add_system(handle_browser_window_resizing)
         .add_system(
             calculate_main_camera_projection_scale

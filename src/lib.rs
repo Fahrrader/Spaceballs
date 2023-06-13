@@ -54,12 +54,17 @@ use wasm_bindgen::prelude::*;
 /// Client's current state of the game.
 #[derive(States, Clone, Default, Eq, PartialEq, Debug, Hash)]
 pub enum GameState {
+    /// Main menu. The game has not even yet started.
     #[default]
     MainMenu,
+    /// Stage on which the client connects and/or waits for other players to join.
+    /// Doubles as a loading screen for any loading purposes.
     Matchmaking,
+    /// Match in progress.
     InGame,
 }
 
+/// The essential setup that must be done at the launching of the app regardless of the game state.
 pub fn standard_setup(mut commands: Commands) {
     commands.spawn((
         Camera2dBundle {
@@ -85,6 +90,7 @@ pub fn standard_setup(mut commands: Commands) {
 pub struct EntropyGenerator(pub StdRng);
 
 impl EntropyGenerator {
+    /// Return a random value supporting the [`Standard`] distribution.
     #[inline]
     pub fn gen<T>(&mut self) -> T
     where
@@ -93,10 +99,12 @@ impl EntropyGenerator {
         self.0.gen()
     }
 
+    /// Create a new PRNG using a `u64` seed.
     pub fn new(seed: u64) -> Self {
         Self(StdRng::seed_from_u64(seed))
     }
 
+    /// Create a new PRNG seeded from another PRNG.
     pub fn fork(&mut self) -> Self {
         Self(StdRng::from_rng(&mut self.0).unwrap())
     }
@@ -108,7 +116,6 @@ impl Default for EntropyGenerator {
     }
 }
 
-// todo after the adjustment of body sizes, change to probably 200.0
 /// The size of a side of the arena, in in-game units of distance.
 pub const SCREEN_SPAN: f32 = 800.0;
 
@@ -150,7 +157,6 @@ pub fn calculate_main_camera_projection_scale(
     }
 }
 
-// todo add this optionally to a system set
 /// System to query JS whether the browser window size has changed, and resize the game window
 /// according to the JS-supplied data.
 pub fn handle_browser_window_resizing(
