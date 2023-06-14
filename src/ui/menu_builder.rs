@@ -44,15 +44,17 @@ make_menu_building_environment! {
     // pub(crate) asset_server: &'a ResMut<'a, AssetServer>,
     font: Handle<Font>,
     /// Generally the background color of a UI node, use with caution with alpha stacking.
-    node_background_color: Color,
+    node_color: Color,
     layout_width: MaybeDefault<Val>,
     layout_height: MaybeDefault<Val>,
-    layout_alignment: MaybeDefault<AlignItems>,
-    layout_own_alignment: MaybeDefault<AlignSelf>,
+    align_items: MaybeDefault<AlignItems>,
+    align_self: MaybeDefault<AlignSelf>,
     justify_content: MaybeDefault<JustifyContent>,
+    margin: MaybeDefault<UiRect>,
     text_font_size: f32,
     button_font_size: f32,
-    button_size: Size,
+    button_width: Val,
+    button_height: Val,
     button_margin: UiRect,
     text_color: Color,
     button_color: Color,
@@ -71,25 +73,28 @@ make_menu_building_environment! {
 impl MenuBuildingEnvironment {
     pub fn default(asset_server: &ResMut<AssetServer>) -> Self {
         let font = asset_server.load("fonts/Spacerunner.otf");
-        let text_font_size = 30.0;
+        let text_font_size = 27.0;
         let button_font_size = text_font_size;
 
-        let button_size = Size::new(Val::Px(390.0), Val::Px(65.0));
-        let button_margin = UiRect::all(Val::Px(8.0));
-        let outline_width = Val::Px(4.0);
+        let button_width = Val::Px(420.0);
+        let button_height = Val::Px(65.0);
+        let button_margin = UiRect::all(Val::Px(6.0));
+        let outline_width = Val::Px(3.0);
 
         Self {
             // asset_server,
             font,
-            node_background_color: Color::NONE,
+            node_color: Color::NONE,
             layout_width: MaybeDefault::Default,
             layout_height: MaybeDefault::Default,
-            layout_alignment: MaybeDefault::Default,
-            layout_own_alignment: MaybeDefault::Default,
+            align_items: MaybeDefault::Default,
+            align_self: MaybeDefault::Default,
             justify_content: MaybeDefault::Default,
+            margin: MaybeDefault::Default,
             text_font_size,
             button_font_size,
-            button_size,
+            button_width,
+            button_height,
             button_margin,
             text_color: DEFAULT_TEXT_COLOR,
             button_color: DEFAULT_BUTTON_COLOR,
@@ -260,6 +265,11 @@ macro_rules! build_menu_item {
         $crate::change_menu_environment_context!($parent, $menu_shared_vars, once $shared_menu_var = $new_value);
         $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
     };
+    // Changing one of the shared menu building variables for the current scope -- but only once
+    ($parent:expr, $menu_shared_vars:ident, #[$($attributes:tt)*] $($rest:tt)*) => {
+        #[$($attributes)*]
+        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    };
     // Creating a menu layout
     ($parent:expr, $menu_shared_vars:ident, $layout:ident { $($body:tt)* }, $($rest:tt)*) => {
         $crate::build_layout!($parent, $menu_shared_vars, $layout, (), { $($body)* });
@@ -335,10 +345,11 @@ macro_rules! build_layout {
         let msv = $crate::get!($menu_shared_vars);
         let style = Style {
             size: Size::new(msv.layout_width.get_or(Val::Percent(100.)), msv.layout_height.get_or(Val::Percent(100.))),
-            align_items: msv.layout_alignment.get_or_default(),
-            align_self: msv.layout_own_alignment.get_or_default(),
+            align_items: msv.align_items.get_or_default(),
+            align_self: msv.align_self.get_or_default(),
             justify_content: msv.justify_content.get_or(JustifyContent::Center),
             padding: UiRect::all(Val::Percent(2.5)),
+            margin: msv.margin.get_or_default(),
             ..default()
         };
         $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
@@ -351,17 +362,35 @@ macro_rules! build_layout {
     ($parent:expr, $menu_shared_vars:ident, Bottom, ($($extra_component:expr,)*), { $($body:tt)* }) => {
         $crate::build_layout!($parent, $menu_shared_vars, _quarter_screen, UiRect::bottom(Val::Percent(0.)), ($($extra_component,)*), $($body)*);
     };
+    // Creating a container at the bottom of the screen
+    ($parent:expr, $menu_shared_vars:ident, Left, ($($extra_component:expr,)*), { $($body:tt)* }) => {
+        $crate::build_layout!($parent, $menu_shared_vars, _quarter_screen, UiRect::left(Val::Percent(0.)), ($($extra_component,)*), $($body)*);
+    };
+    // Creating a container at the bottom of the screen
+    ($parent:expr, $menu_shared_vars:ident, Right, ($($extra_component:expr,)*), { $($body:tt)* }) => {
+        $crate::build_layout!($parent, $menu_shared_vars, _quarter_screen, UiRect::right(Val::Percent(0.)), ($($extra_component,)*), $($body)*);
+    };
     // Built-in quarter-screen container
     ($parent:expr, $menu_shared_vars:ident, _quarter_screen, $position:expr, ($($extra_component:expr,)*), $($body:tt)*) => {
         let msv = $crate::get!($menu_shared_vars);
+        let width = if matches!($position.left, Val::Undefined) && matches!($position.right, Val::Undefined) {
+            msv.layout_width.get_or_default()
+        } else {
+            msv.layout_width.get_or(Val::Percent(25.))
+        };
+        let height = if matches!($position.top, Val::Undefined) && matches!($position.bottom, Val::Undefined) {
+            msv.layout_height.get_or_default()
+        } else {
+            msv.layout_height.get_or(Val::Percent(25.))
+        };
         let style = Style {
-            size: Size::new(msv.layout_width.get_or_default(), msv.layout_height.get_or(Val::Percent(25.))),
-            align_items: msv.layout_alignment.get_or(AlignItems::End),
-            align_self: msv.layout_own_alignment.get_or_default(),
+            size: Size::new(width, height),
+            align_items: msv.align_items.get_or(AlignItems::End),
+            align_self: msv.align_self.get_or(AlignSelf::Center),
             justify_content: msv.justify_content.get_or(JustifyContent::Center),
             position_type: PositionType::Absolute,
             position: $position,
-            margin: UiRect::all(Val::Percent(2.5)),
+            margin: msv.margin.get_or(UiRect::all(Val::Percent(2.5))),
             ..default()
         };
         $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
@@ -378,10 +407,11 @@ macro_rules! build_layout {
         let msv = $crate::get!($menu_shared_vars);
         let style = Style {
             size: Size::new(msv.layout_width.get_or_default(), msv.layout_height.get_or_default()),
-            align_items: msv.layout_alignment.get_or(AlignItems::Center),
-            align_self: msv.layout_own_alignment.get_or_default(),
+            align_items: msv.align_items.get_or(AlignItems::Center),
+            align_self: msv.align_self.get_or_default(),
             justify_content: msv.justify_content.get_or(JustifyContent::Center),
             flex_direction: $flex_direction,
+            margin: msv.margin.get_or_default(),
             ..default()
         };
         $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
@@ -390,9 +420,10 @@ macro_rules! build_layout {
         let msv = $crate::get!($menu_shared_vars);
         let style = Style {
             size: Size::new(msv.layout_width.get_or_default(), msv.layout_height.get_or_default()),
-            align_items: msv.layout_alignment.get_or_default(),
-            align_self: msv.layout_own_alignment.get_or_default(),
+            align_items: msv.align_items.get_or_default(),
+            align_self: msv.align_self.get_or_default(),
             justify_content: msv.justify_content.get_or_default(),
+            margin: msv.margin.get_or_default(),
             ..default()
         };
         $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
@@ -402,7 +433,7 @@ macro_rules! build_layout {
         let mut entity_commands = $parent.spawn((
             NodeBundle {
                 style: $style,
-                background_color: $crate::get!($menu_shared_vars.node_background_color).into(),
+                background_color: $crate::get!($menu_shared_vars.node_color).into(),
                 ..default()
             }
             $(, $extra_component)*
@@ -425,9 +456,10 @@ macro_rules! build_text {
             TextBundle::from_sections(sections)
                 .with_text_alignment(TextAlignment::Center)
                 .with_style(Style {
-                    align_items: bundle_msv.layout_alignment.get_or_default(),
-                    align_self: bundle_msv.layout_own_alignment.get_or_default(),
+                    align_items: bundle_msv.align_items.get_or_default(),
+                    align_self: bundle_msv.align_self.get_or_default(),
                     justify_content: bundle_msv.justify_content.get_or_default(),
+                    margin: bundle_msv.margin.get_or(UiRect::all(Val::Percent(2.5))),
                     ..default()
                 }),
             $($extra_components,)*
@@ -480,10 +512,10 @@ macro_rules! build_buttons {
         $menu_shared_vars.reset_temporaries();
 
         let button_style = Style {
-            size: msv.button_size,
+            size: Size::new(msv.button_width, msv.button_height),
             margin: msv.button_margin,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
+            justify_content: msv.justify_content.get_or(JustifyContent::Center),
+            align_items: msv.align_items.get_or(AlignItems::Center),
             ..default()
         };
         let button_text_style = TextStyle {
@@ -508,9 +540,10 @@ macro_rules! build_buttons {
             ]).into()
         } else { None };
 
-        let background_color = msv.node_background_color.into();
+        let background_color = BackgroundColor::from(msv.node_color);
         let outline_width = msv.outline_width;
         let button_color = msv.button_color;
+        // let margin = msv.margin.get_or(UiRect::all(Val::Percent(2.5)));
         $(
             let mut entity_commands = $parent.spawn((
                 ButtonBundle {

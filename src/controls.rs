@@ -1,5 +1,6 @@
 use crate::characters::PlayerControlled;
 use crate::multiplayer::{GGRSConfig, GGRSInput};
+use crate::GamePauseEvent;
 use bevy::ecs::schedule::SystemSet;
 use bevy::input::{
     gamepad::{
@@ -8,7 +9,9 @@ use bevy::input::{
     },
     Axis, Input,
 };
-use bevy::prelude::{Commands, Component, EventReader, In, KeyCode, Local, Query, Res, Resource};
+use bevy::prelude::{
+    Commands, Component, EventReader, EventWriter, In, KeyCode, Local, Query, Res, Resource,
+};
 use bevy::reflect::{FromReflect, Reflect};
 use bevy_ggrs::{ggrs, PlayerInputs};
 
@@ -239,5 +242,27 @@ pub fn handle_gamepad_connections(
                 }
             }
         }
+    }
+}
+
+/// System that listens for pause inputs either from a keyboard or a connected gamepad,
+/// sending a `GamePauseEvent::Toggle` event.
+pub fn handle_pause_input(
+    keyboard: Res<Input<KeyCode>>,
+    connected_gamepad: Option<Res<GamepadWrapper>>,
+    gamepad_buttons: Res<Input<GamepadButton>>,
+    mut pause_events: EventWriter<GamePauseEvent>,
+) {
+    if keyboard.just_pressed(KeyCode::Escape)
+        || connected_gamepad
+            .filter(|gp| {
+                gamepad_buttons.pressed(GamepadButton {
+                    gamepad: gp.0,
+                    button_type: GamepadButtonType::Start,
+                })
+            })
+            .is_some()
+    {
+        pause_events.send(GamePauseEvent::Toggle);
     }
 }

@@ -29,6 +29,9 @@ impl<Context> Focus<Context> {
     }
 }
 
+/// Atlas component serving to provide colors for each different [`Interaction`] with the entity.
+///
+/// [`None`] means the entity should not react to this interaction variant.
 #[derive(Component, Default, Clone, Copy, Debug)]
 pub(crate) struct ColorInteractionMap {
     default: Option<Color>,
@@ -80,6 +83,8 @@ pub mod colors {
     pub const AERO_BLUE: Color = Color::rgb(0.788, 1., 0.898);
     /// <div style="background-color:rgb(64.7%, 16.5%, 16.5%); width: 10px; padding: 10px; border: 1px solid;"></div>
     pub const ALMOND: Color = Color::rgb(0.647, 0.165, 0.165);
+    /// <div style="background-color:rgb(100.0%, 74.9%, 0.0%); width: 10px; padding: 10px; border: 1px solid;"></div>
+    pub const AMBER: Color = Color::rgb(1., 0.749, 0.);
     /// <div style="background-color:rgb(75.7%, 71%, 66.3%); width: 10px; padding: 10px; border: 1px solid;"></div>
     pub const ASH_GRAY: Color = Color::rgb(0.757, 0.71, 0.663);
     /// <div style="background-color:rgb(94.9%, 67.5%, 72.5%); width: 10px; padding: 10px; border: 1px solid;"></div>
@@ -112,6 +117,10 @@ pub mod colors {
     pub const PEACH: Color = Color::rgb(1.0, 0.898, 0.678);
     /// <div style="background-color:rgb(10.98%, 22.35%, 73.33%); width: 10px; padding: 10px; border: 1px solid;"></div>
     pub const PERSIAN_BLUE: Color = Color::rgb(0.1098, 0.2235, 0.7333);
+    // /// <div style="background-color:rgb(40.0%, 20.0%, 80.0%); width: 10px; padding: 10px; border: 1px solid;"></div>
+    // pub const YELLOW_GREEN_COMPLEMENT: Color = Color::rgb(0.4, 0.2, 0.8);
+    /// <div style="background-color:rgb(72.9%,33.3%,82.7%); width: 10px; padding: 10px; border: 1px solid;"></div>
+    pub const ORCHID: Color = Color::rgb(0.729, 0.333, 0.827);
     /// <div style="background-color:rgb(0%, 12.9%, 27.8%); width: 10px; padding: 10px; border: 1px solid;"></div>
     pub const OXFORD_BLUE: Color = Color::rgb(0., 0.129, 0.278);
     /// <div style="background-color:rgb(0%, 0.4%, 20%); width: 10px; padding: 10px; border: 1px solid;"></div>

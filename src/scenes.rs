@@ -4,7 +4,9 @@ use crate::{
     PLAYER_DEFAULT_TEAM, SCREEN_SPAN,
 };
 use bevy::math::{Quat, Vec3};
-use bevy::prelude::{Commands, Res, ResMut, Resource, Transform};
+use bevy::prelude::{
+    Camera, Commands, Entity, Query, Res, ResMut, Resource, Transform, Window, Without,
+};
 use std::f32::consts::PI;
 
 /// Specifier of the scene which to load.
@@ -39,6 +41,18 @@ pub fn summon_scene(
             SceneSelector::Lite => setup_lite(commands, random_state),
         },
     }
+}
+
+/// Delete every entity! Only leave the cameras and windows.
+///
+/// Extremely unsafe, but I don't care at this point. Maybe return later.
+pub fn despawn_everything(
+    mut commands: Commands,
+    query: Query<Entity, (Without<Camera>, Without<Window>)>,
+) {
+    query
+        .iter()
+        .for_each(|entity| commands.entity(entity).despawn());
 }
 
 /// Set up a more complicated and chaotic scene with the latest features and experiments.
@@ -120,29 +134,29 @@ fn setup_base_arena(commands: &mut Commands) {
     // ----- Walls of the arena
     commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::X * -SCREEN_SPAN / 2.0).with_scale(Vec3::new(
-            1.0,
-            SCREEN_SPAN / CHUNK_SIZE + 1.0,
+            0.5,
+            SCREEN_SPAN / CHUNK_SIZE + 0.5,
             1.0,
         )),
     ));
     commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::X * SCREEN_SPAN / 2.0).with_scale(Vec3::new(
-            1.0,
-            SCREEN_SPAN / CHUNK_SIZE + 1.0,
+            0.5,
+            SCREEN_SPAN / CHUNK_SIZE + 0.5,
             1.0,
         )),
     ));
     commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::Y * SCREEN_SPAN / 2.0).with_scale(Vec3::new(
-            SCREEN_SPAN / CHUNK_SIZE + 1.0,
-            1.0,
+            SCREEN_SPAN / CHUNK_SIZE + 0.5,
+            0.5,
             1.0,
         )),
     ));
     commands.spawn(RectangularObstacleBundle::new(
         Transform::from_translation(Vec3::Y * -SCREEN_SPAN / 2.0).with_scale(Vec3::new(
-            SCREEN_SPAN / CHUNK_SIZE + 1.0,
-            1.0,
+            SCREEN_SPAN / CHUNK_SIZE + 0.5,
+            0.5,
             1.0,
         )),
     ));

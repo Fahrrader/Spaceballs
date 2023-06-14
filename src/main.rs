@@ -39,6 +39,7 @@ fn main() {
             ..default()
         })
         .add_state::<GameState>()
+        .add_event::<GamePauseEvent>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(create_window(800., 800.)),
             ..default()
@@ -58,6 +59,7 @@ fn main() {
         .add_system(start_matchbox_socket.in_schedule(OnEnter(GameState::Matchmaking)))
         .add_system(wait_for_players.run_if(in_state(GameState::Matchmaking)))
         .add_system(summon_scene.in_schedule(OnEnter(GameState::InGame)))
+        .add_system(despawn_everything.in_schedule(OnExit(GameState::InGame)))
         .add_system(sever_connection.in_schedule(OnExit(GameState::InGame)))
         .add_system(handle_gamepad_connections)
         // todo:mp action routine gets abnormally long if in rollback together with ai input, might be interesting to look into
@@ -95,6 +97,7 @@ fn main() {
                 .in_schedule(GGRSSchedule)
                 .run_if(in_state(GameState::InGame)),
         )
+        .add_system(handle_pause_input.run_if(in_state(GameState::InGame)))
         .add_system(handle_entities_out_of_bounds)
         .add_systems((
             handle_gun_ownership_cosmetic_change,

@@ -1,6 +1,6 @@
 use crate::ui::menu_builder::DEFAULT_TEXT_COLOR;
 use crate::ui::{colors, despawn_node, ColorInteractionMap, Focus};
-use crate::{build_menu_plugin, GameState, PlayerCount, SceneSelector};
+use crate::{build_menu_plugin, GamePauseEvent, GameState, PlayerCount, SceneSelector};
 use bevy::app::{AppExit, PluginGroupBuilder};
 use bevy::prelude::*;
 
@@ -32,6 +32,7 @@ generate_menu_states!(
     Controls,
     // Tutorial,
     Settings,
+    Pause,
 );
 
 /// Tag component used to tag entities as children on a generic menu screen -- those that should also be despawned when the screen is exited.
@@ -48,6 +49,7 @@ impl<T> Default for OnMenu<T> {
     }
 }
 
+/// Plugin that handles spawning and despawning of a single menu that has a component [`T`].
 struct SingleMenuPlugin<T> {
     _marker: std::marker::PhantomData<T>,
 }
@@ -72,10 +74,11 @@ pub(crate) enum MenuButtonAction {
     SelectScene(SceneSelector),
     StartSinglePlayerGame,
     StartMultiPlayerGame,
+    Resume,
     Controls,
     Settings,
-    QuitToMenu,
-    // todo:web no show if in browser -- there is no place to escape!
+    BackToMenu,
+    QuitToTitle,
     Quit,
 }
 
@@ -173,8 +176,47 @@ fn handle_button_style_change(
     }
 }
 
+/// System to initialize the default Main Menu state.
 fn set_main_menu_state(mut menu_state: ResMut<NextState<MenuState>>) {
     menu_state.set(MenuState::Main);
+}
+
+/// System to read and apply game pause events to set the new menu state.
+fn pause_menu(
+    mut pause_events: EventReader<GamePauseEvent>,
+    mut menu_state: ResMut<NextState<MenuState>>,
+    player_count: Res<PlayerCount>,
+) {
+    if !pause_events
+        .iter()
+        .any(|event| matches!(event, GamePauseEvent::Pause | GamePauseEvent::Toggle))
+    {
+        return;
+    }
+
+    if player_count.0 <= 1 {
+        // todo pause
+    }
+    menu_state.set(MenuState::Pause);
+}
+
+/// System to read and apply game unpause events to set the new menu state.
+fn unpause_menu(
+    mut pause_events: EventReader<GamePauseEvent>,
+    mut menu_state: ResMut<NextState<MenuState>>,
+    player_count: Res<PlayerCount>,
+) {
+    if !pause_events
+        .iter()
+        .any(|event| matches!(event, GamePauseEvent::Unpause | GamePauseEvent::Toggle))
+    {
+        return;
+    }
+
+    if player_count.0 <= 1 {
+        // todo unpause
+    }
+    menu_state.set(MenuState::Disabled);
 }
 
 /* Main menu UI structure
@@ -221,7 +263,7 @@ blurry top node
 
 build_menu_plugin!(
     (setup_main_menu, Main),
-    once layout_alignment = AlignItems::Start.into(),
+    once align_items = AlignItems::Start.into(),
     once layout_height = Val::Percent(42.5).into(),
     Column {
         text_font_size = 60.0,
@@ -255,16 +297,51 @@ build_menu_plugin!(
                     (MenuButtonAction::Settings, "Settings"),
                 ],
             },
-            Buttons [
-                (MenuButtonAction::Quit, "Quit"),
-            ],
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                Buttons [
+                    (MenuButtonAction::Quit, "Quit"),
+                ],
+            },
         },
     },
 );
 
 build_menu_plugin!(
+    (setup_pause_menu, Pause),
+    //once node_color = Color::TURQUOISE.with_a(0.05),
+    once layout_height = Val::Percent(100.).into(),
+    once layout_width = Val::Percent(50.).into(),
+    justify_content = JustifyContent::Start.into(),
+    once align_items = AlignItems::Center.into(),
+    button_width = Val::Px(280.),
+    button_font_size = 30.,
+    button_margin = UiRect::all(Val::Px(2.)),
+    outline_width = Val::Px(0.),
+    Left {
+        once align_items = AlignItems::Start.into(),
+        Column {
+            once text_color = colors::ORCHID.into(),
+            Text [
+                "Menu",
+            ],
+            Buttons [
+                (MenuButtonAction::Resume, "Resume"),
+                (MenuButtonAction::Controls, "Controls"),
+                (MenuButtonAction::QuitToTitle, "Quit to Main Menu"),
+            ],
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                Buttons [
+                    (MenuButtonAction::Quit, "Quit"),
+                ],
+            },
+        },
+    },
+);
+build_menu_plugin!(
     (setup_singleplayer_menu, SinglePlayer),
-    once layout_own_alignment = AlignSelf::Start.into(),
+    once align_self = AlignSelf::Start.into(),
     once layout_height = Val::Percent(50.).into(),
     Column {
         Column {
@@ -272,11 +349,12 @@ build_menu_plugin!(
                 "Singleplayer",
             ],
         },
-        once layout_own_alignment = AlignSelf::Start.into(),
+        once align_self = AlignSelf::Start.into(),
         once layout_height = Val::Percent(90.).into(),
         Column {
             Node {
-                button_size = Size::new(Val::Px(330.0), Val::Px(165.0)),
+                button_width = Val::Px(330.0),
+                button_height = Val::Px(165.0),
                 Buttons [
                     (MenuButtonAction::SelectScene(SceneSelector::Lite), "Scene\nLite"),
                     (MenuButtonAction::SelectScene(SceneSelector::Experimental), "Scene\nExperimental"),
@@ -288,7 +366,7 @@ build_menu_plugin!(
         Column {
             Buttons [
                 (MenuButtonAction::StartSinglePlayerGame, "Start Game"),
-                (MenuButtonAction::QuitToMenu, "Back"),
+                (MenuButtonAction::BackToMenu, "Back"),
             ],
         },
     },
@@ -296,8 +374,8 @@ build_menu_plugin!(
 
 build_menu_plugin!(
     (setup_multiplayer_menu, MultiPlayer),
-    once layout_alignment = AlignItems::Start.into(),
-    once layout_own_alignment = AlignSelf::Start.into(),
+    once align_items = AlignItems::Start.into(),
+    once align_self = AlignSelf::Start.into(),
     Column {
         Text [
             "Multiplayer",
@@ -308,7 +386,7 @@ build_menu_plugin!(
             Buttons [
                 (MenuButtonAction::JoinGame, "Join Game"),
                 (MenuButtonAction::HostGame, "Host Game"),
-                (MenuButtonAction::QuitToMenu, "Back"),
+                (MenuButtonAction::BackToMenu, "Back"),
             ],
         },
     },
@@ -328,7 +406,7 @@ build_menu_plugin!(
     },
     Bottom {
         Buttons [
-            (MenuButtonAction::QuitToMenu, "Back"),
+            (MenuButtonAction::BackToMenu, "Back"),
         ],
     },
 );
@@ -337,12 +415,12 @@ build_menu_plugin!(
     (setup_controls_menu, Controls),
     Bottom {
         Buttons [
-            (MenuButtonAction::QuitToMenu, "Back"),
+            (MenuButtonAction::BackToMenu, "Back"),
         ],
     },
 );
 
-/// Systems to handle the menu screens setup and despawning
+/// Systems to handle the menu screens setup and despawning and more, if desired.
 struct MenuSetupPlugins;
 
 impl PluginGroup for MenuSetupPlugins {
@@ -351,6 +429,7 @@ impl PluginGroup for MenuSetupPlugins {
 
         PluginGroupBuilder::start::<Self>()
             .add(SingleMenuPlugin::<Main>::default())
+            .add(SingleMenuPlugin::<Pause>::default())
             .add(SingleMenuPlugin::<SinglePlayer>::default())
             .add(SingleMenuPlugin::<MultiPlayer>::default())
             //.add(SingleMenuPlugin::<MatchMaker>::default())
@@ -360,6 +439,7 @@ impl PluginGroup for MenuSetupPlugins {
     }
 }
 
+/// Handle button press interactions.
 fn handle_menu_actions(
     mut commands: Commands,
     interaction_query: Query<
@@ -372,9 +452,11 @@ fn handle_menu_actions(
     >,
     // focus_query: Query<&Focus>,
     mut scene_focus_query: Query<&mut Focus<SceneSelector>>,
+    mut pause_events: EventWriter<GamePauseEvent>,
     mut app_exit_events: EventWriter<AppExit>,
     mut menu_state: ResMut<NextState<MenuState>>,
     mut game_state: ResMut<NextState<GameState>>,
+    current_game_state: Res<State<GameState>>,
 ) {
     for (interaction, menu_button_action, entity) in &interaction_query {
         if *interaction == Interaction::Clicked {
@@ -430,16 +512,27 @@ fn handle_menu_actions(
                         }
                     }
                 }
+                MenuButtonAction::Resume => pause_events.send(GamePauseEvent::Unpause),
                 MenuButtonAction::Controls => menu_state.set(MenuState::Controls),
                 MenuButtonAction::Settings => menu_state.set(MenuState::Settings),
-                // todo also set game state to main menu?
-                // add despawning system to the game that would trigger on exiting InGame state
-                MenuButtonAction::QuitToMenu => menu_state.set(MenuState::Main),
+                MenuButtonAction::BackToMenu => {
+                    if current_game_state.0 == GameState::InGame {
+                        menu_state.set(MenuState::Pause)
+                    } else {
+                        menu_state.set(MenuState::Main)
+                    }
+                }
+                MenuButtonAction::QuitToTitle => {
+                    pause_events.send(GamePauseEvent::Unpause);
+                    game_state.set(GameState::MainMenu);
+                    menu_state.set(MenuState::Main);
+                }
             }
         }
     }
 }
 
+/// Plugin handling all menu interactions, spawnings and despawnings.
 pub struct MenuPlugin;
 
 // todo I want them blooms on the UI. Figure out how to do blooms!
@@ -449,14 +542,19 @@ impl Plugin for MenuPlugin {
             // Plugins responsible for spawning and despawning the menus
             .add_plugins(MenuSetupPlugins)
             .add_system(set_main_menu_state.in_schedule(OnEnter(GameState::MainMenu)))
+            .add_system(
+                pause_menu
+                    .run_if(in_state(GameState::InGame).and_then(in_state(MenuState::Disabled))),
+            )
+            .add_system(
+                unpause_menu.run_if(
+                    in_state(GameState::InGame).and_then(not(in_state(MenuState::Disabled))),
+                ),
+            )
             .add_systems(
                 (
-                    handle_menu_actions
-                        // eh, no, what about in-game menu
-                        .run_if(in_state(GameState::MainMenu)),
-                    handle_button_style_change
-                        // eh, no, what about in-game menu
-                        .run_if(in_state(GameState::MainMenu)),
+                    handle_menu_actions.run_if(not(in_state(MenuState::Disabled))),
+                    handle_button_style_change.run_if(not(in_state(MenuState::Disabled))),
                 )
                     .in_base_set(CoreSet::Update),
             );

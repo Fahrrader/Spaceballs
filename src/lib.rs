@@ -16,8 +16,8 @@ pub use characters::{
     handle_letting_gear_go, PlayerCharacterBundle,
 };
 pub use controls::{
-    handle_gamepad_connections, handle_online_player_input, process_input, CharacterActionInput,
-    InputHandlingSet,
+    handle_gamepad_connections, handle_online_player_input, handle_pause_input, process_input,
+    CharacterActionInput, InputHandlingSet,
 };
 pub use guns::{systems::*, Equipped, Gun, GunBundle, GunPreset};
 pub use health::{handle_death, Dying, Health};
@@ -30,7 +30,7 @@ pub use physics::{
     SpaceballsPhysicsPlugin, Velocity, CHUNK_SIZE,
 };
 pub use projectiles::handle_bullet_collision_events;
-pub use scenes::{summon_scene, SceneSelector};
+pub use scenes::{despawn_everything, summon_scene, SceneSelector};
 pub use teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 pub use ui::menu::{MenuPlugin, MenuState};
 
@@ -62,6 +62,15 @@ pub enum GameState {
     Matchmaking,
     /// Match in progress.
     InGame,
+}
+
+/// Event to control the trigger the pause / in-game menu state of the game.
+/// Use `Pause` and `Unpause` for explicit control, and `Toggle` to switch between the states.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum GamePauseEvent {
+    Pause,
+    Unpause,
+    Toggle,
 }
 
 /// The essential setup that must be done at the launching of the app regardless of the game state.
