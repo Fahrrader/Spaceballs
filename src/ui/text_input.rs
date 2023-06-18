@@ -1,6 +1,8 @@
 use crate::ui::{remove_focus_from_non_focused_entities, Focus, FocusSwitchedEvent};
 use crate::MenuState;
 use bevy::prelude::*;
+#[cfg(not(target_arch = "wasm32"))]
+use clipboard::{ClipboardContext, ClipboardProvider};
 use std::time::Duration;
 
 /// Text input component, meant to be working together with [`Text`] and [`Focus<TextInput>`].
@@ -40,6 +42,85 @@ impl TextInput {
             max_symbols: usize::MAX,
         }
     }
+
+    pub fn insert(&mut self, ch: char) -> bool {
+        if self.text.len() < self.max_symbols {
+            // Could be unsafe due to some characters being more than 1 byte long
+            self.text.insert(self.cursor_position, ch);
+            self.cursor_position += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn insert_string<S: AsRef<str>>(&mut self, s: S) -> bool {
+        let s = s.as_ref();
+        let remaining_capacity = self.max_symbols.saturating_sub(self.text.chars().count());
+        let insertion = s.chars().take(remaining_capacity).collect::<String>();
+        let inserted_len = insertion.chars().count();
+
+        if inserted_len == 0 {
+            return false;
+        }
+
+        self.text.insert_str(self.cursor_position, &insertion);
+        self.cursor_position += inserted_len;
+
+        true
+    }
+
+    pub fn delete(&mut self, steps: isize) -> String {
+        if self.cursor_position != 0 || steps < 0 {
+            let mut chars: Vec<char> = self.text.chars().collect();
+            let (start, end) = if steps > 0 {
+                (
+                    self.cursor_position - steps.min(self.cursor_position as isize) as usize,
+                    self.cursor_position,
+                )
+            } else {
+                (
+                    self.cursor_position,
+                    (self.cursor_position as isize - steps).min(chars.len() as isize) as usize,
+                )
+            };
+
+            let deleted_range: String = chars.drain(start..end).collect();
+            self.text = chars.into_iter().collect();
+            self.cursor_position = start;
+            deleted_range
+        } else {
+            String::new()
+        }
+    }
+
+    pub fn reset_text(&mut self) -> String {
+        self.cursor_position = 0;
+        std::mem::take(&mut self.text)
+    }
+
+    pub fn shift_cursor_left(&mut self, steps: usize) {
+        self.cursor_position = self.cursor_position.saturating_sub(steps);
+    }
+
+    pub fn shift_cursor_right(&mut self, steps: usize) {
+        self.cursor_position = (self.cursor_position + steps).min(self.text.len());
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn copy_to_clipboard(contents: String) {
+    let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
+    ctx.set_contents(contents).unwrap();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn paste_from_clipboard() -> String {
+    let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
+    match ctx.get_contents() {
+        Ok(contents) => contents,
+        Err(_) => String::new(), // Handle error (empty string in this case)
+    }
 }
 
 fn handle_text_input_addition(mut text_query: Query<(&mut Text, &TextInput), Added<TextInput>>) {
@@ -70,83 +151,130 @@ fn handle_text_input_new_focus(
                 *focus_input = Focus::Focused(TextInput::default());
                 focus_switch_events.send(FocusSwitchedEvent::new(Some(entity)));
             }
-            _ => {} // Focus::None,
+            _ => {}
         }
     }
 }
 
+#[derive(Default)]
+struct KeyHandler {
+    timer: Timer,
+    handled: bool,
+}
+
+impl KeyHandler {
+    const KEY_PRESS_INITIAL_TIMEOUT: f32 = 0.5;
+    const KEY_PRESS_TIMEOUT: f32 = 0.05;
+
+    pub fn press_with_timeout(
+        &mut self,
+        key: KeyCode,
+        action: &mut dyn FnMut(),
+        (keys, time): (&Input<KeyCode>, &Time),
+    ) {
+        let mut new_duration = None;
+        if keys.just_pressed(key) {
+            action();
+            new_duration = Some(Duration::from_secs_f32(Self::KEY_PRESS_INITIAL_TIMEOUT));
+        } else if keys.pressed(key) && self.timer.tick(time.delta()).just_finished() {
+            action();
+            new_duration = Some(Duration::from_secs_f32(Self::KEY_PRESS_TIMEOUT));
+        }
+
+        if let Some(duration) = new_duration {
+            self.timer.set_duration(duration);
+            self.timer.reset();
+            self.handled = true;
+        } else if keys.just_released(key) {
+            self.timer.reset();
+            self.handled = true;
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn handle_text_input(
     mut text_query: Query<(&mut TextInput, &Focus<TextInput>)>,
     mut characters_evs: EventReader<ReceivedCharacter>,
     keys: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut key_press_timer: Local<Timer>,
+    mut key_handler: Local<KeyHandler>,
 ) {
-    const KEY_PRESS_INITIAL_TIMEOUT: f32 = 0.5;
-    const KEY_PRESS_TIMEOUT: f32 = 0.05;
-
-    let mut handle_key_press_with_timeout = |key: KeyCode, action: &mut dyn FnMut()| {
-        if keys.just_pressed(key) {
-            action();
-
-            key_press_timer.set_duration(Duration::from_secs_f32(KEY_PRESS_INITIAL_TIMEOUT));
-            key_press_timer.reset();
-        } else if keys.pressed(key) && key_press_timer.tick(time.delta()).just_finished() {
-            action();
-
-            key_press_timer.set_duration(Duration::from_secs_f32(KEY_PRESS_TIMEOUT));
-            key_press_timer.reset();
-        } else if keys.just_released(key) {
-            key_press_timer.reset();
-        }
-    };
-
     for (mut input, focus) in text_query.iter_mut() {
         if focus.is_none() {
             continue;
         }
 
-        for ev in characters_evs.iter() {
-            if ev.char.is_ascii_graphic() || ev.char.is_ascii_whitespace() {
-                let idx = input.cursor_position;
-                // Could be unsafe due to some characters being more than 1 byte long
-                input.text.insert(idx, ev.char);
-                input.cursor_position += 1;
+        key_handler.handled = false;
+
+        key_handler.press_with_timeout(
+            KeyCode::Return,
+            &mut || {
+                input.insert('\n');
+            },
+            (&keys, &time),
+        );
+
+        key_handler.press_with_timeout(
+            KeyCode::Left,
+            &mut || input.shift_cursor_left(1),
+            (&keys, &time),
+        );
+
+        key_handler.press_with_timeout(
+            KeyCode::Right,
+            &mut || input.shift_cursor_right(1),
+            (&keys, &time),
+        );
+
+        key_handler.press_with_timeout(
+            KeyCode::Back,
+            &mut || {
+                input.delete(1);
+            },
+            (&keys, &time),
+        );
+
+        key_handler.press_with_timeout(
+            KeyCode::Delete,
+            &mut || {
+                input.delete(-1);
+            },
+            (&keys, &time),
+        );
+
+        if keys.pressed(KeyCode::LControl) || keys.pressed(KeyCode::RControl) {
+            if keys.just_pressed(KeyCode::C) {
+                copy_to_clipboard(input.text.clone());
+                key_handler.handled = true;
             }
+
+            if keys.just_pressed(KeyCode::X) {
+                copy_to_clipboard(input.reset_text());
+                key_handler.handled = true;
+            }
+
+            key_handler.press_with_timeout(
+                KeyCode::V,
+                &mut || {
+                    input.insert_string(paste_from_clipboard());
+                },
+                (&keys, &time),
+            );
         }
 
-        handle_key_press_with_timeout(KeyCode::Return, &mut || {
-            let idx = input.cursor_position;
-            input.text.insert(idx, '\n');
-            input.cursor_position += 1;
-        });
-
-        handle_key_press_with_timeout(KeyCode::Left, &mut || {
-            input.cursor_position = input.cursor_position.saturating_sub(1);
-        });
-
-        handle_key_press_with_timeout(KeyCode::Right, &mut || {
-            input.cursor_position = (input.cursor_position + 1).min(input.text.len());
-        });
-
-        handle_key_press_with_timeout(KeyCode::Back, &mut || {
-            if input.cursor_position != 0 {
-                let mut chars: Vec<char> = input.text.chars().collect();
-                chars.remove(input.cursor_position - 1);
-                input.text = chars.into_iter().collect();
-                input.cursor_position -= 1;
+        if !key_handler.handled {
+            for ev in characters_evs.iter() {
+                if ev.char.is_ascii_graphic() || ev.char.is_ascii_whitespace() {
+                    input.insert(ev.char);
+                }
             }
-        });
-
-        handle_key_press_with_timeout(KeyCode::Delete, &mut || {
-            if input.cursor_position < input.text.len() {
-                let mut chars: Vec<char> = input.text.chars().collect();
-                chars.remove(input.cursor_position);
-                input.text = chars.into_iter().collect();
-            }
-        });
+        }
     }
 }
+
+#[cfg(target_arch = "wasm32")]
+fn handle_text_input() {}
 
 fn transfer_text_input(mut text_query: Query<(&mut Text, &TextInput), Changed<TextInput>>) {
     for (mut text, input) in text_query.iter_mut() {

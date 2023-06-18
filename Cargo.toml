@@ -18,6 +18,7 @@ bevy_matchbox = { version = "0.6", features = ["ggrs"] }
 bytemuck = "1.5"
 rand = "0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
+clipboard = "0.5.0"
 clap = { version = "4", features = ["derive"] }
 console_error_panic_hook = "0.1"
 wasm-bindgen = "*"
