@@ -9,6 +9,7 @@ pub const DEFAULT_BUTTON_PRESSED_COLOR: Color = Color::CYAN;
 
 macro_rules! make_menu_building_environment {
     {$($(#[$doc:meta])? $field:ident: $typ:ty $(,)?)*} => {
+        /// Set of shared variables used by the menu-building macros.
         pub(crate) struct MenuBuildingEnvironment {
             $(
                 $(#[$doc])?
@@ -17,6 +18,8 @@ macro_rules! make_menu_building_environment {
             pub temporaries: TempMenuBuildingEnvironment,
         }
 
+        /// Set of shared variables used by the menu-building macros, but only once.
+        /// Meant to be used as part of [`MenuBuildingEnvironment`], and to be reset when it's been used.
         #[derive(Clone, Debug, Default)]
         pub(crate) struct TempMenuBuildingEnvironment {
             $(
@@ -26,6 +29,8 @@ macro_rules! make_menu_building_environment {
         }
 
         impl MenuBuildingEnvironment {
+            /// Get a new copy of [`MenuBuildingEnvironment`], joined with its [`TempMenuBuildingEnvironment`],
+            /// where fields that are present in the temporary environment take precedence.
             pub fn unite_with_temporaries(&mut self) -> Self {
                 Self {
                     $(
@@ -40,7 +45,6 @@ macro_rules! make_menu_building_environment {
 }
 
 make_menu_building_environment! {
-    // maybe do something about privacy here
     // pub(crate) asset_server: &'a ResMut<'a, AssetServer>,
     font: Handle<Font>,
     /// Generally the background color of a UI node, use with caution with alpha stacking.
@@ -108,8 +112,9 @@ impl MenuBuildingEnvironment {
         }
     }
 
+    /// Explicitly reset own [`TempMenuBuildingEnvironment`].
     pub fn reset_temporaries(&mut self) {
-        self.temporaries = default()
+        self.temporaries = default();
     }
 
     // pub fn load_asset<T: Asset, P: Into<AssetPath<'a>>>(&self, path: P) -> Handle<T> {
@@ -136,9 +141,12 @@ macro_rules! get {
     };
 }
 
+/// Determines whether a color is its own unique color or should be inherited from a parent node.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum InheritedColor {
+    /// Should inherit the color from a parent.
     Inherit,
+    /// Has its own unique color.
     Own(Color),
 }
 
@@ -149,6 +157,7 @@ impl From<Color> for InheritedColor {
 }
 
 impl InheritedColor {
+    /// Tries to resolve the inherited color, falling back on a parent color if necessary.
     pub fn try_resolve(&self, parent_color: Option<Color>) -> Result<Color, &str> {
         match self {
             InheritedColor::Own(color) => Ok(*color),
@@ -158,6 +167,7 @@ impl InheritedColor {
         }
     }
 
+    /// Resolves the inherited color, using a parent color if necessary.
     pub fn resolve(&self, parent_color: Color) -> Color {
         match self {
             InheritedColor::Own(color) => *color,
@@ -166,14 +176,18 @@ impl InheritedColor {
     }
 }
 
+/// Generic enum that allows a type to either be a specific value or a default.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) enum MaybeDefault<T: Default + Copy> {
+    /// Has a specific value.
     Some(T),
+    /// Uses the default value for the type `T`.
     #[default]
     Default,
 }
 
 impl<T: Default + Copy> MaybeDefault<T> {
+    /// Returns the value if `Some(T)`, or the default value of `T` otherwise.
     pub fn get_or_default(&self) -> T {
         match self {
             MaybeDefault::Some(x) => *x,
@@ -181,6 +195,7 @@ impl<T: Default + Copy> MaybeDefault<T> {
         }
     }
 
+    /// Returns the value if `Some(T)`, or the provided value otherwise.
     pub fn get_or(&self, default: T) -> T {
         match self {
             MaybeDefault::Some(x) => *x,
@@ -655,6 +670,7 @@ macro_rules! build_buttons {
     };
 }
 
+/// Create outlining bar elements at the edges of the parent node.
 pub(crate) fn outline_parent(
     child_builder: &mut ChildBuilder,
     outline_width: Val,

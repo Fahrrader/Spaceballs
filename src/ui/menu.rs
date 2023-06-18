@@ -96,6 +96,7 @@ pub struct ColorInteractionMap {
 }
 
 impl ColorInteractionMap {
+    /// Returns `ColorInteractionMap` formed from a pseudo-map of `Interactions` and their corresponding `Options<Color>`.
     pub fn new(states: impl IntoIterator<Item = (Interaction, Option<Color>)>) -> Self {
         let mut map = Self::default();
 
@@ -110,6 +111,7 @@ impl ColorInteractionMap {
         map
     }
 
+    /// Returns the color of the corresponding `Interaction`.
     pub const fn get(&self, state: Interaction) -> Option<&Color> {
         match state {
             Interaction::None => self.default.as_ref(),
@@ -118,6 +120,7 @@ impl ColorInteractionMap {
         }
     }
 
+    /// Returns `true` if any of the colors in the map equals to the `color` argument.
     pub fn has_color(&self, color: Color) -> bool {
         self.default == Some(color) || self.selected == Some(color) || self.clicked == Some(color)
     }
@@ -154,7 +157,8 @@ fn handle_button_style_change(
         Option<&Children>,
     )>,
 ) {
-    fn distill_color(
+    /// Extract color from the color interaction map, if present, and if the current color is in the map.
+    fn extract_color(
         interaction: Interaction,
         node_colors: &ColorInteractionMap,
         present_color: Color,
@@ -170,16 +174,19 @@ fn handle_button_style_change(
             })
     }
 
-    fn extract_color(
+    /// Try to get a color from the color interaction map, or return the current color.
+    fn distill_color(
         interaction: Interaction,
-        color: Color,
+        present_color: Color,
         color_interaction_map: Option<&ColorInteractionMap>,
     ) -> Color {
         color_interaction_map
-            .and_then(|map| distill_color(interaction, map, color))
-            .unwrap_or(color)
+            .and_then(|map| extract_color(interaction, map, present_color))
+            .unwrap_or(present_color)
     }
 
+    /// Recursively go over a vector of entities and its children,
+    /// painting the entities that have a color interaction map according to the new interaction.
     fn paint_nodes(
         interaction: Interaction,
         children: &Vec<Entity>,
@@ -194,7 +201,7 @@ fn handle_button_style_change(
             if let Ok((mut text, color_interaction_map)) = text_children_query.get_mut(child) {
                 text.sections.iter_mut().for_each(|section| {
                     section.style.color =
-                        extract_color(interaction, section.style.color, color_interaction_map);
+                        distill_color(interaction, section.style.color, color_interaction_map);
                 });
             }
 
@@ -202,7 +209,7 @@ fn handle_button_style_change(
                 node_children_query.get_mut(child)
             {
                 *background =
-                    extract_color(interaction, background.0, color_interaction_map).into();
+                    distill_color(interaction, background.0, color_interaction_map).into();
 
                 if let Some(more_children) = more_children {
                     let children_cloned = more_children.iter().cloned().collect();
@@ -220,13 +227,12 @@ fn handle_button_style_change(
     for (interaction, interaction_focus, scene_focus, entity) in interaction_query.iter() {
         let interaction = match (interaction, interaction_focus, scene_focus) {
             // Highest priority: if anything is Clicked, we're Clicked
-            (&Interaction::Clicked, _, _) | (_, Some(&Focus::Focused(Interaction::Clicked)), _) => {
-                Interaction::Clicked
-            }
+            (&Interaction::Clicked, _, _)
+            | (_, Some(&Focus::Focused(Some(Interaction::Clicked))), _) => Interaction::Clicked,
 
             // Next priority: if interaction or interaction_focus is Hovered or if there is a focused scene, we're Hovered
             (&Interaction::Hovered, _, _)
-            | (_, Some(&Focus::Focused(Interaction::Hovered)), _)
+            | (_, Some(&Focus::Focused(Some(Interaction::Hovered))), _)
             | (_, _, Some(&Focus::Focused(_))) => Interaction::Hovered,
 
             // Lowest priority: if nothing above matched, we're None
@@ -253,7 +259,7 @@ fn transfer_focus_on_interaction(
     interaction_query.for_each_mut(|(entity, interaction, mut focus)| {
         let focused_entity = match interaction {
             Interaction::Clicked | Interaction::Hovered => {
-                *focus = Focus::Focused(interaction.clone());
+                *focus = Focus::focused(interaction.clone());
                 Some(entity)
             }
             _ => None,
@@ -481,7 +487,7 @@ build_menu_plugin!(
                 "URL",
                 "",
             ] + (
-                Focus::<TextInput>::Focused(default()),
+                Focus::<TextInput>::Focused(None),
             ),
             TextInput [
                 "not URL",
@@ -582,7 +588,7 @@ fn handle_menu_actions(
                     }
                     commands
                         .entity(entity)
-                        .insert(Focus::<SceneSelector>::Focused(*scene));
+                        .insert(Focus::<SceneSelector>::focused(*scene));
                 }
                 MenuButtonAction::StartSinglePlayerGame => {
                     let scene_arg = scene_focus_query

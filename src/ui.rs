@@ -21,23 +21,33 @@ fn despawn_node<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: 
 /// Beware that its uniqueness is expected, but might not be enforced outside of this crate.
 #[derive(Component, Clone, Copy, Debug)]
 pub enum Focus<Context = ()> {
+    /// Not focused, but focusable.
     None,
-    Focused(Context),
+    /// Focused with some optional context
+    Focused(Option<Context>),
 }
 
 impl<Context> Focus<Context> {
+    /// Returns `true` if the `Focus` is a `None` value (not focused on).
     pub fn is_none(&self) -> bool {
         matches!(self, Focus::None)
     }
 
+    /// Wraps the incoming `Context` argument into an `Option` and returns `Focus::Focused`.
+    pub fn focused(focus_point: Context) -> Self {
+        Self::Focused(Some(focus_point))
+    }
+
+    /// Returns the contained `Context` value, if present.
     pub fn extract_context(self) -> Option<Context> {
         match self {
-            Focus::Focused(context) => Some(context),
+            Focus::Focused(context) => context,
             Focus::None => None,
         }
     }
 }
 
+/// Event signifying a new entity has been focused on, and the other entities should probably switch to `Focus::None`.
 #[derive(Default)]
 pub struct FocusSwitchedEvent<Context> {
     pub new_focused_entity: Option<Entity>,
@@ -53,6 +63,7 @@ impl<Context: Default> FocusSwitchedEvent<Context> {
     }
 }
 
+/// System to mark all entities with `Focus<Context>` non-focused, except for the entity from newly received events.
 pub fn remove_focus_from_non_focused_entities<Context: Send + Sync + 'static>(
     mut focus_change_events: EventReader<FocusSwitchedEvent<Context>>,
     mut focus_query: Query<(Entity, &mut Focus<Context>)>,
@@ -74,6 +85,7 @@ pub fn remove_focus_from_non_focused_entities<Context: Send + Sync + 'static>(
     }
 }
 
+/// Plugin containing all UI functionality of the game.
 pub struct SpaceballsUIPlugin;
 impl Plugin for SpaceballsUIPlugin {
     fn build(&self, app: &mut App) {

@@ -33,6 +33,7 @@ impl Default for TextInput {
 }
 
 impl TextInput {
+    /// Create a new [`TextInput`] component.
     pub fn new(initial_value: String, placeholder: Option<String>, text_style: TextStyle) -> Self {
         Self {
             text: initial_value.clone(),
@@ -43,6 +44,21 @@ impl TextInput {
         }
     }
 
+    /* /// Returns this [`TextInput`] with updated `max_symbols`.
+    pub fn with_max_symbols(mut self, max_symbols: usize) -> Self {
+        self.max_symbols = max_symbols;
+        self
+    }
+
+    /// Returns this [`TextInput`] with updated `cursor_position`.
+    pub fn with_cursor_position(mut self, cursor_position: usize) -> Self {
+        self.cursor_position = cursor_position;
+        self
+    } */
+
+    /// Insert a `char` into the `text` at `cursor_position`.
+    ///
+    /// Returns `true` if successful.
     pub fn insert(&mut self, ch: char) -> bool {
         if self.text.len() < self.max_symbols {
             // Could be unsafe due to some characters being more than 1 byte long
@@ -54,6 +70,9 @@ impl TextInput {
         }
     }
 
+    /// Insert a string `s` into the text at `cursor_position`.
+    ///
+    /// Returns `true` if completely successful. Returns `false` even if the insertion was partially complete.
     pub fn insert_string<S: AsRef<str>>(&mut self, s: S) -> bool {
         let s = s.as_ref();
         let remaining_capacity = self.max_symbols.saturating_sub(self.text.chars().count());
@@ -70,6 +89,9 @@ impl TextInput {
         true
     }
 
+    /// Remove a range of symbols from the text starting from `cursor_position`.
+    ///
+    /// Returns the removed string of symbols.
     pub fn delete(&mut self, steps: isize) -> String {
         if self.cursor_position != 0 || steps < 0 {
             let mut chars: Vec<char> = self.text.chars().collect();
@@ -94,26 +116,31 @@ impl TextInput {
         }
     }
 
+    /// Remove and return the entire `text`, and reset the `cursor_position`.
     pub fn reset_text(&mut self) -> String {
         self.cursor_position = 0;
         std::mem::take(&mut self.text)
     }
 
+    /// Shift `cursor_position` several positions to the left.
     pub fn shift_cursor_left(&mut self, steps: usize) {
         self.cursor_position = self.cursor_position.saturating_sub(steps);
     }
 
+    /// Shift `cursor_position` several positions to the right.
     pub fn shift_cursor_right(&mut self, steps: usize) {
         self.cursor_position = (self.cursor_position + steps).min(self.text.len());
     }
 }
 
+/// Copy a string to the OS' clipboard.
 #[cfg(not(target_arch = "wasm32"))]
 fn copy_to_clipboard(contents: String) {
     let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
     ctx.set_contents(contents).unwrap();
 }
 
+/// Copy a string from the OS' clipboard.
 #[cfg(not(target_arch = "wasm32"))]
 fn paste_from_clipboard() -> String {
     let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
@@ -123,6 +150,7 @@ fn paste_from_clipboard() -> String {
     }
 }
 
+/// System to modify the [`Text`] component with several new sections where [`TextInput`] was just added.
 fn handle_text_input_addition(mut text_query: Query<(&mut Text, &TextInput), Added<TextInput>>) {
     for (mut text, input) in text_query.iter_mut() {
         let mut placeholder_style = input.text_style.clone();
@@ -141,6 +169,7 @@ fn handle_text_input_addition(mut text_query: Query<(&mut Text, &TextInput), Add
     }
 }
 
+/// System to switch text input focus on a click to a new field.
 fn handle_text_input_new_focus(
     mut focus_query: Query<(Entity, &Interaction, &mut Focus<TextInput>), Changed<Interaction>>,
     mut focus_switch_events: EventWriter<FocusSwitchedEvent<TextInput>>,
@@ -148,7 +177,7 @@ fn handle_text_input_new_focus(
     for (entity, interaction, mut focus_input) in focus_query.iter_mut() {
         match interaction {
             Interaction::Clicked => {
-                *focus_input = Focus::Focused(TextInput::default());
+                *focus_input = Focus::focused(TextInput::default());
                 focus_switch_events.send(FocusSwitchedEvent::new(Some(entity)));
             }
             _ => {}
@@ -156,16 +185,24 @@ fn handle_text_input_new_focus(
     }
 }
 
+/// Struct responsible for handling key input with a time delay between repeated key presses.
+///
+/// Used locally for input systems.
 #[derive(Default)]
-struct KeyHandler {
+struct KeyPressTimeout {
+    /// Timer handling the delay until the next key press can be registered.
     timer: Timer,
+    /// Whether the key press was handled with timeout recently. Updated arbitrarily.
     handled: bool,
 }
 
-impl KeyHandler {
+impl KeyPressTimeout {
+    /// Timeout for when the key is only just pressed.
     const KEY_PRESS_INITIAL_TIMEOUT: f32 = 0.5;
+    /// Timeout for when the key has been already pressed for more than one timeout.
     const KEY_PRESS_TIMEOUT: f32 = 0.05;
 
+    /// Checks if a specific key is pressed, performs an action if it is, and resets a timer to allow for repeated actions after a timeout.
     pub fn press_with_timeout(
         &mut self,
         key: KeyCode,
@@ -184,28 +221,39 @@ impl KeyHandler {
         if let Some(duration) = new_duration {
             self.timer.set_duration(duration);
             self.timer.reset();
-            self.handled = true;
+            self.mark_handled();
         } else if keys.just_released(key) {
             self.timer.reset();
-            self.handled = true;
+            self.mark_handled();
         }
+    }
+
+    /// Mark `self` as not handled recently.
+    pub fn mark_not_handled(&mut self) {
+        self.handled = false;
+    }
+
+    /// Mark `self` as recently handled.
+    pub fn mark_handled(&mut self) {
+        self.handled = true;
     }
 }
 
+/// System to handle text input on a focused [`TextInput`] component.
 #[cfg(not(target_arch = "wasm32"))]
 fn handle_text_input(
     mut text_query: Query<(&mut TextInput, &Focus<TextInput>)>,
     mut characters_evs: EventReader<ReceivedCharacter>,
     keys: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut key_handler: Local<KeyHandler>,
+    mut key_handler: Local<KeyPressTimeout>,
 ) {
     for (mut input, focus) in text_query.iter_mut() {
         if focus.is_none() {
             continue;
         }
 
-        key_handler.handled = false;
+        key_handler.mark_not_handled();
 
         key_handler.press_with_timeout(
             KeyCode::Return,
@@ -246,12 +294,12 @@ fn handle_text_input(
         if keys.pressed(KeyCode::LControl) || keys.pressed(KeyCode::RControl) {
             if keys.just_pressed(KeyCode::C) {
                 copy_to_clipboard(input.text.clone());
-                key_handler.handled = true;
+                key_handler.mark_handled();
             }
 
             if keys.just_pressed(KeyCode::X) {
                 copy_to_clipboard(input.reset_text());
-                key_handler.handled = true;
+                key_handler.mark_handled();
             }
 
             key_handler.press_with_timeout(
@@ -276,6 +324,7 @@ fn handle_text_input(
 #[cfg(target_arch = "wasm32")]
 fn handle_text_input() {}
 
+/// System to transfer [`TextInput`]'s text to [`Text`] component.
 fn transfer_text_input(mut text_query: Query<(&mut Text, &TextInput), Changed<TextInput>>) {
     for (mut text, input) in text_query.iter_mut() {
         if let Some(section) = text.sections.last_mut() {
@@ -284,6 +333,7 @@ fn transfer_text_input(mut text_query: Query<(&mut Text, &TextInput), Changed<Te
     }
 }
 
+/// System to show and make disappear [`TextInput`]'s placeholder in a [`Text`] component when the `text` is empty.
 fn handle_input_field_placeholder(
     mut text_query: Query<(&mut Text, &TextInput), Changed<TextInput>>,
 ) {
@@ -299,6 +349,7 @@ fn handle_input_field_placeholder(
     }
 }
 
+/// Plugin handling the [`TextInput`] systems.
 pub struct TextInputPlugin;
 
 impl Plugin for TextInputPlugin {
