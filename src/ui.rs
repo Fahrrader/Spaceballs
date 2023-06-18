@@ -1,7 +1,12 @@
+use crate::ui::menu::MenuPlugin;
+use crate::ui::text_input::TextInputPlugin;
 use bevy::prelude::*;
 
 pub mod menu;
 mod menu_builder;
+pub mod text_input;
+
+pub use crate::ui::menu::MenuState;
 
 /// Generic system that takes a component as a parameter, and will despawn all entities with that component.
 fn despawn_node<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: Commands) {
@@ -21,6 +26,10 @@ pub enum Focus<Context = ()> {
 }
 
 impl<Context> Focus<Context> {
+    pub fn is_none(&self) -> bool {
+        matches!(self, Focus::None)
+    }
+
     pub fn extract_context(self) -> Option<Context> {
         match self {
             Focus::Focused(context) => Some(context),
@@ -29,47 +38,46 @@ impl<Context> Focus<Context> {
     }
 }
 
-/// Atlas component serving to provide colors for each different [`Interaction`] with the entity.
-///
-/// [`None`] means the entity should not react to this interaction variant.
-#[derive(Component, Default, Clone, Copy, Debug)]
-pub(crate) struct ColorInteractionMap {
-    default: Option<Color>,
-    selected: Option<Color>,
-    clicked: Option<Color>,
+#[derive(Default)]
+pub struct FocusSwitchedEvent<Context> {
+    pub new_focused_entity: Option<Entity>,
+    _marker: std::marker::PhantomData<Context>,
 }
 
-impl ColorInteractionMap {
-    pub fn new(states: impl IntoIterator<Item = (Interaction, Option<Color>)>) -> Self {
-        let mut map = Self::default();
-
-        for (interaction, maybe_color) in states {
-            match interaction {
-                Interaction::None => map.default = maybe_color,
-                Interaction::Hovered => map.selected = maybe_color,
-                Interaction::Clicked => map.clicked = maybe_color,
-            }
+impl<Context: Default> FocusSwitchedEvent<Context> {
+    pub fn new(new_focused_entity: Option<Entity>) -> Self {
+        Self {
+            new_focused_entity,
+            ..default()
         }
-
-        map
-    }
-
-    pub const fn get(&self, state: Interaction) -> Option<&Color> {
-        match state {
-            Interaction::None => self.default.as_ref(),
-            Interaction::Hovered => self.selected.as_ref(),
-            Interaction::Clicked => self.clicked.as_ref(),
-        }
-    }
-
-    pub fn has_color(&self, color: Color) -> bool {
-        self.default == Some(color) || self.selected == Some(color) || self.clicked == Some(color)
     }
 }
 
-impl<T: IntoIterator<Item = (Interaction, Option<Color>)>> From<T> for ColorInteractionMap {
-    fn from(states: T) -> Self {
-        Self::new(states)
+pub fn remove_focus_from_non_focused_entities<Context: Send + Sync + 'static>(
+    mut focus_change_events: EventReader<FocusSwitchedEvent<Context>>,
+    mut focus_query: Query<(Entity, &mut Focus<Context>)>,
+) {
+    if focus_change_events.is_empty() {
+        return;
+    }
+
+    let mut focused_entity = None;
+
+    for event in focus_change_events.iter() {
+        focused_entity = event.new_focused_entity;
+    }
+
+    for (entity, mut focus_input) in focus_query.iter_mut() {
+        if Some(entity) != focused_entity {
+            *focus_input = Focus::None;
+        }
+    }
+}
+
+pub struct SpaceballsUIPlugin;
+impl Plugin for SpaceballsUIPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugin(MenuPlugin).add_plugin(TextInputPlugin);
     }
 }
 

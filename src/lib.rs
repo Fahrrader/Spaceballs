@@ -32,7 +32,7 @@ pub use physics::{
 pub use projectiles::handle_bullet_collision_events;
 pub use scenes::{despawn_everything, summon_scene, SceneSelector};
 pub use teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
-pub use ui::menu::{MenuPlugin, MenuState};
+pub use ui::{MenuState, SpaceballsUIPlugin};
 
 pub use bevy::prelude::*;
 pub use bevy::render::camera::{camera_system, RenderTarget};

@@ -1,5 +1,5 @@
-//use crate::ui::menu::MenuButtonAction;
-use crate::ui::{colors, ColorInteractionMap};
+use crate::ui::colors;
+use crate::ui::menu::ColorInteractionMap;
 use bevy::prelude::*;
 
 pub const DEFAULT_TEXT_COLOR: Color = colors::AERO_BLUE;
@@ -234,72 +234,87 @@ macro_rules! build_menu {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! build_menu_item {
+macro_rules! process_tokens {
     // Creating a text field out of sections
-    ($parent:expr, $menu_shared_vars:ident, Text [ $($text:tt)* ], $($rest:tt)*) => {
-        $crate::build_text!($parent, $menu_shared_vars, (), $($text)*);
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    ($parent:expr, $menu_shared_vars:ident, $token:ident [ $($nest:tt)* ], $($rest:tt)*) => {
+        $crate::build_menu_item!($parent, $menu_shared_vars, $token, (), $($nest)*);
+        $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
     // Creating a text field out of sections
-    ($parent:expr, $menu_shared_vars:ident, Text + ($($extra_components:expr,)*) [ $($text:tt)* ], $($rest:tt)*) => {
-        $crate::build_text!($parent, $menu_shared_vars, ($($extra_components,)*), $($text)*);
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    ($parent:expr, $menu_shared_vars:ident, $token:ident + ($($extra_components:expr,)*) [ $($nest:tt)* ], $($rest:tt)*) => {
+        $crate::build_menu_item!($parent, $menu_shared_vars, $token, ($($extra_components,)*), $($nest)*);
+        $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
     // Creating a text field out of sections with optional components
-    ($parent:expr, $menu_shared_vars:ident, Text [ $($text:tt)* ] + ($($extra_components:expr,)*), $($rest:tt)*) => {
-        $crate::build_text!($parent, $menu_shared_vars, ($($extra_components,)*), $($text)*);
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    ($parent:expr, $menu_shared_vars:ident, $token:ident [ $($nest:tt)* ] + ($($extra_components:expr,)*), $($rest:tt)*) => {
+        $crate::build_menu_item!($parent, $menu_shared_vars, $token, ($($extra_components,)*), $($nest)*);
+        $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
-    // Handling buttons, their action component and text
-    ($parent:expr, $menu_shared_vars:ident, Buttons [ $($buttons:tt)* ], $($rest:tt)*) => {
-        $crate::build_buttons!($parent, $menu_shared_vars, $($buttons)*);
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    // Creating a text field out of sections
+    ($parent:expr, $menu_shared_vars:ident, $token:ident { $($nest:tt)* }, $($rest:tt)*) => {
+        $crate::build_menu_item!($parent, $menu_shared_vars, $token, (), $($nest)*);
+        $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
-    // Changing one of the shared menu building variables for the current scope
-    ($parent:expr, $menu_shared_vars:ident, $shared_menu_var:ident = $new_value:expr, $($rest:tt)*) => {
-        $crate::change_menu_environment_context!($parent, $menu_shared_vars, $shared_menu_var = $new_value);
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    // Creating a text field out of sections
+    ($parent:expr, $menu_shared_vars:ident, $token:ident + ($($extra_components:expr,)*) { $($nest:tt)* }, $($rest:tt)*) => {
+        $crate::build_menu_item!($parent, $menu_shared_vars, $token, ($($extra_components,)*), $($nest)*);
+        $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
-    // Changing one of the shared menu building variables for the current scope -- but only once
-    ($parent:expr, $menu_shared_vars:ident, once $shared_menu_var:ident = $new_value:expr, $($rest:tt)*) => {
-        $crate::change_menu_environment_context!($parent, $menu_shared_vars, once $shared_menu_var = $new_value);
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
-    };
-    // Changing one of the shared menu building variables for the current scope -- but only once
-    ($parent:expr, $menu_shared_vars:ident, #[$($attributes:tt)*] $($rest:tt)*) => {
-        #[$($attributes)*]
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
-    };
-    // Creating a menu layout
-    ($parent:expr, $menu_shared_vars:ident, $layout:ident { $($body:tt)* }, $($rest:tt)*) => {
-        $crate::build_layout!($parent, $menu_shared_vars, $layout, (), { $($body)* });
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
-    };
-    // Creating a menu layout with extra components attached to the node
-    ($parent:expr, $menu_shared_vars:ident, $layout:ident + ($($extra_component:expr,)*) { $($body:tt)* }, $($rest:tt)*) => {
-        $crate::build_layout!($parent, $menu_shared_vars, $layout, ($($extra_component,)*), { $($body)* });
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+    // Creating a text field out of sections with optional components
+    ($parent:expr, $menu_shared_vars:ident, $token:ident { $($nest:tt)* } + ($($extra_components:expr,)*), $($rest:tt)*) => {
+        $crate::build_menu_item!($parent, $menu_shared_vars, $token, ($($extra_components,)*), $($nest)*);
+        $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
     // Spawning a custom bundle under the parent
     ($parent:expr, $menu_shared_vars:ident, ($custom_bundle:expr), $($rest:tt)*) => {
         $parent.spawn($custom_bundle);
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+        $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
-    // extra components?
-    // ...
-    /*($parent:expr, $menu_shared_vars:ident, $($rest:tt)*) => {
-        $crate::build_menu_item!($parent, $menu_shared_vars $($rest)*);
-    };*/
-
+    // Changing one of the shared menu building variables for the current scope
+    ($parent:expr, $menu_shared_vars:ident, $shared_menu_var:ident = $new_value:expr, $($rest:tt)*) => {
+        $crate::change_menu_environment_context!($parent, $menu_shared_vars, $shared_menu_var = $new_value);
+        $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
+    };
+    // Changing one of the shared menu building variables for the current scope -- but only once
+    ($parent:expr, $menu_shared_vars:ident, once $shared_menu_var:ident = $new_value:expr, $($rest:tt)*) => {
+        $crate::change_menu_environment_context!($parent, $menu_shared_vars, once $shared_menu_var = $new_value);
+        $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
+    };
+    // Changing one of the shared menu building variables for the current scope -- but only once
+    ($parent:expr, $menu_shared_vars:ident, #[$($attributes:tt)*] $($rest:tt)*) => {
+        #[$($attributes)*]
+        $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
+    };
     // Creating nested blocks, thus offering ability to apply and afterwards revert changes to shared variables
     ($parent:expr, $menu_shared_vars:ident, { $($body:tt)* }, $($rest:tt)*) => {
         {
-            $crate::build_menu_item!($parent, $menu_shared_vars, $($body)*);
+            $crate::process_tokens!($parent, $menu_shared_vars, $($body)*);
         }
-        $crate::build_menu_item!($parent, $menu_shared_vars, $($rest)*);
+        $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
     // Exiting when there are no more tokens
     ($parent:expr, $menu_shared_vars:ident $(,)*) => {};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! build_menu_item {
+    // Creating a text field out of sections
+    ($parent:expr, $menu_shared_vars:ident, Text, ($($extra_components:expr,)*), $($text:tt)*) => {
+        $crate::build_text!($parent, $menu_shared_vars, ($($extra_components,)*), $($text)*);
+    };
+    // Creating a text input field
+    ($parent:expr, $menu_shared_vars:ident, TextInput, ($($extra_components:expr,)*), $placeholder:expr, $($initial_text:tt)*) => {
+        $crate::build_text_input!($parent, $menu_shared_vars, ($($extra_components,)*), $placeholder, $($initial_text)*);
+    };
+    // Handling buttons, their action component and text
+    ($parent:expr, $menu_shared_vars:ident, Buttons, (), $($buttons:tt)*) => {
+        $crate::build_buttons!($parent, $menu_shared_vars, $($buttons)*);
+    };
+    // Creating a menu layout
+    ($parent:expr, $menu_shared_vars:ident, $layout:ident, ($($extra_component:expr,)*), $($body:tt)*) => {
+        $crate::build_layout!($parent, $menu_shared_vars, $layout, ($($extra_component,)*), { $($body)* });
+    };
 }
 
 #[doc(hidden)]
@@ -325,15 +340,6 @@ macro_rules! change_menu_environment_context {
     };
     ($parent:expr, $menu_shared_vars:ident, once $shared_menu_var:ident = $new_value:expr) => {
         $menu_shared_vars.temporaries.$shared_menu_var = Some($new_value);
-        /*let $menu_shared_vars = $crate::ui::menu_builder::MenuBuildingEnvironment {
-            font: $menu_shared_vars.font.clone(),
-            temporaries: $crate::ui::menu_builder::TempMenuBuildingEnvironment {
-                $shared_menu_var: $new_value,
-                font: $menu_shared_vars.temporaries.font.clone(),
-                ..$menu_shared_vars.temporaries
-            }
-            ..$menu_shared_vars
-        };*/
     };
 }
 
@@ -440,7 +446,7 @@ macro_rules! build_layout {
         ));
         $menu_shared_vars.reset_temporaries();
         entity_commands.with_children(|parent| {
-            $crate::build_menu_item!(parent, $menu_shared_vars, $($body)*);
+            $crate::process_tokens!(parent, $menu_shared_vars, $($body)*);
         });
     };
 }
@@ -465,6 +471,80 @@ macro_rules! build_text {
             $($extra_components,)*
         ));
     };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! build_text_input {
+    ($parent:expr, $menu_shared_vars:ident, ($($extra_components:expr,)*), $placeholder:expr, $($body:tt)*) => {
+        let mut sections = vec![];
+        let bundle_msv = $menu_shared_vars.unite_with_temporaries();
+        $crate::create_text_sections!($parent, $menu_shared_vars, sections, $($body)*);
+
+        let input_section = sections.pop().unwrap_or(TextSection::new(
+            "",
+            TextStyle {
+                font_size: $crate::get!($menu_shared_vars.text_font_size),
+                color: $crate::get!($menu_shared_vars.text_color),
+                font: $crate::get!($menu_shared_vars.font),
+            },
+        ));
+
+        let button_outline_interaction_colors = if bundle_msv.button_hovered_color.is_some() || bundle_msv.button_pressed_color.is_some() {
+            ColorInteractionMap::from(vec![
+                (Interaction::None, Some(bundle_msv.button_color)),
+                (Interaction::Hovered, bundle_msv.button_hovered_color),
+            ]).into()
+        } else { None };
+
+        $parent.spawn((
+            NodeBundle {
+                style: Style {
+                    size: Size::new(bundle_msv.button_width, bundle_msv.button_height),
+                    // align_items: bundle_msv.align_items.get_or(AlignItems::Center),
+                    align_items: bundle_msv.align_items.get_or_default(),
+                    align_self: bundle_msv.align_self.get_or_default(),
+                    // justify_content: bundle_msv.justify_content.get_or(JustifyContent::Center),
+                    justify_content: bundle_msv.justify_content.get_or_default(),
+                    // margin: bundle_msv.button_margin,
+                    margin: bundle_msv.margin.get_or(UiRect::all(Val::Percent(2.5))),
+                    ..default()
+                },
+                background_color: bundle_msv.node_color.into(),
+                ..default()
+            },
+        )).with_children(|parent| {
+            $crate::ui::menu_builder::outline_parent(parent, bundle_msv.outline_width, bundle_msv.button_color, button_outline_interaction_colors);
+
+            #[allow(unused_variables, unused_mut)]
+            let mut text_commands = parent.spawn((
+                TextBundle {
+                    text: Text {
+                        sections,
+                        alignment: TextAlignment::Left,
+                        linebreak_behaviour: bevy::text::BreakLineOn::AnyCharacter,
+                    },
+                    style: Style {
+                        size: Size::new(
+                            bundle_msv.button_width,
+                            Val::Px((bundle_msv.button_height.evaluate(0.).unwrap() / bundle_msv.text_font_size).floor() * bundle_msv.text_font_size),
+                        ),
+                        margin: UiRect::all(Val::Px(7.)),
+                        ..default()
+                    },
+                    ..default()
+                },
+                TextInput::new(input_section.value, Some($placeholder.into()), input_section.style),
+                Interaction::None,
+                Focus::<Interaction>::None,
+                Focus::<TextInput>::None,
+            ));
+
+            $(
+                text_commands.insert($extra_components);
+            )*
+        });
+    }
 }
 
 #[doc(hidden)]
@@ -551,6 +631,7 @@ macro_rules! build_buttons {
                     background_color,
                     ..default()
                 },
+                Focus::<Interaction>::None,
                 $action,
             ));
 
@@ -573,37 +654,6 @@ macro_rules! build_buttons {
         )*
     };
 }
-
-/*
-#[doc(hidden)]
-pub(crate) fn build_scene_select_grid(
-    parent: &mut ChildBuilder,
-    button_style: Style,
-    button_text_style: TextStyle,
-) {
-    for (index, scene_name) in [String::from("Lite"), String::from("Experimental")]
-        .iter()
-        .enumerate()
-    {
-        parent
-            .spawn((
-                ButtonBundle {
-                    style: button_style.clone(),
-                    background_color: Color::NONE.into(),
-                    ..default()
-                },
-                MenuButtonAction::SelectScene(index),
-            ))
-            .with_children(|parent| {
-                parent.spawn(TextBundle::from_section(
-                    scene_name,
-                    button_text_style.clone(),
-                ));
-
-                outline_parent(parent, Val::Px(4.), DEFAULT_BUTTON_COLOR, None);
-            });
-    }
-}*/
 
 pub(crate) fn outline_parent(
     child_builder: &mut ChildBuilder,

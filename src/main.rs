@@ -44,7 +44,7 @@ fn main() {
             primary_window: Some(create_window(800., 800.)),
             ..default()
         }))
-        .add_plugin(MenuPlugin)
+        .add_plugin(SpaceballsUIPlugin)
         .add_plugin(RapierPhysicsPlugin::<()>::default())
         .add_plugin(SpaceballsPhysicsPlugin)
         .configure_sets(

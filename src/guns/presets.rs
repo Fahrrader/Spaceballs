@@ -110,7 +110,7 @@ pub const REGULAR: GunPersistentStats = GunPersistentStats {
     projectile_elasticity: 0.10,
     projectile_density: 1.0,
     projectile_size: BULLET_SIZE,
-    projectile_color: GunColour::new(Color::ALICE_BLUE),
+    projectile_color: GunColour::new(Color::hsl(0.966, 1.825, 1.471)),
     projectile_spawn_point: ProjectileSpawnSpace::Gunpoint,
     projectile_damage: BULLET_DAMAGE,
     friendly_fire: false,
@@ -168,7 +168,7 @@ pub const RAILGUN: GunPersistentStats = GunPersistentStats {
 /// Make a light show! Reflects off walls, your equivalent of a magic missile.
 pub const LASER_GUN: GunPersistentStats = GunPersistentStats {
     gun_neutral_color: GunColour::new(Color::AQUAMARINE),
-    projectile_color: GunColour::new(Color::LIME_GREEN),
+    projectile_color: GunColour::new(Color::hsl(120., 1.6, 2.25)),
     projectile_damage: BULLET_DAMAGE * 0.025,
     projectile_speed: BULLET_SPEED * 4.,
     projectile_elasticity: 1.0,

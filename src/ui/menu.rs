@@ -1,5 +1,8 @@
 use crate::ui::menu_builder::DEFAULT_TEXT_COLOR;
-use crate::ui::{colors, despawn_node, ColorInteractionMap, Focus};
+use crate::ui::text_input::TextInput;
+use crate::ui::{
+    colors, despawn_node, remove_focus_from_non_focused_entities, Focus, FocusSwitchedEvent,
+};
 use crate::{build_menu_plugin, GamePauseEvent, GameState, PlayerCount, SceneSelector};
 use bevy::app::{AppExit, PluginGroupBuilder};
 use bevy::prelude::*;
@@ -82,13 +85,66 @@ pub(crate) enum MenuButtonAction {
     Quit,
 }
 
+/// Atlas component serving to provide colors for each different [`Interaction`] with the entity.
+///
+/// [`None`] means the entity should not react to this interaction variant.
+#[derive(Component, Default, Clone, Copy, Debug)]
+pub struct ColorInteractionMap {
+    default: Option<Color>,
+    selected: Option<Color>,
+    clicked: Option<Color>,
+}
+
+impl ColorInteractionMap {
+    pub fn new(states: impl IntoIterator<Item = (Interaction, Option<Color>)>) -> Self {
+        let mut map = Self::default();
+
+        for (interaction, maybe_color) in states {
+            match interaction {
+                Interaction::None => map.default = maybe_color,
+                Interaction::Hovered => map.selected = maybe_color,
+                Interaction::Clicked => map.clicked = maybe_color,
+            }
+        }
+
+        map
+    }
+
+    pub const fn get(&self, state: Interaction) -> Option<&Color> {
+        match state {
+            Interaction::None => self.default.as_ref(),
+            Interaction::Hovered => self.selected.as_ref(),
+            Interaction::Clicked => self.clicked.as_ref(),
+        }
+    }
+
+    pub fn has_color(&self, color: Color) -> bool {
+        self.default == Some(color) || self.selected == Some(color) || self.clicked == Some(color)
+    }
+}
+
+impl<T: IntoIterator<Item = (Interaction, Option<Color>)>> From<T> for ColorInteractionMap {
+    fn from(states: T) -> Self {
+        Self::new(states)
+    }
+}
+
 /// Handle changing all buttons' colors based on mouse interaction.
 fn handle_button_style_change(
     interaction_query: Query<
-        (&Interaction, Option<&Focus<SceneSelector>>, Entity),
+        (
+            &Interaction,
+            Option<&Focus<Interaction>>,
+            Option<&Focus<SceneSelector>>,
+            Entity,
+        ),
         (
             With<ColorInteractionMap>,
-            Or<(Changed<Interaction>, Changed<Focus<SceneSelector>>)>,
+            Or<(
+                Changed<Interaction>,
+                Changed<Focus<Interaction>>,
+                Changed<Focus<SceneSelector>>,
+            )>,
         ),
     >,
     mut text_children_query: Query<(&mut Text, Option<&ColorInteractionMap>)>,
@@ -161,10 +217,20 @@ fn handle_button_style_change(
         }
     }
 
-    for (interaction, focus, entity) in interaction_query.iter() {
-        let interaction = match (*interaction, focus) {
-            (Interaction::None, Some(&Focus::Focused(_))) => Interaction::Hovered,
-            _ => *interaction,
+    for (interaction, interaction_focus, scene_focus, entity) in interaction_query.iter() {
+        let interaction = match (interaction, interaction_focus, scene_focus) {
+            // Highest priority: if anything is Clicked, we're Clicked
+            (&Interaction::Clicked, _, _) | (_, Some(&Focus::Focused(Interaction::Clicked)), _) => {
+                Interaction::Clicked
+            }
+
+            // Next priority: if interaction or interaction_focus is Hovered or if there is a focused scene, we're Hovered
+            (&Interaction::Hovered, _, _)
+            | (_, Some(&Focus::Focused(Interaction::Hovered)), _)
+            | (_, _, Some(&Focus::Focused(_))) => Interaction::Hovered,
+
+            // Lowest priority: if nothing above matched, we're None
+            _ => Interaction::None,
         };
 
         paint_nodes(
@@ -174,6 +240,27 @@ fn handle_button_style_change(
             &mut node_children_query,
         );
     }
+}
+
+/// Handle changing all buttons' colors based on mouse interaction.
+fn transfer_focus_on_interaction(
+    mut interaction_query: Query<
+        (Entity, &Interaction, &mut Focus<Interaction>),
+        Changed<Interaction>,
+    >,
+    mut focus_switch_events: EventWriter<FocusSwitchedEvent<Interaction>>,
+) {
+    interaction_query.for_each_mut(|(entity, interaction, mut focus)| {
+        let focused_entity = match interaction {
+            Interaction::Clicked | Interaction::Hovered => {
+                *focus = Focus::Focused(interaction.clone());
+                Some(entity)
+            }
+            _ => None,
+        };
+
+        focus_switch_events.send(FocusSwitchedEvent::new(focused_entity));
+    });
 }
 
 /// System to initialize the default Main Menu state.
@@ -214,7 +301,7 @@ fn unpause_menu(
     }
 
     if player_count.0 <= 1 {
-        // todo unpause
+        // unpause
     }
     menu_state.set(MenuState::Disabled);
 }
@@ -374,12 +461,33 @@ build_menu_plugin!(
 
 build_menu_plugin!(
     (setup_multiplayer_menu, MultiPlayer),
-    once align_items = AlignItems::Start.into(),
-    once align_self = AlignSelf::Start.into(),
+    once layout_height = Val::Percent(50.).into(),
+    once layout_width = Val::Percent(75.).into(),
     Column {
-        Text [
-            "Multiplayer",
-        ],
+        Column {
+            Text [
+                "Multiplayer",
+            ],
+        },
+        once align_self = AlignSelf::Start.into(),
+        once layout_height = Val::Percent(90.).into(),
+        once layout_width = Val::Percent(100.).into(),
+        Column {
+            once node_color = Color::TOMATO.with_a(0.3),
+            // stupid fucking text doesn't wrap around properly if not specified in pixels
+            once button_width = Val::Percent(100.),
+            once button_height = Val::Px(93.),
+            TextInput [
+                "URL",
+                "",
+            ] + (
+                Focus::<TextInput>::Focused(default()),
+            ),
+            TextInput [
+                "not URL",
+                "",
+            ],
+        },
     },
     Bottom {
         Column {
@@ -539,6 +647,7 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<MenuState>()
+            .add_event::<FocusSwitchedEvent<Interaction>>()
             // Plugins responsible for spawning and despawning the menus
             .add_plugins(MenuSetupPlugins)
             .add_system(set_main_menu_state.in_schedule(OnEnter(GameState::MainMenu)))
@@ -555,6 +664,9 @@ impl Plugin for MenuPlugin {
                 (
                     handle_menu_actions.run_if(not(in_state(MenuState::Disabled))),
                     handle_button_style_change.run_if(not(in_state(MenuState::Disabled))),
+                    transfer_focus_on_interaction.run_if(not(in_state(MenuState::Disabled))),
+                    remove_focus_from_non_focused_entities::<Interaction>
+                        .run_if(not(in_state(MenuState::Disabled))),
                 )
                     .in_base_set(CoreSet::Update),
             );
