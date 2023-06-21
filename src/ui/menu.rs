@@ -478,21 +478,41 @@ build_menu_plugin!(
         once align_self = AlignSelf::Start.into(),
         once layout_height = Val::Percent(90.).into(),
         once layout_width = Val::Percent(100.).into(),
+        once margin = UiRect::top(Val::Percent(3.)).into(),
         Column {
-            once node_color = Color::TOMATO.with_a(0.3),
-            // stupid fucking text doesn't wrap around properly if not specified in pixels
-            once button_width = Val::Percent(100.),
-            once button_height = Val::Px(93.),
-            TextInput [
-                "URL",
-                "",
-            ] + (
-                Focus::<TextInput>::Focused(None),
-            ),
-            TextInput [
-                "not URL",
-                "",
-            ],
+            margin = UiRect::all(Val::Px(7.5)).into(),
+            layout_width = Val::Percent(100.).into(),
+            Column {
+                margin = UiRect::all(Val::Percent(0.)).into(),
+                Text [ "Player name", ],
+                TextInput [
+                    max_symbols: 32,
+                    placeholder: "Anata no namae wa..?",
+                    "Player",
+                ] + (
+                    Focus::<TextInput>::Focused(None),
+                ),
+            },
+            Column {
+                margin = UiRect::all(Val::Percent(0.)).into(),
+                Text [ "Server IP", ],
+                once node_color = Color::TOMATO.with_a(0.3),
+                // stupid fucking text doesn't wrap around properly if not specified in pixels
+                once button_width = Val::Percent(100.),
+                once button_height = Val::Px(93.),
+                TextInput [
+                    placeholder: "IP of the connecting server",
+                    "ws://localhost:3536",
+                ],
+            },
+            Column {
+                margin = UiRect::all(Val::Percent(0.)).into(),
+                Text [ "Room name", ],
+                TextInput [
+                    placeholder: "",
+                    "2",
+                ],
+            },
         },
     },
     Bottom {

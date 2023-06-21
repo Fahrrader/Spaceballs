@@ -319,8 +319,8 @@ macro_rules! build_menu_item {
         $crate::build_text!($parent, $menu_shared_vars, ($($extra_components,)*), $($text)*);
     };
     // Creating a text input field
-    ($parent:expr, $menu_shared_vars:ident, TextInput, ($($extra_components:expr,)*), $placeholder:expr, $($initial_text:tt)*) => {
-        $crate::build_text_input!($parent, $menu_shared_vars, ($($extra_components,)*), $placeholder, $($initial_text)*);
+    ($parent:expr, $menu_shared_vars:ident, TextInput, ($($extra_components:expr,)*), $($initial_text:tt)*) => {
+        $crate::build_text_input!($parent, $menu_shared_vars, ($($extra_components,)*), TextInput::default().max_symbols, "", $($initial_text)*);
     };
     // Handling buttons, their action component and text
     ($parent:expr, $menu_shared_vars:ident, Buttons, (), $($buttons:tt)*) => {
@@ -491,7 +491,13 @@ macro_rules! build_text {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! build_text_input {
-    ($parent:expr, $menu_shared_vars:ident, ($($extra_components:expr,)*), $placeholder:expr, $($body:tt)*) => {
+    ($parent:expr, $menu_shared_vars:ident, ($($extra_components:expr,)*), $max_symbols:expr, $placeholder:expr, max_symbols: $new_max_symbols:expr, $($body:tt)*) => {
+        $crate::build_text_input!($parent, $menu_shared_vars, ($($extra_components,)*), $new_max_symbols, $placeholder, $($body)*)
+    };
+    ($parent:expr, $menu_shared_vars:ident, ($($extra_components:expr,)*), $max_symbols:expr, $placeholder:expr, placeholder: $new_placeholder:expr, $($body:tt)*) => {
+        $crate::build_text_input!($parent, $menu_shared_vars, ($($extra_components,)*), $max_symbols, $new_placeholder, $($body)*)
+    };
+    ($parent:expr, $menu_shared_vars:ident, ($($extra_components:expr,)*), $max_symbols:expr, $placeholder:expr, $($body:tt)*) => {
         let mut sections = vec![];
         let bundle_msv = $menu_shared_vars.unite_with_temporaries();
         $crate::create_text_sections!($parent, $menu_shared_vars, sections, $($body)*);
@@ -516,12 +522,9 @@ macro_rules! build_text_input {
             NodeBundle {
                 style: Style {
                     size: Size::new(bundle_msv.button_width, bundle_msv.button_height),
-                    // align_items: bundle_msv.align_items.get_or(AlignItems::Center),
                     align_items: bundle_msv.align_items.get_or_default(),
                     align_self: bundle_msv.align_self.get_or_default(),
-                    // justify_content: bundle_msv.justify_content.get_or(JustifyContent::Center),
                     justify_content: bundle_msv.justify_content.get_or_default(),
-                    // margin: bundle_msv.button_margin,
                     margin: bundle_msv.margin.get_or(UiRect::all(Val::Percent(2.5))),
                     ..default()
                 },
@@ -536,20 +539,28 @@ macro_rules! build_text_input {
                 TextBundle {
                     text: Text {
                         sections,
+                        // bevy's UI is a bit shit at the moment.
+                        // if you wanna do any alignment that isn't left, you have to adjust the size and the parent's justify_content,
+                        // since the text always starts from the left of the size. and if you do, Interaction's going to shit itself.
                         alignment: TextAlignment::Left,
                         linebreak_behaviour: bevy::text::BreakLineOn::AnyCharacter,
                     },
                     style: Style {
                         size: Size::new(
                             bundle_msv.button_width,
-                            Val::Px((bundle_msv.button_height.evaluate(0.).unwrap() / bundle_msv.text_font_size).floor() * bundle_msv.text_font_size),
+                            if matches!(bundle_msv.button_height, Val::Px(_)) {
+                                Val::Px((bundle_msv.button_height.evaluate(0.).unwrap() / bundle_msv.text_font_size).floor() * bundle_msv.text_font_size)
+                            } else {
+                                bundle_msv.button_height
+                            },
                         ),
                         margin: UiRect::all(Val::Px(7.)),
                         ..default()
                     },
                     ..default()
                 },
-                TextInput::new(input_section.value, Some($placeholder.into()), input_section.style),
+                TextInput::new(input_section.value, input_section.style, Some($placeholder.into()))
+                    .with_max_symbols($max_symbols),
                 Interaction::None,
                 Focus::<Interaction>::None,
                 Focus::<TextInput>::None,
@@ -559,7 +570,7 @@ macro_rules! build_text_input {
                 text_commands.insert($extra_components);
             )*
         });
-    }
+    };
 }
 
 #[doc(hidden)]

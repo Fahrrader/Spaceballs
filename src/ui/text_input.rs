@@ -34,7 +34,7 @@ impl Default for TextInput {
 
 impl TextInput {
     /// Create a new [`TextInput`] component.
-    pub fn new(initial_value: String, placeholder: Option<String>, text_style: TextStyle) -> Self {
+    pub fn new(initial_value: String, text_style: TextStyle, placeholder: Option<String>) -> Self {
         Self {
             text: initial_value.clone(),
             placeholder: placeholder.unwrap_or("".into()),
@@ -44,12 +44,13 @@ impl TextInput {
         }
     }
 
-    /* /// Returns this [`TextInput`] with updated `max_symbols`.
+    /// Returns this [`TextInput`] with updated `max_symbols`.
     pub fn with_max_symbols(mut self, max_symbols: usize) -> Self {
         self.max_symbols = max_symbols;
         self
     }
 
+    /*
     /// Returns this [`TextInput`] with updated `cursor_position`.
     pub fn with_cursor_position(mut self, cursor_position: usize) -> Self {
         self.cursor_position = cursor_position;
@@ -338,8 +339,8 @@ fn handle_input_field_placeholder(
     mut text_query: Query<(&mut Text, &TextInput), Changed<TextInput>>,
 ) {
     for (mut text, input) in text_query.iter_mut() {
-        let idx = text.sections.len() - 2;
-        if let Some(mut placeholder_section) = text.sections.get_mut(idx) {
+        let placeholder_idx = text.sections.len() - 2;
+        if let Some(mut placeholder_section) = text.sections.get_mut(placeholder_idx) {
             if input.text.is_empty() {
                 placeholder_section.value = input.placeholder.clone();
             } else {
