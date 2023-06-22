@@ -1,6 +1,7 @@
 pub use bevy_ggrs::{GGRSPlugin, GGRSSchedule};
 
 use crate::controls::CharacterActionInput;
+use crate::ui::user_settings::{UserInputForm, UserSettings};
 use crate::{info, GameState};
 use bevy::core::{Pod, Zeroable};
 use bevy::prelude::{Commands, NextState, Res, ResMut, Resource};
@@ -12,20 +13,12 @@ use bevy_matchbox::prelude::{
 };
 use bevy_matchbox::CloseSocketExt;
 
-/// Common room address for all matches on the server! Oh it's going to be gloriously broken if left like this.
+// Common room address for all matches on the server! Oh it's going to be gloriously broken if left like this.
 // pub const ROOM_NAME: &str = "spaceballs";
-// Bevy-Extremists host this match making service for us to use FOR FREE.
-// So, use Johan's compatible matchbox.
-// "wss://match-0-6.helsing.studio/bevy-ggrs-rapier-example?next=2";
-// Check out their work on "Cargo Space", especially the blog posts, which are incredibly enlightening!
-// https://johanhelsing.studio/cargospace
-pub const MATCHBOX_ADDR: &str = "ws://localhost:3536/spaceballs?next=2";
 
 pub const MAINTAINED_FPS: usize = 60;
 pub const MAX_PREDICTION_FRAMES: usize = 5;
 pub const INPUT_DELAY: usize = 2;
-
-// Having a load screen of just one frame helps with desync issues, some report.
 
 /// Expected - and maximum - player count for the game session.
 #[derive(Resource)]
@@ -44,9 +37,33 @@ impl ggrs::Config for GGRSConfig {
     type Address = PeerId;
 }
 
+// Having a load screen of just one frame helps with desync issues, some report.
+
+// Bevy-Extremists host this match making service for us to use FOR FREE.
+// So, use Johan's compatible matchbox.
+// "wss://match-0-6.helsing.studio/bevy-ggrs-rapier-example?next=2";
+// Check out their work on "Cargo Space", especially the blog posts, which are incredibly enlightening!
+// https://johanhelsing.studio/cargospace
+
 /// Initialize a socket for connecting to the matchbox server.
-pub fn start_matchbox_socket(mut commands: Commands, player_count: Res<PlayerCount>) {
-    let room_url = MATCHBOX_ADDR;
+pub fn start_matchbox_socket(
+    mut commands: Commands,
+    player_count: Res<PlayerCount>,
+    settings: Res<UserSettings>,
+) {
+    let room_url = if player_count.0 > 1 {
+        format!(
+            "{}/spaceballs?next={}",
+            settings
+                .get_string(UserInputForm::ServerUrl)
+                .unwrap_or_default(),
+            settings
+                .get_string(UserInputForm::RoomName)
+                .unwrap_or_default(),
+        )
+    } else {
+        "".to_string()
+    };
     let reconnect_attempts = if player_count.0 > 1 { Some(3) } else { None };
     info!("connecting to matchbox server: {:?}", room_url);
     commands.insert_resource(MatchboxSocket::<SingleChannel>::from(

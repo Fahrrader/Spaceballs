@@ -77,10 +77,9 @@ pub(crate) enum MenuButtonAction {
     // Quickmatch?
     // Match Browser?
     JoinGame,
-    HostGame,
+    // HostGame,
     SelectScene(SceneSelector),
-    StartSinglePlayerGame,
-    StartMultiPlayerGame,
+    StartGame,
     Resume,
     Controls,
     Settings,
@@ -211,6 +210,7 @@ build_menu_plugin!(
         },
     },
 );
+
 build_menu_plugin!(
     (setup_singleplayer_menu, SinglePlayer),
     once align_self = AlignSelf::Start.into(),
@@ -237,7 +237,7 @@ build_menu_plugin!(
     Bottom {
         Column {
             Buttons [
-                (MenuButtonAction::StartSinglePlayerGame, "Start Game"),
+                (MenuButtonAction::StartGame, "Start Game"),
                 (MenuButtonAction::BackToMenu, "Back"),
             ],
         },
@@ -305,8 +305,41 @@ build_menu_plugin!(
         Column {
             Buttons [
                 (MenuButtonAction::JoinGame, "Join Game"),
-                (MenuButtonAction::HostGame, "Host Game"),
+                // (MenuButtonAction::HostGame, "Host Game"),
                 (MenuButtonAction::BackToMenu, "Back"),
+            ],
+        },
+    },
+);
+
+build_menu_plugin!(
+    (setup_multiplayer_creation_menu, MatchMaker),
+    once align_self = AlignSelf::Start.into(),
+    once layout_height = Val::Percent(50.).into(),
+    Column {
+        Column {
+            Text [
+                "Matchmaking",
+            ],
+        },
+        once align_self = AlignSelf::Start.into(),
+        once layout_height = Val::Percent(90.).into(),
+        Column {
+            Node {
+                button_width = Val::Px(330.0),
+                button_height = Val::Px(165.0),
+                Buttons [
+                    (MenuButtonAction::SelectScene(SceneSelector::Lite), "Scene\nLite"),
+                    (MenuButtonAction::SelectScene(SceneSelector::Experimental), "Scene\nExperimental"),
+                ],
+            },
+        },
+    },
+    Bottom {
+        Column {
+            Buttons [
+                (MenuButtonAction::StartGame, "Start Game"),
+                (MenuButtonAction::MultiPlayer, "Back"),
             ],
         },
     },
@@ -352,7 +385,7 @@ impl PluginGroup for MenuSetupPlugins {
             .add(SingleMenuPlugin::<Pause>::default())
             .add(SingleMenuPlugin::<SinglePlayer>::default())
             .add(SingleMenuPlugin::<MultiPlayer>::default())
-            //.add(SingleMenuPlugin::<MatchMaker>::default())
+            .add(SingleMenuPlugin::<MatchMaker>::default())
             //.add(SingleMenuPlugin::<MatchBrowser>::default())
             .add(SingleMenuPlugin::<Controls>::default())
             .add(SingleMenuPlugin::<Settings>::default())
@@ -425,10 +458,15 @@ fn handle_menu_actions(
         if *interaction == Interaction::Clicked {
             match menu_button_action {
                 MenuButtonAction::Quit => app_exit_events.send(AppExit),
-                MenuButtonAction::SinglePlayer => menu_state.set(MenuState::SinglePlayer),
-                MenuButtonAction::MultiPlayer => menu_state.set(MenuState::MultiPlayer),
-                MenuButtonAction::HostGame => menu_state.set(MenuState::MatchMaker),
-                MenuButtonAction::JoinGame => { /* menu_state.set(MenuState::MatchBrowser) */ }
+                MenuButtonAction::SinglePlayer => {
+                    commands.insert_resource(PlayerCount(1));
+                    menu_state.set(MenuState::SinglePlayer);
+                }
+                MenuButtonAction::MultiPlayer => {
+                    commands.insert_resource(PlayerCount(2));
+                    menu_state.set(MenuState::MultiPlayer)
+                }
+                MenuButtonAction::JoinGame => menu_state.set(MenuState::MatchMaker),
                 MenuButtonAction::SelectScene(scene) => {
                     for mut focus in scene_focus_query.iter_mut() {
                         if let Focus::Focused(_) = *focus {
@@ -439,7 +477,7 @@ fn handle_menu_actions(
                         .entity(entity)
                         .insert(Focus::<SceneSelector>::focused(*scene));
                 }
-                MenuButtonAction::StartSinglePlayerGame => {
+                MenuButtonAction::StartGame => {
                     let scene_arg = scene_focus_query
                         .iter()
                         .find_map(|focus| focus.extract_context());
@@ -447,25 +485,6 @@ fn handle_menu_actions(
                     match scene_arg {
                         Some(context) => {
                             commands.insert_resource(context);
-                            commands.insert_resource(PlayerCount(1));
-
-                            game_state.set(GameState::Matchmaking);
-                            menu_state.set(MenuState::Disabled);
-                        }
-                        None => {
-                            // notify the player?
-                        }
-                    }
-                }
-                MenuButtonAction::StartMultiPlayerGame => {
-                    let scene_arg = scene_focus_query
-                        .iter()
-                        .find_map(|focus| focus.extract_context());
-
-                    match scene_arg {
-                        Some(context) => {
-                            commands.insert_resource(context);
-                            commands.insert_resource(PlayerCount(2));
 
                             game_state.set(GameState::Matchmaking);
                             menu_state.set(MenuState::Disabled);

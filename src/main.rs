@@ -92,11 +92,6 @@ fn main() {
                 .after(InputHandlingSet::InputReading)
                 .in_schedule(GGRSSchedule),
         )
-        .add_system(
-            detect_desync
-                .in_schedule(GGRSSchedule)
-                .run_if(in_state(GameState::InGame)),
-        )
         .add_system(handle_pause_input.run_if(in_state(GameState::InGame)))
         .add_system(handle_entities_out_of_bounds)
         .add_systems((
@@ -109,6 +104,13 @@ fn main() {
                 .before(camera_system::<OrthographicProjection>)
                 .in_base_set(CoreSet::PostUpdate),
         );
+
+    #[cfg(feature = "diagnostic")]
+    app.add_system(
+        detect_desync
+            .in_schedule(GGRSSchedule)
+            .run_if(in_state(GameState::InGame)),
+    );
 
     if let Some(scene) = scene_arg {
         app.insert_resource(scene)

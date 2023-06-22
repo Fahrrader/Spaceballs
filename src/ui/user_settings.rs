@@ -87,7 +87,10 @@ impl Default for UserSettings {
     fn default() -> Self {
         Self(HashMap::from([
             (UserInputForm::PlayerName, "Player".into()),
-            (UserInputForm::ServerUrl, "ws://localhost:3536".into()),
+            (
+                UserInputForm::ServerUrl,
+                "wss://match-0-6.helsing.studio".into(),
+            ),
             (UserInputForm::RoomName, "".into()),
         ]))
     }
