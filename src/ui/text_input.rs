@@ -1,4 +1,4 @@
-use crate::ui::{remove_focus_from_non_focused_entities, Focus, FocusSwitchedEvent};
+use crate::ui::focus::{remove_focus_from_non_focused_entities, Focus, FocusSwitchedEvent};
 use crate::MenuState;
 use bevy::prelude::*;
 #[cfg(not(target_arch = "wasm32"))]

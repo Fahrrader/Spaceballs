@@ -1,5 +1,5 @@
+use crate::ui::color_interaction::ColorInteractionMap;
 use crate::ui::colors;
-use crate::ui::menu::ColorInteractionMap;
 use bevy::prelude::*;
 
 pub const DEFAULT_TEXT_COLOR: Color = colors::AERO_BLUE;

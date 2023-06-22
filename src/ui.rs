@@ -1,7 +1,11 @@
+use crate::ui::color_interaction::ColorInteractionPlugin;
+use crate::ui::focus::FocusPlugin;
 use crate::ui::menu::MenuPlugin;
 use crate::ui::text_input::TextInputPlugin;
 use bevy::prelude::*;
 
+pub mod color_interaction;
+pub mod focus;
 pub mod menu;
 mod menu_builder;
 pub mod text_input;
@@ -15,81 +19,14 @@ fn despawn_node<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: 
     }
 }
 
-/// Tag component used to mark highlighted and focusable entities.
-/// Since it is generic, it allows for multiple focuses with different contexts on an entity at once.
-///
-/// Beware that its uniqueness is expected, but might not be enforced outside of this crate.
-#[derive(Component, Clone, Copy, Debug)]
-pub enum Focus<Context = ()> {
-    /// Not focused, but focusable.
-    None,
-    /// Focused with some optional context
-    Focused(Option<Context>),
-}
-
-impl<Context> Focus<Context> {
-    /// Returns `true` if the `Focus` is a `None` value (not focused on).
-    pub fn is_none(&self) -> bool {
-        matches!(self, Focus::None)
-    }
-
-    /// Wraps the incoming `Context` argument into an `Option` and returns `Focus::Focused`.
-    pub fn focused(focus_point: Context) -> Self {
-        Self::Focused(Some(focus_point))
-    }
-
-    /// Returns the contained `Context` value, if present.
-    pub fn extract_context(self) -> Option<Context> {
-        match self {
-            Focus::Focused(context) => context,
-            Focus::None => None,
-        }
-    }
-}
-
-/// Event signifying a new entity has been focused on, and the other entities should probably switch to `Focus::None`.
-#[derive(Default)]
-pub struct FocusSwitchedEvent<Context> {
-    pub new_focused_entity: Option<Entity>,
-    _marker: std::marker::PhantomData<Context>,
-}
-
-impl<Context: Default> FocusSwitchedEvent<Context> {
-    pub fn new(new_focused_entity: Option<Entity>) -> Self {
-        Self {
-            new_focused_entity,
-            ..default()
-        }
-    }
-}
-
-/// System to mark all entities with `Focus<Context>` non-focused, except for the entity from newly received events.
-pub fn remove_focus_from_non_focused_entities<Context: Send + Sync + 'static>(
-    mut focus_change_events: EventReader<FocusSwitchedEvent<Context>>,
-    mut focus_query: Query<(Entity, &mut Focus<Context>)>,
-) {
-    if focus_change_events.is_empty() {
-        return;
-    }
-
-    let mut focused_entity = None;
-
-    for event in focus_change_events.iter() {
-        focused_entity = event.new_focused_entity;
-    }
-
-    for (entity, mut focus_input) in focus_query.iter_mut() {
-        if Some(entity) != focused_entity {
-            *focus_input = Focus::None;
-        }
-    }
-}
-
 /// Plugin containing all UI functionality of the game.
 pub struct SpaceballsUIPlugin;
 impl Plugin for SpaceballsUIPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(MenuPlugin).add_plugin(TextInputPlugin);
+        app.add_plugin(MenuPlugin)
+            .add_plugin(FocusPlugin)
+            .add_plugin(ColorInteractionPlugin)
+            .add_plugin(TextInputPlugin);
     }
 }
 
