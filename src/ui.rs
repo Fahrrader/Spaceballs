@@ -2,6 +2,7 @@ use crate::ui::color_interaction::ColorInteractionPlugin;
 use crate::ui::focus::FocusPlugin;
 use crate::ui::menu::MenuPlugin;
 use crate::ui::text_input::TextInputPlugin;
+use crate::ui::user_settings::UserSettingsPlugin;
 use bevy::prelude::*;
 
 pub mod color_interaction;
@@ -9,6 +10,7 @@ pub mod focus;
 pub mod menu;
 mod menu_builder;
 pub mod text_input;
+pub mod user_settings;
 
 pub use crate::ui::menu::MenuState;
 
@@ -23,7 +25,8 @@ fn despawn_node<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: 
 pub struct SpaceballsUIPlugin;
 impl Plugin for SpaceballsUIPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(MenuPlugin)
+        app.add_plugin(UserSettingsPlugin)
+            .add_plugin(MenuPlugin)
             .add_plugin(FocusPlugin)
             .add_plugin(ColorInteractionPlugin)
             .add_plugin(TextInputPlugin);

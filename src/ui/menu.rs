@@ -1,9 +1,11 @@
 use crate::ui::color_interaction::ColorInteractionMap;
 use crate::ui::focus::Focus;
 use crate::ui::menu_builder::{
-    fonts, DEFAULT_FONT_SIZE, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_INPUT_MARGIN,
+    fonts, DEFAULT_FONT_SIZE, DEFAULT_OUTLINE_THICKNESS, DEFAULT_TEXT_COLOR,
+    DEFAULT_TEXT_INPUT_MARGIN,
 };
 use crate::ui::text_input::TextInput;
+use crate::ui::user_settings::{transfer_setting_from_text_input, UserInputForm, UserSettings};
 use crate::ui::{colors, despawn_node};
 use crate::{build_menu_plugin, GamePauseEvent, GameState, PlayerCount, SceneSelector};
 use bevy::app::{AppExit, PluginGroupBuilder};
@@ -243,7 +245,7 @@ build_menu_plugin!(
 );
 
 build_menu_plugin!(
-    (setup_multiplayer_menu, MultiPlayer),
+    (setup_multiplayer_menu, MultiPlayer, user_settings: Res<UserSettings>),
     Top {
         Column {
             Text [ "Multiplayer", ],
@@ -259,19 +261,20 @@ build_menu_plugin!(
             margin = UiRect::all(Val::Px(7.5)).into(),
             layout_width = Val::Percent(100.).into(),
             Column {
-                margin = UiRect::all(Val::Percent(0.)).into(),
+                margin = UiRect::all(Val::Px(DEFAULT_OUTLINE_THICKNESS * 0.5)).into(),
                 Text [ "Player name", ],
                 button_height = Val::Px(DEFAULT_FONT_SIZE + DEFAULT_TEXT_INPUT_MARGIN * 2.),
                 TextInput [
                     max_symbols: 24,
                     placeholder: "Anata no namae wa..?",
-                    "Player",
+                    user_settings.get_string(UserInputForm::PlayerName).unwrap_or_default(),
                 ] + (
+                    UserInputForm::PlayerName,
                     Focus::<TextInput>::Focused(None),
                 ),
             },
             Column {
-                margin = UiRect::all(Val::Percent(0.)).into(),
+                margin = UiRect::all(Val::Px(DEFAULT_OUTLINE_THICKNESS * 0.5)).into(),
                 Text [ "Server URL", ],
                 once node_color = Color::TOMATO.with_a(0.3),
                 // stupid fucking text doesn't wrap around properly if not specified in pixels
@@ -279,18 +282,22 @@ build_menu_plugin!(
                 button_height = Val::Px(3. * DEFAULT_FONT_SIZE + DEFAULT_TEXT_INPUT_MARGIN * 2.),
                 TextInput [
                     placeholder: "URL of the connecting server",
-                    "ws://localhost:3536",
-                ],
+                    user_settings.get_string(UserInputForm::ServerUrl).unwrap_or_default(),
+                ] + (
+                    UserInputForm::ServerUrl,
+                ),
             },
             Column {
-                margin = UiRect::all(Val::Percent(0.)).into(),
+                margin = UiRect::all(Val::Px(DEFAULT_OUTLINE_THICKNESS * 0.5)).into(),
                 Text [ "Room name", ],
                 button_height = Val::Px(DEFAULT_FONT_SIZE + DEFAULT_TEXT_INPUT_MARGIN * 2.),
                 TextInput [
                     placeholder: "",
                     max_symbols: 24,
-                    "2",
-                ],
+                    user_settings.get_string(UserInputForm::RoomName).unwrap_or_default(),
+                ] + (
+                    UserInputForm::RoomName,
+                ),
             },
         },
     },
@@ -511,6 +518,10 @@ impl Plugin for MenuPlugin {
                 handle_menu_actions
                     .run_if(not(in_state(MenuState::Disabled)))
                     .in_base_set(CoreSet::Update),
+            )
+            .add_system(transfer_setting_from_text_input.in_schedule(OnExit(MenuState::Settings)))
+            .add_system(
+                transfer_setting_from_text_input.in_schedule(OnExit(MenuState::MultiPlayer)),
             );
         // Systems to handle the display settings screen
         /*.add_systems(
