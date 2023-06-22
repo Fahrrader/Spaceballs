@@ -13,14 +13,29 @@ pub const DEFAULT_OUTLINE_THICKNESS: f32 = 3.0;
 pub const DEFAULT_BUTTON_MARGIN: f32 = DEFAULT_OUTLINE_THICKNESS * 2.;
 pub const DEFAULT_TEXT_INPUT_MARGIN: f32 = 7.0;
 
+pub mod fonts {
+    use bevy::prelude::{AssetServer, Font, Handle};
+
+    pub const ULTRAGONIC: &str = "Ultragonicv2.otf";
+    pub const SPACERUNNER: &str = "Spacerunner.otf";
+
+    /// Load a font using `asset_server` and `font_file` located in fonts/ directory.
+    pub fn load(asset_server: &AssetServer, font_file: &str) -> Handle<Font> {
+        asset_server.load(format!("fonts/{}", font_file))
+    }
+}
+
+pub const DEFAULT_FONT: &str = fonts::ULTRAGONIC;
+
 macro_rules! make_menu_building_environment {
     {$($(#[$doc:meta])? $field:ident: $typ:ty $(,)?)*} => {
         /// Set of shared variables used by the menu-building macros.
-        pub(crate) struct MenuBuildingEnvironment {
+        pub(crate) struct MenuBuildingEnvironment<'a> {
             $(
                 $(#[$doc])?
                 pub $field: $typ,
             )*
+            pub asset_server: &'a AssetServer,
             pub temporaries: TempMenuBuildingEnvironment,
         }
 
@@ -34,7 +49,7 @@ macro_rules! make_menu_building_environment {
             )*
         }
 
-        impl MenuBuildingEnvironment {
+        impl MenuBuildingEnvironment<'_> {
             /// Get a new copy of [`MenuBuildingEnvironment`], joined with its [`TempMenuBuildingEnvironment`],
             /// where fields that are present in the temporary environment take precedence.
             pub fn unite_with_temporaries(&mut self) -> Self {
@@ -42,16 +57,15 @@ macro_rules! make_menu_building_environment {
                     $(
                         $field: $crate::get!(self.$field),
                     )*
+                    asset_server: self.asset_server,
                     temporaries: default(),
                 }
-                //self.take_temporaries();
             }
         }
     };
 }
 
 make_menu_building_environment! {
-    // pub(crate) asset_server: &'a ResMut<'a, AssetServer>,
     font: Handle<Font>,
     /// Generally the background color of a UI node, use with caution with alpha stacking.
     node_color: Color,
@@ -80,9 +94,9 @@ make_menu_building_environment! {
     outline_width: Val,
 }
 
-impl MenuBuildingEnvironment {
-    pub fn default(asset_server: &ResMut<AssetServer>) -> Self {
-        let font = asset_server.load("fonts/Spacerunner.otf");
+impl<'a> MenuBuildingEnvironment<'a> {
+    pub fn default(asset_server: &'a AssetServer) -> Self {
+        let font = fonts::load(asset_server, DEFAULT_FONT);
         let text_font_size = DEFAULT_FONT_SIZE;
         let button_font_size = text_font_size;
 
@@ -92,7 +106,7 @@ impl MenuBuildingEnvironment {
         let outline_width = Val::Px(DEFAULT_OUTLINE_THICKNESS);
 
         Self {
-            // asset_server,
+            asset_server,
             font,
             node_color: Color::NONE,
             layout_width: MaybeDefault::Default,
@@ -345,7 +359,7 @@ macro_rules! change_menu_environment_context {
     ($parent:expr, $menu_shared_vars:ident, font = $new_value:expr) => {
         #[allow(unused_mut)]
         let mut $menu_shared_vars = $crate::ui::menu_builder::MenuBuildingEnvironment {
-            font: $new_value,
+            font: fonts::load($menu_shared_vars.asset_server, $new_value),
             temporaries: $menu_shared_vars.temporaries.clone(),
             ..$menu_shared_vars
         };
@@ -358,6 +372,10 @@ macro_rules! change_menu_environment_context {
             temporaries: $menu_shared_vars.temporaries.clone(),
             ..$menu_shared_vars
         };
+    };
+    ($parent:expr, $menu_shared_vars:ident, once font = $new_value:expr) => {
+        $menu_shared_vars.temporaries.font =
+            Some(fonts::load($menu_shared_vars.asset_server, $new_value));
     };
     ($parent:expr, $menu_shared_vars:ident, once $shared_menu_var:ident = $new_value:expr) => {
         $menu_shared_vars.temporaries.$shared_menu_var = Some($new_value);

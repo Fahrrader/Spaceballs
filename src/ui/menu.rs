@@ -1,4 +1,6 @@
-use crate::ui::menu_builder::{DEFAULT_FONT_SIZE, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_INPUT_MARGIN};
+use crate::ui::menu_builder::{
+    fonts, DEFAULT_FONT_SIZE, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_INPUT_MARGIN,
+};
 use crate::ui::text_input::TextInput;
 use crate::ui::{
     colors, despawn_node, remove_focus_from_non_focused_entities, Focus, FocusSwitchedEvent,
@@ -360,10 +362,12 @@ build_menu_plugin!(
     once layout_height = Val::Percent(42.5).into(),
     Column {
         text_font_size = 60.0,
+        once margin = UiRect::all(Val::Px(0.)).into(),
         Text [
             "Cosmic\n",
             once text_font_size = 72.0,
             once text_color = colors::LEMON,
+            once font = fonts::SPACERUNNER,
             "Spaceball\n",
             "Tactical Action Arena",
         ] + (
@@ -495,13 +499,13 @@ build_menu_plugin!(
             },
             Column {
                 margin = UiRect::all(Val::Percent(0.)).into(),
-                Text [ "Server IP", ],
+                Text [ "Server URL", ],
                 once node_color = Color::TOMATO.with_a(0.3),
                 // stupid fucking text doesn't wrap around properly if not specified in pixels
                 button_width = Val::Percent(100.),
                 button_height = Val::Px(3. * DEFAULT_FONT_SIZE + DEFAULT_TEXT_INPUT_MARGIN * 2.),
                 TextInput [
-                    placeholder: "IP of the connecting server",
+                    placeholder: "URL of the connecting server",
                     "ws://localhost:3536",
                 ],
             },
