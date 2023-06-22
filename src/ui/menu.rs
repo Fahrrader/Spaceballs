@@ -1,4 +1,4 @@
-use crate::ui::menu_builder::DEFAULT_TEXT_COLOR;
+use crate::ui::menu_builder::{DEFAULT_FONT_SIZE, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_INPUT_MARGIN};
 use crate::ui::text_input::TextInput;
 use crate::ui::{
     colors, despawn_node, remove_focus_from_non_focused_entities, Focus, FocusSwitchedEvent,
@@ -467,15 +467,14 @@ build_menu_plugin!(
 
 build_menu_plugin!(
     (setup_multiplayer_menu, MultiPlayer),
+    Top {
+        Column {
+            Text [ "Multiplayer", ],
+        },
+    },
     once layout_height = Val::Percent(50.).into(),
     once layout_width = Val::Percent(75.).into(),
     Column {
-        Column {
-            Text [
-                "Multiplayer",
-            ],
-        },
-        once align_self = AlignSelf::Start.into(),
         once layout_height = Val::Percent(90.).into(),
         once layout_width = Val::Percent(100.).into(),
         once margin = UiRect::top(Val::Percent(3.)).into(),
@@ -485,8 +484,9 @@ build_menu_plugin!(
             Column {
                 margin = UiRect::all(Val::Percent(0.)).into(),
                 Text [ "Player name", ],
+                button_height = Val::Px(DEFAULT_FONT_SIZE + DEFAULT_TEXT_INPUT_MARGIN * 2.),
                 TextInput [
-                    max_symbols: 32,
+                    max_symbols: 24,
                     placeholder: "Anata no namae wa..?",
                     "Player",
                 ] + (
@@ -498,8 +498,8 @@ build_menu_plugin!(
                 Text [ "Server IP", ],
                 once node_color = Color::TOMATO.with_a(0.3),
                 // stupid fucking text doesn't wrap around properly if not specified in pixels
-                once button_width = Val::Percent(100.),
-                once button_height = Val::Px(93.),
+                button_width = Val::Percent(100.),
+                button_height = Val::Px(3. * DEFAULT_FONT_SIZE + DEFAULT_TEXT_INPUT_MARGIN * 2.),
                 TextInput [
                     placeholder: "IP of the connecting server",
                     "ws://localhost:3536",
@@ -508,8 +508,10 @@ build_menu_plugin!(
             Column {
                 margin = UiRect::all(Val::Percent(0.)).into(),
                 Text [ "Room name", ],
+                button_height = Val::Px(DEFAULT_FONT_SIZE + DEFAULT_TEXT_INPUT_MARGIN * 2.),
                 TextInput [
                     placeholder: "",
+                    max_symbols: 24,
                     "2",
                 ],
             },

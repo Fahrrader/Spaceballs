@@ -7,6 +7,12 @@ pub const DEFAULT_BUTTON_COLOR: Color = Color::YELLOW_GREEN;
 pub const DEFAULT_BUTTON_HOVERED_COLOR: Color = colors::AERO_BLUE;
 pub const DEFAULT_BUTTON_PRESSED_COLOR: Color = Color::CYAN;
 
+pub const DEFAULT_FONT_SIZE: f32 = 27.0;
+
+pub const DEFAULT_OUTLINE_THICKNESS: f32 = 3.0;
+pub const DEFAULT_BUTTON_MARGIN: f32 = DEFAULT_OUTLINE_THICKNESS * 2.;
+pub const DEFAULT_TEXT_INPUT_MARGIN: f32 = 7.0;
+
 macro_rules! make_menu_building_environment {
     {$($(#[$doc:meta])? $field:ident: $typ:ty $(,)?)*} => {
         /// Set of shared variables used by the menu-building macros.
@@ -77,13 +83,13 @@ make_menu_building_environment! {
 impl MenuBuildingEnvironment {
     pub fn default(asset_server: &ResMut<AssetServer>) -> Self {
         let font = asset_server.load("fonts/Spacerunner.otf");
-        let text_font_size = 27.0;
+        let text_font_size = DEFAULT_FONT_SIZE;
         let button_font_size = text_font_size;
 
         let button_width = Val::Px(420.0);
         let button_height = Val::Px(65.0);
-        let button_margin = UiRect::all(Val::Px(6.0));
-        let outline_width = Val::Px(3.0);
+        let button_margin = UiRect::all(Val::Px(DEFAULT_BUTTON_MARGIN));
+        let outline_width = Val::Px(DEFAULT_OUTLINE_THICKNESS);
 
         Self {
             // asset_server,
@@ -394,6 +400,7 @@ macro_rules! build_layout {
     // Built-in quarter-screen container
     ($parent:expr, $menu_shared_vars:ident, _quarter_screen, $position:expr, ($($extra_component:expr,)*), $($body:tt)*) => {
         let msv = $crate::get!($menu_shared_vars);
+
         let width = if matches!($position.left, Val::Undefined) && matches!($position.right, Val::Undefined) {
             msv.layout_width.get_or_default()
         } else {
@@ -404,9 +411,11 @@ macro_rules! build_layout {
         } else {
             msv.layout_height.get_or(Val::Percent(25.))
         };
+        let alignment = if let Val::Undefined = $position.top { AlignItems::End } else { AlignItems::Start };
+
         let style = Style {
             size: Size::new(width, height),
-            align_items: msv.align_items.get_or(AlignItems::End),
+            align_items: msv.align_items.get_or(alignment),
             align_self: msv.align_self.get_or(AlignSelf::Center),
             justify_content: msv.justify_content.get_or(JustifyContent::Center),
             position_type: PositionType::Absolute,
@@ -554,7 +563,7 @@ macro_rules! build_text_input {
                                 bundle_msv.button_height
                             },
                         ),
-                        margin: UiRect::all(Val::Px(7.)),
+                        margin: UiRect::all(Val::Px(crate::ui::menu_builder::DEFAULT_TEXT_INPUT_MARGIN)),
                         ..default()
                     },
                     ..default()
