@@ -79,6 +79,9 @@ pub enum ProjectileSpawnSpace {
 
 /// Fixed variables per gun preset that are typically accessed via a look-up tree.
 pub struct GunPersistentStats {
+    /// Name of the gun type.
+    pub name: &'static str,
+
     /// Width (x-axis) of the gun's sprite.
     pub gun_width: f32,
     /// Length (y-axis) of the gun's sprite.

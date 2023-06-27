@@ -1,12 +1,11 @@
 use crate::ui::color_interaction::ColorInteractionMap;
 use crate::ui::focus::Focus;
 use crate::ui::menu_builder::{
-    fonts, DEFAULT_FONT_SIZE, DEFAULT_OUTLINE_THICKNESS, DEFAULT_TEXT_COLOR,
-    DEFAULT_TEXT_INPUT_MARGIN,
+    DEFAULT_FONT_SIZE, DEFAULT_OUTLINE_THICKNESS, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_INPUT_MARGIN,
 };
 use crate::ui::text_input::TextInput;
 use crate::ui::user_settings::{transfer_setting_from_text_input, UserInputForm, UserSettings};
-use crate::ui::{colors, despawn_node};
+use crate::ui::{colors, despawn_node, fonts};
 use crate::{build_menu_plugin, GamePauseEvent, GameState, PlayerCount, SceneSelector};
 use bevy::app::{AppExit, PluginGroupBuilder};
 use bevy::prelude::*;

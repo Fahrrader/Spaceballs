@@ -1,5 +1,5 @@
 use crate::ui::color_interaction::ColorInteractionMap;
-use crate::ui::colors;
+use crate::ui::{colors, fonts};
 use bevy::prelude::*;
 
 pub const DEFAULT_TEXT_COLOR: Color = colors::AERO_BLUE;
@@ -12,18 +12,6 @@ pub const DEFAULT_FONT_SIZE: f32 = 27.0;
 pub const DEFAULT_OUTLINE_THICKNESS: f32 = 3.0;
 pub const DEFAULT_BUTTON_MARGIN: f32 = DEFAULT_OUTLINE_THICKNESS * 2.;
 pub const DEFAULT_TEXT_INPUT_MARGIN: f32 = 7.0;
-
-pub mod fonts {
-    use bevy::prelude::{AssetServer, Font, Handle};
-
-    pub const ULTRAGONIC: &str = "Ultragonicv2.otf";
-    pub const SPACERUNNER: &str = "Spacerunner.otf";
-
-    /// Load a font using `asset_server` and `font_file` located in fonts/ directory.
-    pub fn load(asset_server: &AssetServer, font_file: &str) -> Handle<Font> {
-        asset_server.load(format!("fonts/{}", font_file))
-    }
-}
 
 pub const DEFAULT_FONT: &str = fonts::ULTRAGONIC;
 

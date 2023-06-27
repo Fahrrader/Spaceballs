@@ -1,5 +1,6 @@
 use crate::ui::color_interaction::ColorInteractionPlugin;
 use crate::ui::focus::FocusPlugin;
+use crate::ui::hud::HUDPlugin;
 use crate::ui::menu::MenuPlugin;
 use crate::ui::text_input::TextInputPlugin;
 use crate::ui::user_settings::UserSettingsPlugin;
@@ -7,6 +8,7 @@ use bevy::prelude::*;
 
 pub mod color_interaction;
 pub mod focus;
+mod hud;
 pub mod menu;
 mod menu_builder;
 pub mod text_input;
@@ -29,7 +31,22 @@ impl Plugin for SpaceballsUIPlugin {
             .add_plugin(MenuPlugin)
             .add_plugin(FocusPlugin)
             .add_plugin(ColorInteractionPlugin)
-            .add_plugin(TextInputPlugin);
+            .add_plugin(TextInputPlugin)
+            .add_plugin(HUDPlugin);
+    }
+}
+
+#[allow(dead_code)]
+pub mod fonts {
+    use bevy::prelude::{AssetServer, Font, Handle};
+
+    pub const ULTRAGONIC: &str = "Ultragonicv2.otf";
+    pub const SPACERUNNER: &str = "Spacerunner.otf";
+    pub const FIRA_SANS: &str = "FiraSans-Bold.ttf";
+
+    /// Load a font using `asset_server` and `font_file` located in fonts/ directory.
+    pub fn load(asset_server: &AssetServer, font_file: &str) -> Handle<Font> {
+        asset_server.load(format!("fonts/{}", font_file))
     }
 }
 

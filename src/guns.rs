@@ -110,9 +110,9 @@ impl GunBundle {
 #[reflect_value(Debug, Component, FromReflect)]
 pub struct Gun {
     pub preset: GunPreset,
-    fire_cooldown: Timer,
-    shots_before_reload: u32,
-    reload_progress: Timer,
+    pub fire_cooldown: Timer,
+    pub shots_before_reload: u32,
+    pub reload_progress: Timer,
     // displace to a component? risk of nondeterministic order of execution
     entropy: EntropyGenerator,
 }
