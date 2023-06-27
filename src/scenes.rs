@@ -1,4 +1,5 @@
 use crate::characters::{AICharacterBundle, BuildCharacter, PlayerCharacterBundle};
+use crate::multiplayer::{LocalPlayer, LocalPlayerHandle};
 use crate::{
     EntropyGenerator, GunBundle, GunPreset, RectangularObstacleBundle, AI_DEFAULT_TEAM, CHUNK_SIZE,
     PLAYER_DEFAULT_TEAM, SCREEN_SPAN,
@@ -33,11 +34,14 @@ pub fn summon_scene(
     commands: Commands,
     scene: Option<Res<SceneSelector>>,
     random_state: ResMut<EntropyGenerator>,
+    local_player_handle: Res<LocalPlayerHandle>,
 ) {
     match scene {
         None => setup_lite(commands, random_state),
         Some(scene) => match scene.into_inner() {
-            SceneSelector::Experimental => setup_experimental(commands, random_state),
+            SceneSelector::Experimental => {
+                setup_experimental(commands, random_state, local_player_handle)
+            }
             SceneSelector::Lite => setup_lite(commands, random_state),
         },
     }
@@ -56,7 +60,11 @@ pub fn despawn_everything(
 }
 
 /// Set up a more complicated and chaotic scene with the latest features and experiments.
-pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<EntropyGenerator>) {
+pub fn setup_experimental(
+    mut commands: Commands,
+    mut random_state: ResMut<EntropyGenerator>,
+    local_player_handle: Res<LocalPlayerHandle>,
+) {
     setup_base_arena(&mut commands);
 
     // Some guns before the player
@@ -77,7 +85,7 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<Entro
     ));
 
     // Player character
-    PlayerCharacterBundle::new(
+    let player_0_entity = PlayerCharacterBundle::new(
         Transform::from_translation(Vec3::new(-150.0, 0.0, 0.0)),
         PLAYER_DEFAULT_TEAM,
         0,
@@ -86,11 +94,11 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<Entro
         &mut commands,
         random_state.fork(),
         vec![GunPreset::Scattershot],
-    );
+    )[0];
 
     // todo:mp player generation on drop-in
     // Player character 2
-    PlayerCharacterBundle::new(
+    let player_1_entity = PlayerCharacterBundle::new(
         Transform::from_translation(Vec3::new(-50.0, 150.0, 0.0)),
         PLAYER_DEFAULT_TEAM + 1,
         1,
@@ -99,7 +107,7 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<Entro
         &mut commands,
         random_state.fork(),
         vec![GunPreset::Imprecise],
-    );
+    )[0];
 
     // todo respawning? conjoin with drop-in
     // AI character
@@ -116,17 +124,24 @@ pub fn setup_experimental(mut commands: Commands, mut random_state: ResMut<Entro
     commands.spawn(RectangularObstacleBundle::new(Transform::from_scale(
         Vec3::new(1.0, 2.0, 1.0),
     )));
+
+    // Some minute trash - this system is going to get overhauled with repeated player spawn soon anyway.
+    commands
+        .entity(match local_player_handle.0 {
+            0 => player_0_entity,
+            _ => player_1_entity,
+        })
+        .insert(LocalPlayer);
 }
 
 /// Set up a lighter, stable scene. Considered default.
 pub fn setup_lite(mut commands: Commands, mut random_state: ResMut<EntropyGenerator>) {
     setup_base_arena(&mut commands);
 
-    PlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0).spawn_with_equipment(
-        &mut commands,
-        random_state.fork(),
-        vec![GunPreset::Regular],
-    );
+    let player_entity = PlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0)
+        .spawn_with_equipment(&mut commands, random_state.fork(), vec![GunPreset::Regular])[0];
+
+    commands.entity(player_entity).insert(LocalPlayer);
 }
 
 /// Set up common stuff attributable to all levels.

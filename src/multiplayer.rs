@@ -4,7 +4,7 @@ use crate::controls::CharacterActionInput;
 use crate::ui::user_settings::{UserInputForm, UserSettings};
 use crate::{info, GameState};
 use bevy::core::{Pod, Zeroable};
-use bevy::prelude::{Commands, NextState, Res, ResMut, Resource};
+use bevy::prelude::{Commands, Component, NextState, Res, ResMut, Resource};
 use bevy::reflect::{FromReflect, Reflect};
 use bevy_ggrs::ggrs::DesyncDetection;
 use bevy_ggrs::{ggrs, Session};
@@ -37,6 +37,12 @@ impl ggrs::Config for GGRSConfig {
     type Address = PeerId;
 }
 
+#[derive(Resource)]
+pub struct LocalPlayerHandle(pub usize);
+
+#[derive(Component)]
+pub struct LocalPlayer;
+
 // Having a load screen of just one frame helps with desync issues, some report.
 
 // Bevy-Extremists host this match making service for us to use FOR FREE.
@@ -61,6 +67,7 @@ pub fn start_matchbox_socket(
                 .get_string(UserInputForm::RoomName)
                 .unwrap_or_default(),
         )
+        .to_lowercase()
     } else {
         "".to_string()
     };
@@ -120,6 +127,10 @@ pub fn wait_for_players(
         session_builder = session_builder
             .add_player(player, i)
             .expect("failed to add player");
+
+        if matches!(player, bevy_ggrs::ggrs::PlayerType::Local) {
+            commands.insert_resource(LocalPlayerHandle(i));
+        }
         // todo:mp add players here?
     }
 

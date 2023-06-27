@@ -1,4 +1,4 @@
-use crate::characters::{AiControlled, CHARACTER_RAD_SPEED};
+use crate::characters::{AIControlled, CHARACTER_RAD_SPEED};
 use crate::controls::CharacterActionInput;
 use bevy::prelude::{Component, FromReflect, Query, Reflect, Res, Time, With};
 use bevy::utils::default;
@@ -49,7 +49,7 @@ impl AIActionRoutine {
 /// System to give AI characters something to do this frame. Uses a function of time to calculate the set of actions performed.
 pub fn handle_ai_input(
     time: Res<Time>,
-    mut query: Query<(&mut CharacterActionInput, &mut AIActionRoutine), With<AiControlled>>,
+    mut query: Query<(&mut CharacterActionInput, &mut AIActionRoutine), With<AIControlled>>,
 ) {
     for (mut action_input, mut action_routine) in query.iter_mut() {
         *action_input = action_routine.increment_routine_step(time.delta_seconds());

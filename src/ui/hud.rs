@@ -1,6 +1,7 @@
+use crate::multiplayer::LocalPlayer;
 use crate::ui::menu_builder::outline_parent;
 use crate::ui::{despawn_node, fonts};
-use crate::{CharacterActionInput, Equipped, GameState, Gun, Health};
+use crate::{Equipped, GameState, Gun, Health};
 use bevy::ecs::query::QuerySingleError;
 use bevy::prelude::*;
 
@@ -23,6 +24,8 @@ pub struct GunDisplay {
     pub fire_cooldown_display: Entity,
     pub reload_display: Entity,
 }
+
+pub const GUN_PROGRESS_BAR_HEIGHT: f32 = 40. + 40. + 10. + 15. + 2.0;
 
 impl GunDisplay {
     fn set_text(&self, entity: Entity, new_text: String, text_query: &mut Query<&mut Text>) {
@@ -85,8 +88,6 @@ impl GunDisplay {
         self.set_progress_bar_height(self.reload_display, reload_progress, style_query);
     }
 }
-
-pub const GUN_PROGRESS_BAR_HEIGHT: f32 = 40. + 40. + 10. + 15. + 2.0;
 
 fn setup_player_health_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
     let font = fonts::load(&asset_server, fonts::SPACERUNNER);
@@ -151,7 +152,7 @@ fn setup_player_health_hud(mut commands: Commands, asset_server: Res<AssetServer
 fn handle_health_hud(
     mut health_text_query: Query<&mut Text, With<HealthDisplay>>,
     mut health_bar_query: Query<&mut Style, (With<HealthDisplay>, Without<Text>)>,
-    character_health_query: Query<&Health, (/*With<LocalPlayer>,*/ Changed<Health>,)>,
+    character_health_query: Query<&Health, (With<LocalPlayer>, Changed<Health>)>,
 ) {
     let health = match character_health_query.get_single() {
         Ok(health) => health.hp(),
@@ -208,13 +209,7 @@ fn handle_guns_hud_setup_change(
     mut gun_display_query: Query<(&mut GunDisplay, &mut Visibility)>,
     mut gun_text_query: Query<&mut Text>,
     mut gun_style_query: Query<&mut Style>,
-    character_query: Query<
-        &Children,
-        (
-            With<CharacterActionInput>, /*With<LocalPlayer>*/
-            Changed<Children>,
-        ),
-    >,
+    character_query: Query<&Children, (With<LocalPlayer>, Changed<Children>)>,
     gun_query: Query<&Gun, With<Equipped>>,
 ) {
     let guns = match character_query.get_single() {
@@ -445,12 +440,16 @@ fn handle_guns_hud_update(
 pub struct HUDPlugin;
 impl Plugin for HUDPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(setup_player_health_hud.in_schedule(OnEnter(GameState::InGame)))
-            .add_system(setup_player_guns_hud.in_schedule(OnEnter(GameState::InGame)))
-            // .add_system(setup_player_names_hud.in_schedule(OnEnter(GameState::InGame)))
-            .add_system(handle_health_hud.run_if(in_state(GameState::InGame)))
-            .add_system(handle_guns_hud_setup_change.run_if(in_state(GameState::InGame)))
-            .add_system(handle_guns_hud_update.run_if(in_state(GameState::InGame)))
-            .add_system(despawn_node::<HUDElement>.in_schedule(OnExit(GameState::InGame)));
+        app.add_systems((
+            setup_player_health_hud.in_schedule(OnEnter(GameState::InGame)),
+            handle_health_hud.run_if(in_state(GameState::InGame)),
+        ))
+        // .add_system(setup_player_names_hud.in_schedule(OnEnter(GameState::InGame)))
+        .add_systems((
+            setup_player_guns_hud.in_schedule(OnEnter(GameState::InGame)),
+            handle_guns_hud_setup_change.run_if(in_state(GameState::InGame)),
+            handle_guns_hud_update.run_if(in_state(GameState::InGame)),
+        ))
+        .add_system(despawn_node::<HUDElement>.in_schedule(OnExit(GameState::InGame)));
     }
 }

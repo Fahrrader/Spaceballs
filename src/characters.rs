@@ -113,16 +113,15 @@ impl BaseCharacterBundle {
         equipment: Vec<GunPreset>,
     ) -> Vec<Entity> {
         let char_id = commands.spawn(bundle).id();
-
-        let mut result = vec![char_id];
-        result.append(&mut BaseCharacterBundle::spawn_equipment(
+        let mut spawned_entities = vec![char_id];
+        spawned_entities.append(&mut BaseCharacterBundle::spawn_equipment(
             commands,
             char_id,
             team,
             random_state,
             equipment,
         ));
-        result
+        spawned_entities
     }
 }
 
@@ -166,20 +165,20 @@ impl BuildCharacter for PlayerCharacterBundle {
 pub struct AICharacterBundle {
     #[bundle]
     pub character_bundle: BaseCharacterBundle,
-    pub player_marker: AiControlled,
+    pub player_marker: AIControlled,
     pub ai_controller: AIActionRoutine,
 }
 
 /// Marker designating an entity controlled by a player.
 #[derive(Component, Debug)]
-pub struct AiControlled;
+pub struct AIControlled;
 // pub peer_handle: usize,
 
 impl BuildCharacter for AICharacterBundle {
     fn new(transform: Transform, team: TeamNumber, _player_handle: usize) -> Self {
         Self {
             character_bundle: BaseCharacterBundle::new(transform, team),
-            player_marker: AiControlled,
+            player_marker: AIControlled,
             ai_controller: AIActionRoutine::default(),
         }
     }
@@ -363,7 +362,7 @@ pub fn handle_inventory_layout_change(
                     .get_transform_with_scale(char_transform.scale);
 
                 gun_transform.translation.x =
-                    original_transform.translation.x + far_left_x + step_size * (i + 1) as f32;
+                    original_transform.translation.x - far_left_x - step_size * (i + 1) as f32;
             }
         }
     }
