@@ -263,6 +263,7 @@ build_menu_plugin!(
                 margin = UiRect::all(Val::Px(DEFAULT_OUTLINE_THICKNESS * 0.5)).into(),
                 Text [ "Player name", ],
                 button_height = Val::Px(DEFAULT_FONT_SIZE + DEFAULT_TEXT_INPUT_MARGIN * 2.),
+                // font = fonts::FIRA_SANS,
                 TextInput [
                     max_symbols: 24,
                     placeholder: "Anata no namae wa..?",
@@ -279,6 +280,7 @@ build_menu_plugin!(
                 // stupid fucking text doesn't wrap around properly if not specified in pixels
                 button_width = Val::Percent(100.),
                 button_height = Val::Px(3. * DEFAULT_FONT_SIZE + DEFAULT_TEXT_INPUT_MARGIN * 2.),
+                // font = fonts::FIRA_SANS,
                 TextInput [
                     placeholder: "URL of the connecting server",
                     user_settings.get_string(UserInputForm::ServerUrl).unwrap_or_default(),
@@ -290,6 +292,7 @@ build_menu_plugin!(
                 margin = UiRect::all(Val::Px(DEFAULT_OUTLINE_THICKNESS * 0.5)).into(),
                 Text [ "Room name", ],
                 button_height = Val::Px(DEFAULT_FONT_SIZE + DEFAULT_TEXT_INPUT_MARGIN * 2.),
+                // font = fonts::FIRA_SANS,
                 TextInput [
                     placeholder: "",
                     max_symbols: 24,

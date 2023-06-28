@@ -25,7 +25,21 @@ pub struct GunDisplay {
     pub reload_display: Entity,
 }
 
-pub const GUN_PROGRESS_BAR_HEIGHT: f32 = 40. + 40. + 10. + 15. + 2.0;
+const GUN_READABLE_FONT_SIZE: f32 = 40.0;
+const GUN_NON_READABLE_FONT_SIZE: f32 = 20.0;
+
+const DISPLAY_SPACING_PX: f32 = 5.;
+const ELEMENT_SPACING_PX: f32 = 10.;
+const DISPLAY_WIDTH_PX: f32 = 110.;
+const HORIZONTAL_LINE_LENGTH_PX: f32 = 82.;
+const HORIZONTAL_LINE_WIDTH_PX: f32 = 2.;
+const PROGRESS_BAR_WIDTH_PX: f32 = 7.;
+const PROGRESS_BAR_X_OFFSET_PX: f32 =
+    (DISPLAY_WIDTH_PX - HORIZONTAL_LINE_LENGTH_PX - 2. * PROGRESS_BAR_WIDTH_PX) / 2.0;
+const PROGRESS_BAR_Y_OFFSET_PX: f32 = GUN_NON_READABLE_FONT_SIZE + ELEMENT_SPACING_PX;
+
+pub const GUN_PROGRESS_BAR_HEIGHT: f32 =
+    GUN_READABLE_FONT_SIZE * 2. + ELEMENT_SPACING_PX * 2.5 + HORIZONTAL_LINE_WIDTH_PX;
 
 impl GunDisplay {
     fn set_text(&self, entity: Entity, new_text: String, text_query: &mut Query<&mut Text>) {
@@ -257,8 +271,6 @@ fn handle_guns_hud_setup_change(
         if guns.len() > display_children.len() {
             let font = fonts::load(&asset_server, fonts::SPACERUNNER);
             let readable_font = fonts::load(&asset_server, fonts::FIRA_SANS);
-            let readable_font_size = 40.0; // non_readable_font_size * 1.5;
-            let non_readable_font_size = 17.0;
             let color = Color::WHITE.with_a(0.8);
 
             commands.entity(display_entity).with_children(|parent| {
@@ -277,8 +289,8 @@ fn handle_guns_hud_setup_change(
                     // Spawn a gun information panel
                     let mut gun_display_panel = parent.spawn((NodeBundle {
                         style: Style {
-                            size: Size::new(Val::Px(110.), Val::Px(200.)),
-                            margin: UiRect::left(Val::Px(5.0)),
+                            size: Size::new(Val::Px(DISPLAY_WIDTH_PX), Val::Px(200.)),
+                            margin: UiRect::left(Val::Px(DISPLAY_SPACING_PX)),
                             flex_direction: FlexDirection::ColumnReverse,
                             justify_content: JustifyContent::End,
                             align_items: AlignItems::Center,
@@ -290,20 +302,17 @@ fn handle_guns_hud_setup_change(
                     gun_display_panel.with_children(|parent| {
                         // Name of the gun
                         name_id = parent
-                            .spawn((
-                                TextBundle {
-                                    text: Text::from_section(
-                                        gun_stats.name,
-                                        TextStyle {
-                                            font: font.clone(),
-                                            font_size: non_readable_font_size,
-                                            color,
-                                        },
-                                    ),
-                                    ..default()
-                                },
-                                // GunNameDisplay,
-                            ))
+                            .spawn((TextBundle {
+                                text: Text::from_section(
+                                    gun_stats.name,
+                                    TextStyle {
+                                        font: font.clone(),
+                                        font_size: GUN_NON_READABLE_FONT_SIZE,
+                                        color,
+                                    },
+                                ),
+                                ..default()
+                            },))
                             .id();
 
                         // Maximum amount of ammo possible in the magazine
@@ -316,12 +325,12 @@ fn handle_guns_hud_setup_change(
                                     },
                                     TextStyle {
                                         font: readable_font.clone(),
-                                        font_size: readable_font_size,
+                                        font_size: GUN_READABLE_FONT_SIZE,
                                         color,
                                     },
                                 ),
                                 style: Style {
-                                    margin: UiRect::all(Val::Px(10.)),
+                                    margin: UiRect::all(Val::Px(ELEMENT_SPACING_PX)),
                                     ..default()
                                 },
                                 ..default()
@@ -331,7 +340,10 @@ fn handle_guns_hud_setup_change(
                         // Horizontal separating line
                         parent.spawn(NodeBundle {
                             style: Style {
-                                size: Size::new(Val::Percent(75.), Val::Px(2.)),
+                                size: Size::new(
+                                    Val::Px(HORIZONTAL_LINE_LENGTH_PX),
+                                    Val::Px(HORIZONTAL_LINE_WIDTH_PX),
+                                ),
                                 ..default()
                             },
                             background_color: color.into(),
@@ -348,12 +360,12 @@ fn handle_guns_hud_setup_change(
                                     },
                                     TextStyle {
                                         font: readable_font.clone(),
-                                        font_size: readable_font_size,
+                                        font_size: GUN_READABLE_FONT_SIZE,
                                         color,
                                     },
                                 ),
                                 style: Style {
-                                    margin: UiRect::bottom(Val::Px(15.)),
+                                    margin: UiRect::bottom(Val::Px(ELEMENT_SPACING_PX * 1.5)),
                                     ..default()
                                 },
                                 ..default()
@@ -366,12 +378,12 @@ fn handle_guns_hud_setup_change(
                                 style: Style {
                                     position_type: PositionType::Absolute,
                                     position: UiRect {
-                                        left: Val::Px(10.),
-                                        bottom: Val::Px(22.),
+                                        left: Val::Px(PROGRESS_BAR_X_OFFSET_PX),
+                                        bottom: Val::Px(PROGRESS_BAR_Y_OFFSET_PX),
                                         ..default()
                                     },
                                     size: Size::new(
-                                        Val::Px(6.),
+                                        Val::Px(PROGRESS_BAR_WIDTH_PX),
                                         // Progress bar height
                                         Val::Px(0.0),
                                     ),
@@ -388,12 +400,12 @@ fn handle_guns_hud_setup_change(
                                 style: Style {
                                     position_type: PositionType::Absolute,
                                     position: UiRect {
-                                        right: Val::Px(10.),
-                                        bottom: Val::Px(22.),
+                                        right: Val::Px(PROGRESS_BAR_X_OFFSET_PX),
+                                        bottom: Val::Px(PROGRESS_BAR_Y_OFFSET_PX),
                                         ..default()
                                     },
                                     size: Size::new(
-                                        Val::Px(6.),
+                                        Val::Px(PROGRESS_BAR_WIDTH_PX),
                                         // Progress bar height
                                         Val::Px(0.0),
                                     ),

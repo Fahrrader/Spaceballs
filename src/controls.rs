@@ -222,9 +222,10 @@ pub fn handle_gamepad_connections(
         match &ev.connection {
             // name is skipped. maybe there will use for this later
             GamepadConnection::Connected(info) => {
-                println!(
+                bevy::log::info!(
                     "New gamepad connected with ID: {:?}, name: {:?}",
-                    id, info.name
+                    id,
+                    info.name
                 );
 
                 // if we don't have any gamepad yet, use this one. Fix it for local multiplayer.
@@ -233,7 +234,7 @@ pub fn handle_gamepad_connections(
                 }
             }
             GamepadConnection::Disconnected => {
-                println!("Lost gamepad connection with ID: {:?}", id);
+                bevy::log::info!("Lost gamepad connection with ID: {:?}", id);
 
                 if let Some(GamepadWrapper(old_id)) = connected_gamepad.as_deref() {
                     if *old_id == id {
