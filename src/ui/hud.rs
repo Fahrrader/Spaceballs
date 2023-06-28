@@ -26,7 +26,7 @@ pub struct GunDisplay {
 }
 
 const GUN_READABLE_FONT_SIZE: f32 = 40.0;
-const GUN_NON_READABLE_FONT_SIZE: f32 = 20.0;
+const GUN_NON_READABLE_FONT_SIZE: f32 = 19.0;
 
 const DISPLAY_SPACING_PX: f32 = 5.;
 const ELEMENT_SPACING_PX: f32 = 10.;
@@ -224,16 +224,23 @@ fn handle_guns_hud_setup_change(
     mut gun_text_query: Query<&mut Text>,
     mut gun_style_query: Query<&mut Style>,
     character_query: Query<&Children, (With<LocalPlayer>, Changed<Children>)>,
+    mut removed_children: RemovedComponents<Children>,
+    spare_character_query: Query<Entity, (With<LocalPlayer>, Without<Children>)>,
     gun_query: Query<&Gun, With<Equipped>>,
 ) {
     let guns = match character_query.get_single() {
-        Ok(children) /*if !children.is_empty()*/ => children,
-        Err(err) => {
-            match err {
-                QuerySingleError::MultipleEntities(_) => error!("Multiple entities with `LocalPlayer` have changed `Children`!"),
-                _ => {},
-            };
-            return;
+        Ok(children) /*if !children.is_empty()*/ => children.iter().cloned().collect::<Vec<_>>(),
+        Err(err) => match err {
+            QuerySingleError::MultipleEntities(_) => {
+                error!("Multiple entities with `LocalPlayer` have changed `Children`!");
+                return;
+            },
+            _ => {
+                match removed_children.iter().find(|&entity| spare_character_query.get(entity).is_ok()) {
+                    Some(_) => vec![],
+                    _ => return,
+                }
+            },
         },
     };
 
