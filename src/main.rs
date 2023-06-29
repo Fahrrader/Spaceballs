@@ -38,12 +38,15 @@ fn main() {
             gravity: Vec2::default(),
             ..default()
         })
-        // todo displace into MP plugin
+        // todo:mp displace into MP plugin
         .insert_resource(PlayerRegistry::default())
         .insert_resource(PeerNames::default())
         .insert_resource(PeerHandles::default())
         .add_state::<GameState>()
         .add_event::<GamePauseEvent>()
+        // todo:mp into the MP plugin it goes!
+        .add_event::<PeerConnectionEvent>()
+        .add_event::<ChatMessage>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(create_window(800., 800.)),
             ..default()
@@ -61,11 +64,14 @@ fn main() {
         )
         .add_startup_system(standard_setup)
         .add_system(start_matchbox_socket.in_schedule(OnEnter(GameState::Matchmaking)))
+        .add_system(update_peers.run_if(not(in_state(GameState::MainMenu))))
         .add_system(wait_for_players.run_if(in_state(GameState::Matchmaking)))
         // ideally, there should be `or` between `Matchmaking` and `InGame`, but no, ok
         .add_system(handle_player_name_broadcast.run_if(not(in_state(GameState::MainMenu))))
         .add_system(handle_receiving_peer_messages.run_if(not(in_state(GameState::MainMenu))))
+        .add_system(handle_reporting_peer_disconnecting.run_if(not(in_state(GameState::MainMenu))))
         .add_system(update_player_names.run_if(not(in_state(GameState::MainMenu))))
+        .add_system(print_chat_messages.run_if(not(in_state(GameState::MainMenu))))
         .add_system(summon_scene.in_schedule(OnEnter(GameState::InGame)))
         .add_system(despawn_everything.in_schedule(OnExit(GameState::InGame)))
         .add_system(sever_connection.in_schedule(OnExit(GameState::InGame)))

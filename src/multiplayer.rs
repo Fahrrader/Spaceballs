@@ -7,7 +7,11 @@ use crate::ui::user_settings::{UserInputForm, UserSettings};
 use crate::{default, GameState};
 use bevy::core::{Pod, Zeroable};
 use bevy::log::{error, info, warn};
-use bevy::prelude::{Commands, Component, DetectChanges, Local, NextState, Res, ResMut, Resource};
+#[cfg(feature = "diagnostic")]
+use bevy::prelude::Local;
+use bevy::prelude::{
+    Commands, Component, DetectChanges, EventReader, EventWriter, NextState, Res, ResMut, Resource,
+};
 use bevy::reflect::{FromReflect, Reflect};
 use bevy::tasks::IoTaskPool;
 use bevy::utils::HashMap;
@@ -150,6 +154,40 @@ impl SpaceballSocket {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct PeerConnectionEvent {
+    pub id: PeerId,
+    pub state: PeerState,
+}
+
+/// Check for new connections and send out events.
+///
+/// NOTE: Exercise caution when calling `update_peers` on the socket, or the new connections will not be registered by one system or another.
+pub fn update_peers(
+    mut socket: ResMut<SpaceballSocket>,
+    mut peer_updater: EventWriter<PeerConnectionEvent>,
+    #[cfg(feature = "diagnostic")] mut n_recorded_peers: Local<usize>,
+) {
+    let new_peers = socket.inner_mut().update_peers();
+    for (id, state) in new_peers {
+        peer_updater.send(PeerConnectionEvent { id, state });
+    }
+
+    // todo some debug mode maybe?
+    #[cfg(feature = "diagnostic")]
+    {
+        let n_connected_peers = socket.inner().connected_peers().count();
+        if *n_recorded_peers != n_connected_peers {
+            error!(
+                "Someone hijacked our sweet peers! Peer update has been lost. Previous number of connections: {}, new number of connections: {}",
+                *n_recorded_peers,
+                n_connected_peers,
+            );
+        }
+        *n_recorded_peers = n_connected_peers;
+    }
+}
+
 #[derive(Resource)]
 pub struct LocalPlayerHandle(pub PlayerHandle);
 
@@ -212,8 +250,7 @@ pub fn wait_for_players(
     settings: Res<UserSettings>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    // Check for new connections
-    socket.inner_mut().update_peers();
+    // Check for new players
     let players = socket.players();
 
     // if there is not enough players, wait
@@ -265,7 +302,7 @@ pub fn wait_for_players(
                 });
                 commands.insert_resource(LocalPlayerHandle(i));
             }
-            _ => {}
+            PlayerType::Spectator(_) => {}
         };
     }
 
@@ -290,24 +327,22 @@ pub fn wait_for_players(
 pub fn handle_player_name_broadcast(
     mut socket: ResMut<SpaceballSocket>,
     settings: Res<UserSettings>,
-    mut n_recorded_peers: Local<usize>,
+    mut peer_events: EventReader<PeerConnectionEvent>,
 ) {
-    // Update the connections
-    /*let changed_peers = */
-    socket.inner_mut().update_peers();
-
-    // only send out the message if the number of peers has increased
-    let n_connected_peers = socket.inner().connected_peers().count();
-
-    // todo read events instead of recording peers number, have other event reader systems also print messages like "guy joined"
-    /*changed_peers.iter().any(|(_, state)| matches!(state, PeerState::Connected))*/
-    if n_connected_peers > *n_recorded_peers {
-        // broadcasting the user-set name
+    if peer_events.iter().any(|event| {
+        matches!(
+            event,
+            PeerConnectionEvent {
+                state: PeerState::Connected,
+                ..
+            }
+        )
+    }) {
+        // broadcasting our local user-set name
         if let Some(name) = settings.get_string(UserInputForm::PlayerName) {
             socket.broadcast_tcp_message(PeerMessage::PlayerName { name });
         }
     }
-    *n_recorded_peers = n_connected_peers;
 }
 
 #[derive(Resource, Debug, Default)]
@@ -320,20 +355,70 @@ pub struct PeerNames {
     pub map: HashMap<PeerId, String>,
 }
 
+#[derive(Debug)]
+pub struct ChatMessage {
+    pub player_handle: Option<PlayerHandle>,
+    pub message: String,
+}
+
 pub fn handle_receiving_peer_messages(
     mut socket: ResMut<SpaceballSocket>,
-    mut peers: ResMut<PeerNames>,
+    mut peer_names: ResMut<PeerNames>,
+    peer_handles: Res<PeerHandles>,
+    mut messenger: EventWriter<ChatMessage>,
 ) {
-    // todo read messages and send out events, like "chat message", "player name update", etc.
     let messages = socket.receive_tcp_messages();
     for (sender, message) in messages {
         match message {
             PeerMessage::PlayerName { name } => {
-                info!("{} joined!", name.clone());
-                peers.map.insert(sender, name);
+                if !peer_names.map.contains_key(&sender) {
+                    messenger.send(ChatMessage {
+                        player_handle: None,
+                        message: format!("{} joined!", name),
+                    });
+                }
+                peer_names.map.insert(sender, name);
             }
-            PeerMessage::Chat { .. } => {}
+            PeerMessage::Chat { message } => {
+                // ignore the message if it came from an unregistered source
+                if let Some(handle) = peer_handles.map.get(&sender) {
+                    messenger.send(ChatMessage {
+                        player_handle: Some(*handle),
+                        message,
+                    });
+                }
+            }
         }
+    }
+}
+
+pub fn handle_reporting_peer_disconnecting(
+    mut peer_names: ResMut<PeerNames>,
+    mut peer_events: EventReader<PeerConnectionEvent>,
+    mut messenger: EventWriter<ChatMessage>,
+) {
+    for event in peer_events.iter() {
+        match event {
+            PeerConnectionEvent {
+                state: PeerState::Disconnected,
+                id,
+            } => {
+                if let Some(name) = peer_names.map.remove(id) {
+                    messenger.send(ChatMessage {
+                        player_handle: None,
+                        message: format!("{} left!", name),
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// TEMPORARY
+pub fn print_chat_messages(mut messenger: EventReader<ChatMessage>) {
+    for message in messenger.iter() {
+        info!(message.player_handle, message.message);
     }
 }
 
@@ -376,7 +461,6 @@ pub fn update_player_names(
         if let Some(handle) = peer_handles.map.get(id) {
             if let Some(data) = players.get_mut(*handle) {
                 data.name = name.clone();
-                println!("Yay! updated player registry: {:?}", data);
             }
         }
     }
