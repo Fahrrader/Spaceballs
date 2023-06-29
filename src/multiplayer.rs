@@ -1,17 +1,21 @@
 pub use bevy_ggrs::{GGRSPlugin, GGRSSchedule};
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::controls::CharacterActionInput;
 use crate::ui::user_settings::{UserInputForm, UserSettings};
-use crate::{info, GameState};
+use crate::{default, GameState};
 use bevy::core::{Pod, Zeroable};
-use bevy::prelude::{Commands, Component, NextState, Res, ResMut, Resource};
+use bevy::log::{error, info, warn};
+use bevy::prelude::{Commands, Component, DetectChanges, Local, NextState, Res, ResMut, Resource};
 use bevy::reflect::{FromReflect, Reflect};
-use bevy_ggrs::ggrs::DesyncDetection;
+use bevy::tasks::IoTaskPool;
+use bevy::utils::HashMap;
+pub use bevy_ggrs::ggrs::PlayerHandle;
+use bevy_ggrs::ggrs::{DesyncDetection, PlayerType};
 use bevy_ggrs::{ggrs, Session};
-use bevy_matchbox::prelude::{
-    ChannelConfig, MatchboxSocket, PeerId, SingleChannel, WebRtcSocketBuilder,
-};
-use bevy_matchbox::CloseSocketExt;
+use bevy_matchbox::matchbox_socket::{MessageLoopFuture, WebRtcSocket};
+use bevy_matchbox::prelude::{MultipleChannels, PeerId, PeerState};
 
 // Common room address for all matches on the server! Oh it's going to be gloriously broken if left like this.
 // pub const ROOM_NAME: &str = "spaceballs";
@@ -37,8 +41,117 @@ impl ggrs::Config for GGRSConfig {
     type Address = PeerId;
 }
 
+#[derive(Resource, Debug, Clone)]
+pub struct SpaceballSocket(pub Arc<RwLock<WebRtcSocket<MultipleChannels>>>);
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum PeerMessage {
+    PlayerName { name: String },
+    Chat { message: String },
+}
+
+impl ggrs::NonBlockingSocket<PeerId> for SpaceballSocket {
+    fn send_to(&mut self, msg: &ggrs::Message, addr: &PeerId) {
+        self.0
+            .write()
+            // if the lock is poisoned, we're already doomed, time to panic
+            .expect("Failed to lock socket for sending!")
+            .channel(Self::GGRS_CHANNEL)
+            .send_to(msg, addr);
+    }
+
+    fn receive_all_messages(&mut self) -> Vec<(PeerId, ggrs::Message)> {
+        self.0
+            .write()
+            // if the lock is poisoned, we're already doomed, time to panic
+            .expect("Failed to lock socket for receiving!")
+            .channel(Self::GGRS_CHANNEL)
+            .receive_all_messages()
+    }
+}
+
+impl From<(WebRtcSocket<MultipleChannels>, MessageLoopFuture)> for SpaceballSocket {
+    fn from(
+        (socket, message_loop_fut): (WebRtcSocket<MultipleChannels>, MessageLoopFuture),
+    ) -> Self {
+        let task_pool = IoTaskPool::get();
+        task_pool.spawn(message_loop_fut).detach();
+        SpaceballSocket(Arc::new(RwLock::new(socket)))
+    }
+}
+
+impl SpaceballSocket {
+    const GGRS_CHANNEL: usize = 0;
+    const RELIABLE_CHANNEL: usize = 1;
+
+    pub fn send_tcp_message(&mut self, peer: PeerId, message: PeerMessage) {
+        let bytes = bincode::serialize(&message).expect("failed to serialize message");
+        self.inner_mut()
+            .channel(Self::RELIABLE_CHANNEL)
+            .send(bytes.into(), peer);
+    }
+
+    pub fn broadcast_tcp_message(&mut self, message: PeerMessage) {
+        let bytes = bincode::serialize(&message).expect("failed to serialize message");
+        let peers = self.inner().connected_peers().collect::<Vec<_>>();
+        for peer in peers {
+            self.inner_mut()
+                .channel(Self::RELIABLE_CHANNEL)
+                .send(bytes.clone().into(), peer);
+        }
+    }
+
+    pub fn receive_tcp_messages(&mut self) -> Vec<(PeerId, PeerMessage)> {
+        self.inner_mut()
+            .channel(Self::RELIABLE_CHANNEL)
+            .receive()
+            .into_iter()
+            .map(|(id, packet)| {
+                let msg = bincode::deserialize(&packet).unwrap();
+                (id, msg)
+            })
+            .collect()
+    }
+
+    pub fn players(&self) -> Vec<PlayerType<PeerId>> {
+        let Some(our_id) = self.inner().id() else {
+            // we're still waiting for the server to initialize our id
+            // no peers should be added at this point anyway
+            return vec![PlayerType::Local];
+        };
+
+        // player order needs to be consistent order across all peers
+        let mut ids: Vec<_> = self
+            .inner()
+            .connected_peers()
+            .chain(std::iter::once(our_id))
+            .collect();
+        ids.sort();
+
+        ids.into_iter()
+            .map(|id| {
+                if id == our_id {
+                    PlayerType::Local
+                } else {
+                    PlayerType::Remote(id)
+                }
+            })
+            .collect()
+    }
+
+    pub fn inner(&self) -> RwLockReadGuard<'_, WebRtcSocket<MultipleChannels>> {
+        // we don't care about handling lock poisoning
+        self.0.read().expect("Failed to lock socket for reading!")
+    }
+
+    pub fn inner_mut(&mut self) -> RwLockWriteGuard<'_, WebRtcSocket<MultipleChannels>> {
+        // we don't care about handling lock poisoning
+        self.0.write().expect("Failed to lock socket for writing!")
+    }
+}
+
 #[derive(Resource)]
-pub struct LocalPlayerHandle(pub usize);
+pub struct LocalPlayerHandle(pub PlayerHandle);
 
 #[derive(Component)]
 pub struct LocalPlayer;
@@ -57,32 +170,35 @@ pub fn start_matchbox_socket(
     player_count: Res<PlayerCount>,
     settings: Res<UserSettings>,
 ) {
-    let room_url = if player_count.0 > 1 {
-        format!(
-            "{}/spaceballs?next={}",
-            settings
-                .get_string(UserInputForm::ServerUrl)
-                .unwrap_or_default(),
-            settings
-                .get_string(UserInputForm::RoomName)
-                .unwrap_or_default(),
+    let (room_url, reconnect_attempts) = if player_count.0 > 1 {
+        (
+            format!(
+                "{}/spaceballs?next={}",
+                settings
+                    .get_string(UserInputForm::ServerUrl)
+                    .unwrap_or_default(),
+                settings
+                    .get_string(UserInputForm::RoomName)
+                    .unwrap_or_default(),
+            )
+            .to_lowercase(),
+            Some(3),
         )
-        .to_lowercase()
     } else {
-        "".to_string()
+        ("".to_string(), None)
     };
-    let reconnect_attempts = if player_count.0 > 1 { Some(3) } else { None };
-    info!("connecting to matchbox server: {:?}", room_url);
-    commands.insert_resource(MatchboxSocket::<SingleChannel>::from(
-        WebRtcSocketBuilder::new(room_url)
+    info!("Connecting to Matchbox server: {:?}", room_url);
+    commands.insert_resource(SpaceballSocket::from(
+        WebRtcSocket::builder(room_url)
             .reconnect_attempts(reconnect_attempts)
-            .add_channel(ChannelConfig::ggrs())
+            .add_ggrs_channel()
+            .add_reliable_channel()
             .build(),
     ));
 }
 
 pub fn sever_connection(mut commands: Commands) {
-    commands.close_socket::<SingleChannel>();
+    commands.remove_resource::<SpaceballSocket>();
     commands.remove_resource::<Session<GGRSConfig>>();
     // ... and maybe more
 }
@@ -91,25 +207,29 @@ pub fn sever_connection(mut commands: Commands) {
 /// Having input systems in GGRS schedule will not execute them until a session is initialized.
 pub fn wait_for_players(
     mut commands: Commands,
-    mut socket: ResMut<MatchboxSocket<SingleChannel>>,
+    mut socket: ResMut<SpaceballSocket>,
     player_count: Res<PlayerCount>,
+    settings: Res<UserSettings>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     // Check for new connections
-    socket.update_peers();
+    socket.inner_mut().update_peers();
     let players = socket.players();
 
-    // todo:mp try players.len() (i.e. drop-in)
     // if there is not enough players, wait
     if players.len() < player_count.0 {
-        /*if session.is_none() {
-           // remove resource
-           // unneeded, do drop-in, drop-out
-        }*/
-        return; // wait for more players
+        // wait for more players
+        return;
     }
 
-    info!("All peers have joined, going in-game");
+    if players.len() > player_count.0 {
+        error!("You are trying to join an already full game! Exiting to main menu.");
+        // todo test without when `update_peers` is called externally. Maybe that would let a spectator in.
+        next_state.set(GameState::MainMenu);
+        return;
+    } else {
+        info!("All peers have joined, going in-game");
+    }
 
     // create a GGRS P2P session
     let mut session_builder = ggrs::SessionBuilder::<GGRSConfig>::new()
@@ -123,19 +243,40 @@ pub fn wait_for_players(
         })
         .with_input_delay(INPUT_DELAY);
 
+    let mut peer_handles = PeerHandles::default();
+    let mut player_registry = PlayerRegistry::default();
+
     for (i, player) in players.into_iter().enumerate() {
         session_builder = session_builder
             .add_player(player, i)
             .expect("failed to add player");
 
-        if matches!(player, bevy_ggrs::ggrs::PlayerType::Local) {
-            commands.insert_resource(LocalPlayerHandle(i));
-        }
-        // todo:mp add players here?
+        match player {
+            PlayerType::Remote(peer_id) => {
+                player_registry.0.push(PlayerData::default());
+                peer_handles.map.insert(peer_id, i);
+            }
+            PlayerType::Local => {
+                player_registry.0.push(PlayerData {
+                    name: settings
+                        .get_string(UserInputForm::PlayerName)
+                        .unwrap_or_default(),
+                    ..default()
+                });
+                commands.insert_resource(LocalPlayerHandle(i));
+            }
+            _ => {}
+        };
     }
 
+    commands.insert_resource(peer_handles);
+    commands.insert_resource(player_registry);
+
     // move the channel out of the socket (required because GGRS takes ownership of it)
-    let channel = socket.take_channel(0).unwrap();
+    let channel = socket
+        .inner_mut()
+        .take_channel(SpaceballSocket::GGRS_CHANNEL)
+        .unwrap();
 
     // start the GGRS session
     let ggrs_session = session_builder
@@ -144,6 +285,101 @@ pub fn wait_for_players(
 
     commands.insert_resource(Session::P2PSession(ggrs_session));
     next_state.set(GameState::InGame);
+}
+
+pub fn handle_player_name_broadcast(
+    mut socket: ResMut<SpaceballSocket>,
+    settings: Res<UserSettings>,
+    mut n_recorded_peers: Local<usize>,
+) {
+    // Update the connections
+    /*let changed_peers = */
+    socket.inner_mut().update_peers();
+
+    // only send out the message if the number of peers has increased
+    let n_connected_peers = socket.inner().connected_peers().count();
+
+    // todo read events instead of recording peers number, have other event reader systems also print messages like "guy joined"
+    /*changed_peers.iter().any(|(_, state)| matches!(state, PeerState::Connected))*/
+    if n_connected_peers > *n_recorded_peers {
+        // broadcasting the user-set name
+        if let Some(name) = settings.get_string(UserInputForm::PlayerName) {
+            socket.broadcast_tcp_message(PeerMessage::PlayerName { name });
+        }
+    }
+    *n_recorded_peers = n_connected_peers;
+}
+
+#[derive(Resource, Debug, Default)]
+pub struct PeerHandles {
+    pub map: HashMap<PeerId, PlayerHandle>,
+}
+
+#[derive(Resource, Debug, Default)]
+pub struct PeerNames {
+    pub map: HashMap<PeerId, String>,
+}
+
+pub fn handle_receiving_peer_messages(
+    mut socket: ResMut<SpaceballSocket>,
+    mut peers: ResMut<PeerNames>,
+) {
+    // todo read messages and send out events, like "chat message", "player name update", etc.
+    let messages = socket.receive_tcp_messages();
+    for (sender, message) in messages {
+        match message {
+            PeerMessage::PlayerName { name } => {
+                info!("{} joined!", name.clone());
+                peers.map.insert(sender, name);
+            }
+            PeerMessage::Chat { .. } => {}
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct PlayerData {
+    name: String,
+    // team?
+    kills: usize,
+    deaths: usize,
+}
+
+#[derive(Resource, Debug, Default)]
+pub struct PlayerRegistry(pub Vec<PlayerData>);
+
+impl PlayerRegistry {
+    pub fn get(&self, handle: usize) -> Option<&PlayerData> {
+        self.0.get(handle).or_else(|| {
+            warn!("Could not find player by handle {}!", handle);
+            None
+        })
+    }
+    pub fn get_mut(&mut self, handle: usize) -> Option<&mut PlayerData> {
+        self.0.get_mut(handle).or_else(|| {
+            warn!("Could not find player by handle {}!", handle);
+            None
+        })
+    }
+}
+
+pub fn update_player_names(
+    peer_names: Res<PeerNames>,
+    peer_handles: Res<PeerHandles>,
+    mut players: ResMut<PlayerRegistry>,
+) {
+    if !peer_names.is_changed() {
+        return;
+    }
+
+    for (id, name) in &peer_names.map {
+        if let Some(handle) = peer_handles.map.get(id) {
+            if let Some(data) = players.get_mut(*handle) {
+                data.name = name.clone();
+                println!("Yay! updated player registry: {:?}", data);
+            }
+        }
+    }
 }
 
 // delete probably, it does not detect desync in the rolled-back components (transform)

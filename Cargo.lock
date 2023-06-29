@@ -1853,12 +1853,14 @@ dependencies = [
  "bevy_ggrs",
  "bevy_matchbox",
  "bevy_rapier2d",
+ "bincode",
  "bytemuck",
  "clap",
  "clipboard",
  "console_error_panic_hook",
  "getrandom 0.2.10",
  "rand",
+ "serde",
  "wasm-bindgen",
 ]
 
