@@ -1,6 +1,7 @@
 use crate::network::PlayerCount;
 use crate::ui::color_interaction::ColorInteractionMap;
 use crate::ui::focus::Focus;
+use crate::ui::lobby::PeerWaitingText;
 use crate::ui::menu_builder::{
     DEFAULT_FONT_SIZE, DEFAULT_OUTLINE_THICKNESS, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_INPUT_MARGIN,
 };
@@ -40,6 +41,7 @@ generate_menu_states!(
     // Tutorial,
     Settings,
     Pause,
+    MatchmakingLobby,
 );
 
 /// Tag component used to tag entities as children on a generic menu screen -- those that should also be despawned when the screen is exited.
@@ -376,6 +378,20 @@ build_menu_plugin!(
     },
 );
 
+build_menu_plugin!(
+    (setup_matchmaking_lobby_menu, MatchmakingLobby),
+    Column {
+        Text [ "Waiting for ", "", " more peer", "s", " to join...", ] + (
+            PeerWaitingText { number_section_idx: 1, plurality_section_idx: 3 },
+        ),
+    },
+    Bottom {
+        Buttons [
+            (MenuButtonAction::QuitToTitle, "Quit to Main Menu"),
+        ],
+    },
+);
+
 /// Systems to handle the menu screens setup and despawning and more, if desired.
 struct MenuSetupPlugins;
 
@@ -386,6 +402,7 @@ impl PluginGroup for MenuSetupPlugins {
         PluginGroupBuilder::start::<Self>()
             .add(SingleMenuPlugin::<Main>::default())
             .add(SingleMenuPlugin::<Pause>::default())
+            .add(SingleMenuPlugin::<MatchmakingLobby>::default())
             .add(SingleMenuPlugin::<SinglePlayer>::default())
             .add(SingleMenuPlugin::<MultiPlayer>::default())
             .add(SingleMenuPlugin::<MatchMaker>::default())
@@ -439,7 +456,7 @@ fn unpause_menu(
 }
 
 /// Handle button press interactions.
-fn handle_menu_actions(
+pub(crate) fn handle_menu_actions(
     mut commands: Commands,
     interaction_query: Query<
         (
@@ -490,7 +507,7 @@ fn handle_menu_actions(
                             commands.insert_resource(context);
 
                             game_state.set(GameState::Matchmaking);
-                            menu_state.set(MenuState::Disabled);
+                            menu_state.set(MenuState::MatchmakingLobby);
                         }
                         None => {
                             // notify the player?

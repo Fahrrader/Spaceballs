@@ -1,8 +1,10 @@
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
+use chat::ChatPlugin;
 use color_interaction::ColorInteractionPlugin;
 use focus::FocusPlugin;
 use hud::HUDPlugin;
+use lobby::LobbyPlugin;
 use menu::MenuPlugin;
 use text_input::TextInputPlugin;
 use user_settings::UserSettingsPlugin;
@@ -11,12 +13,12 @@ pub mod chat;
 pub mod color_interaction;
 pub mod focus;
 pub mod hud;
+pub mod lobby;
 pub mod menu;
 mod menu_builder;
 pub mod text_input;
 pub mod user_settings;
 
-use crate::ui::chat::ChatPlugin;
 pub use menu::MenuState;
 
 /// Generic system that takes a component as a parameter, and will despawn all entities with that component.
@@ -33,6 +35,7 @@ impl PluginGroup for UIPlugins {
         PluginGroupBuilder::start::<Self>()
             .add(UserSettingsPlugin)
             .add(MenuPlugin)
+            .add(LobbyPlugin)
             .add(FocusPlugin)
             .add(ColorInteractionPlugin)
             .add(TextInputPlugin)
