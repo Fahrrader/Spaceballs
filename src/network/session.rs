@@ -3,7 +3,7 @@ use crate::network::peers::{PeerConnectionEvent, PeerHandles};
 use crate::network::players::{PlayerData, PlayerRegistry};
 use crate::network::socket::SpaceballSocket;
 use crate::network::PlayerHandle;
-use crate::ui::user_settings::{UserInputForm, UserSettings};
+use crate::ui::user_settings::UserSettings;
 use crate::GameState;
 use bevy::log::prelude::*;
 #[cfg(feature = "diagnostic")]
@@ -122,9 +122,7 @@ pub fn wait_for_players(
             }
             PlayerType::Local => {
                 player_registry.0.push(PlayerData {
-                    name: settings
-                        .get_string(UserInputForm::PlayerName)
-                        .unwrap_or_default(),
+                    name: settings.player_name.clone(),
                     ..default()
                 });
                 commands.insert_resource(LocalPlayerHandle(i));

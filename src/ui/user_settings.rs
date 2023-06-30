@@ -1,134 +1,56 @@
 use crate::ui::text_input::TextInput;
 use bevy::prelude::*;
-use bevy::utils::HashMap;
 
-/// Resource encapsulating a hash map of the application's user settings.
-/// Each setting is identified by a `UserInputForm` and holds a `SettingValue`.
-// todo ffs just make it into a normal struct
+/// Resource encapsulating a set of the application's user settings.
+/// Each setting is identified by a `UserInputForm` and could be retrieved with it.
 #[derive(Resource, Debug)]
-pub struct UserSettings(HashMap<UserInputForm, SettingValue>);
+pub struct UserSettings {
+    pub player_name: String,
+    pub server_url: String,
+    pub room_name: String,
+}
 
 /// Enum representing different forms of user input, each associated with a unique setting.
 /// Placed on an entity as a component, will eventually record other input components' values under the corresponding setting.
-#[derive(Component, Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UserInputForm {
     PlayerName,
     ServerUrl,
     RoomName,
 }
 
-/// An enum representing possible value types for settings.
-#[derive(Debug, Clone)]
-pub enum SettingValue {
-    String(String),
-    Uint(usize),
-    Bool(bool),
-}
-
-impl SettingValue {
-    /// Transforms the `SettingValue` into a string, if it is a `String`.
-    pub fn as_string(&self) -> Option<String> {
-        match self {
-            SettingValue::String(value) => Some(value.to_string()),
-            _ => {
-                debug!("You picked the wrong setting value type, fool!");
-                None
-            }
-        }
-    }
-
-    /// Converts the `SettingValue` into a `usize` integer, if it is a `Uint`.
-    pub fn as_usize(&self) -> Option<usize> {
-        match self {
-            SettingValue::Uint(value) => Some(*value),
-            _ => {
-                debug!("You picked the wrong setting value type, fool!");
-                None
-            }
-        }
-    }
-
-    /// Converts the `SettingValue` into a `bool`, if it is a `Bool`.
-    pub fn as_bool(&self) -> Option<bool> {
-        match self {
-            SettingValue::Bool(value) => Some(*value),
-            _ => {
-                debug!("You picked the wrong setting value type, fool!");
-                None
-            }
-        }
-    }
-}
-
-impl Into<SettingValue> for String {
-    fn into(self) -> SettingValue {
-        SettingValue::String(self)
-    }
-}
-
-impl Into<SettingValue> for &str {
-    fn into(self) -> SettingValue {
-        SettingValue::String(self.to_string())
-    }
-}
-
-impl Into<SettingValue> for usize {
-    fn into(self) -> SettingValue {
-        SettingValue::Uint(self)
-    }
-}
-
-impl Into<SettingValue> for bool {
-    fn into(self) -> SettingValue {
-        SettingValue::Bool(self)
-    }
-}
-
 impl Default for UserSettings {
     fn default() -> Self {
-        Self(HashMap::from([
-            (UserInputForm::PlayerName, "Player".into()),
-            (
-                UserInputForm::ServerUrl,
-                "wss://match-0-6.helsing.studio".into(),
-            ),
-            (UserInputForm::RoomName, "".into()),
-        ]))
+        Self {
+            player_name: "Player".into(),
+            server_url: "wss://match-0-6.helsing.studio".into(),
+            room_name: "".into(),
+        }
     }
 }
 
 impl UserSettings {
-    /// Sets the value of the setting specified by `setting` to `value` in the `UserSettings` hash map.
-    pub fn set<T: Into<SettingValue>>(&mut self, setting: UserInputForm, value: T) {
-        self.0.insert(setting, value.into());
+    /// Sets the value of the setting specified by `UserInputForm` to `value`.
+    pub fn set(&mut self, setting: UserInputForm, value: String) {
+        match setting {
+            UserInputForm::PlayerName => self.player_name = value,
+            UserInputForm::ServerUrl => self.server_url = value,
+            UserInputForm::RoomName => self.room_name = value,
+        }
     }
 
-    /// Retrieves the `SettingValue` for the setting specified by `setting` from the `UserSettings` hash map.
-    pub fn get(&self, setting: UserInputForm) -> Option<&SettingValue> {
-        self.0.get(&setting)
-    }
-
-    /// Retrieves the `SettingValue` for the setting specified by `setting` as a `String`.
-    #[allow(unused)]
-    pub fn get_string(&self, setting: UserInputForm) -> Option<String> {
-        self.get(setting)?.as_string()
-    }
-
-    /// Retrieves the `SettingValue` for the setting specified by `setting` as a `usize`.
-    #[allow(unused)]
-    pub fn get_usize(&self, setting: UserInputForm) -> Option<usize> {
-        self.get(setting)?.as_usize()
-    }
-
-    /// Retrieves the `SettingValue` for the setting specified by `setting` as a `bool`.
-    #[allow(unused)]
-    pub fn get_bool(&self, setting: UserInputForm) -> Option<bool> {
-        self.get(setting)?.as_bool()
+    /// Retrieves the setting value specified by `UserInputForm`. For specific queries, just reference the value directly.
+    pub fn get(&self, setting: UserInputForm) -> String {
+        match setting {
+            UserInputForm::PlayerName => self.player_name.clone(),
+            UserInputForm::ServerUrl => self.server_url.clone(),
+            UserInputForm::RoomName => self.room_name.clone(),
+        }
     }
 }
 
-/// System, responsible for recording data from text inputs into settings.
-/// It is supposed to be called on arbitrary conditions, for example, at the end of the text input's lifespan.
+/// System responsible for recording data from text inputs into settings.
+/// Supposed to be called on arbitrary conditions - for example, at the end of the text input's lifespan.
 pub fn transfer_setting_from_text_input(
     mut settings: ResMut<UserSettings>,
     input_query: Query<(&TextInput, &UserInputForm)>,
@@ -136,9 +58,7 @@ pub fn transfer_setting_from_text_input(
     for (text_input, input_form) in input_query.iter() {
         let mut setting_value = text_input.text.clone();
         if setting_value.is_empty() {
-            setting_value = UserSettings::default()
-                .get_string(*input_form)
-                .unwrap_or_default();
+            setting_value = UserSettings::default().get(*input_form);
         }
         settings.set(*input_form, setting_value);
     }

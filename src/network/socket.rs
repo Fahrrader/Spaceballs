@@ -1,6 +1,6 @@
 use crate::network::peers::PeerMessage;
 use crate::network::session::PlayerCount;
-use crate::ui::user_settings::{UserInputForm, UserSettings};
+use crate::ui::user_settings::UserSettings;
 use crate::{App, GameState};
 use bevy::log::prelude::*;
 use bevy::prelude::{Commands, IntoSystemAppConfig, OnEnter, Plugin, Res, Resource};
@@ -130,12 +130,7 @@ pub fn start_matchbox_socket(
         (
             format!(
                 "{}/spaceballs?next={}",
-                settings
-                    .get_string(UserInputForm::ServerUrl)
-                    .unwrap_or_default(),
-                settings
-                    .get_string(UserInputForm::RoomName)
-                    .unwrap_or_default(),
+                settings.server_url, settings.room_name,
             )
             .to_lowercase(),
             Some(3),

@@ -4,7 +4,7 @@
 use crate::network::socket::SpaceballSocket;
 use crate::network::{PeerId, PlayerHandle};
 use crate::ui::chat::ChatMessage;
-use crate::ui::user_settings::{UserInputForm, UserSettings};
+use crate::ui::user_settings::UserSettings;
 use crate::GameState;
 use bevy::prelude::{
     in_state, not, App, EventReader, EventWriter, IntoSystemConfig, Plugin, Res, ResMut, Resource,
@@ -50,9 +50,9 @@ pub fn handle_player_name_broadcast(
         )
     }) {
         // broadcasting our local user-set name
-        if let Some(name) = settings.get_string(UserInputForm::PlayerName) {
-            socket.broadcast_tcp_message(PeerMessage::PlayerName { name });
-        }
+        socket.broadcast_tcp_message(PeerMessage::PlayerName {
+            name: settings.player_name.clone(),
+        });
     }
 }
 

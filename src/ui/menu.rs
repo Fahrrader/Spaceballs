@@ -268,7 +268,7 @@ build_menu_plugin!(
                 TextInput [
                     max_symbols: 24,
                     placeholder: "Anata no namae wa..?",
-                    user_settings.get_string(UserInputForm::PlayerName).unwrap_or_default(),
+                    user_settings.player_name.clone(),
                 ] + (
                     UserInputForm::PlayerName,
                     Focus::<TextInput>::Focused(None),
@@ -284,7 +284,7 @@ build_menu_plugin!(
                 // font = fonts::FIRA_SANS,
                 TextInput [
                     placeholder: "URL of the connecting server",
-                    user_settings.get_string(UserInputForm::ServerUrl).unwrap_or_default(),
+                    user_settings.server_url.clone(),
                 ] + (
                     UserInputForm::ServerUrl,
                 ),
@@ -297,7 +297,7 @@ build_menu_plugin!(
                 TextInput [
                     placeholder: "",
                     max_symbols: 24,
-                    user_settings.get_string(UserInputForm::RoomName).unwrap_or_default(),
+                    user_settings.room_name.clone(),
                 ] + (
                     UserInputForm::RoomName,
                 ),
