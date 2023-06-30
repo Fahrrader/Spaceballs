@@ -1,5 +1,5 @@
 use crate::characters::{AICharacterBundle, BuildCharacter, PlayerCharacterBundle};
-use crate::multiplayer::{LocalPlayer, LocalPlayerHandle};
+use crate::network::session::{LocalPlayer, LocalPlayerHandle};
 use crate::{
     EntropyGenerator, GunBundle, GunPreset, RectangularObstacleBundle, AI_DEFAULT_TEAM, CHUNK_SIZE,
     PLAYER_DEFAULT_TEAM, SCREEN_SPAN,

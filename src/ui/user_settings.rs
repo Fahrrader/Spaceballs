@@ -4,6 +4,7 @@ use bevy::utils::HashMap;
 
 /// Resource encapsulating a hash map of the application's user settings.
 /// Each setting is identified by a `UserInputForm` and holds a `SettingValue`.
+// todo ffs just make it into a normal struct
 #[derive(Resource, Debug)]
 pub struct UserSettings(HashMap<UserInputForm, SettingValue>);
 
@@ -144,7 +145,7 @@ pub fn transfer_setting_from_text_input(
 }
 
 /// Plugin handling the [`UserSettings`] resource insertion.
-pub struct UserSettingsPlugin;
+pub(crate) struct UserSettingsPlugin;
 impl Plugin for UserSettingsPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(UserSettings::default());

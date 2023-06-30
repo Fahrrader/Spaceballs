@@ -2,7 +2,7 @@ use crate::ai::AIActionRoutine;
 use crate::controls::CharacterActionInput;
 use crate::guns::{Equipped, Gun, GunBundle, GunPreset};
 use crate::health::{Health, HitPoints};
-use crate::multiplayer::PlayerHandle;
+use crate::network::PlayerHandle;
 use crate::physics::{
     popular_collider, ActiveEvents, CollisionLayer, KinematicsBundle, OngoingCollisions, RigidBody,
     Velocity,

@@ -166,7 +166,7 @@ fn handle_button_style_change(
 }
 
 /// Plugin handling the [`Focus`] and [`FocusSwitchedEvent`] systems for the default ([`Interaction`]) generic components.
-pub struct ColorInteractionPlugin;
+pub(crate) struct ColorInteractionPlugin;
 
 impl Plugin for ColorInteractionPlugin {
     fn build(&self, app: &mut App) {

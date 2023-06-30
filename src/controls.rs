@@ -1,5 +1,5 @@
 use crate::characters::PlayerControlled;
-use crate::multiplayer::{GGRSConfig, GGRSInput};
+use crate::network::{GGRSConfig, GGRSInput};
 use crate::GamePauseEvent;
 use bevy::ecs::schedule::SystemSet;
 use bevy::input::{

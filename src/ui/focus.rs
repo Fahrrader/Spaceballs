@@ -93,8 +93,7 @@ fn transfer_focus_on_interaction(
 }
 
 /// Plugin handling the [`Focus`] and [`FocusSwitchedEvent`] systems for the default ([`Interaction`]) generic components.
-pub struct FocusPlugin;
-
+pub(crate) struct FocusPlugin;
 impl Plugin for FocusPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<FocusSwitchedEvent<Interaction>>()

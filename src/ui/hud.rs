@@ -1,4 +1,4 @@
-use crate::multiplayer::LocalPlayer;
+use crate::network::session::LocalPlayer;
 use crate::ui::menu_builder::outline_parent;
 use crate::ui::{despawn_node, fonts};
 use crate::{Equipped, GameState, Gun, Health};
@@ -10,6 +10,102 @@ pub struct HUDElement;
 
 #[derive(Component)]
 pub struct HealthDisplay;
+
+fn setup_player_health_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let font = fonts::load(&asset_server, fonts::SPACERUNNER);
+
+    // Spawn the health bar
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Px(300.0), Val::Px(36.0)),
+                    position_type: PositionType::Absolute,
+                    position: UiRect {
+                        left: Val::Px(20.0),
+                        bottom: Val::Px(20.0),
+                        ..default()
+                    },
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                background_color: Color::MAROON.with_a(0.1).into(),
+                ..default()
+            },
+            HUDElement,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                NodeBundle {
+                    style: Style {
+                        size: Size::new(Val::Percent(100.), Val::Percent(100.)),
+                        position_type: PositionType::Absolute,
+                        ..default()
+                    },
+                    background_color: Color::CRIMSON.with_a(0.8).into(),
+                    ..default()
+                },
+                HealthDisplay,
+            ));
+            parent.spawn((
+                TextBundle {
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        position: UiRect::left(Val::Percent(5.0)),
+                        ..default()
+                    },
+                    text: Text::from_section(
+                        "100", // Placeholder health value
+                        TextStyle {
+                            font: font.clone(),
+                            font_size: 27.0,
+                            color: Color::WHITE,
+                        },
+                    ),
+                    ..default()
+                },
+                HealthDisplay,
+            ));
+
+            outline_parent(parent, Val::Px(2.), Color::WHITE, None);
+        });
+}
+
+fn handle_health_hud(
+    mut health_text_query: Query<&mut Text, With<HealthDisplay>>,
+    mut health_bar_query: Query<&mut Style, (With<HealthDisplay>, Without<Text>)>,
+    character_health_query: Query<&Health, (With<LocalPlayer>, Changed<Health>)>,
+    spare_character_query: Query<&LocalPlayer>,
+) {
+    let health = match character_health_query.get_single() {
+        Ok(health) => health.hp(),
+        Err(err) => match err {
+            QuerySingleError::MultipleEntities(_) => {
+                error!("Multiple entities with `LocalPlayer` have changed `Health`!");
+                return;
+            }
+            _ => {
+                if spare_character_query.is_empty() {
+                    0.0
+                } else {
+                    return;
+                }
+            }
+        },
+    };
+
+    health_text_query.for_each_mut(|mut text| {
+        if let Some(section) = text.sections.last_mut() {
+            section.value = health.max(0.0).ceil().to_string();
+        }
+    });
+
+    // todo add outer bar change due to max hp
+
+    health_bar_query.for_each_mut(|mut style| {
+        style.size.width = Val::Percent(health);
+    });
+}
 
 #[derive(Component)]
 pub struct GunDisplayHolder;
@@ -101,97 +197,6 @@ impl GunDisplay {
             gun.reload_progress.elapsed_secs() / gun.reload_progress.duration().as_secs_f32();
         self.set_progress_bar_height(self.reload_display, reload_progress, style_query);
     }
-}
-
-fn setup_player_health_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let font = fonts::load(&asset_server, fonts::SPACERUNNER);
-
-    // Spawn the health bar
-    commands
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    size: Size::new(Val::Px(300.0), Val::Px(36.0)),
-                    position_type: PositionType::Absolute,
-                    position: UiRect {
-                        left: Val::Px(20.0),
-                        bottom: Val::Px(20.0),
-                        ..default()
-                    },
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                background_color: Color::MAROON.with_a(0.1).into(),
-                ..default()
-            },
-            HUDElement,
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                NodeBundle {
-                    style: Style {
-                        size: Size::new(Val::Percent(100.), Val::Percent(100.)),
-                        position_type: PositionType::Absolute,
-                        ..default()
-                    },
-                    background_color: Color::CRIMSON.with_a(0.8).into(),
-                    ..default()
-                },
-                HealthDisplay,
-            ));
-            parent.spawn((
-                TextBundle {
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        position: UiRect::left(Val::Percent(5.0)),
-                        ..default()
-                    },
-                    text: Text::from_section(
-                        "100", // Placeholder health value
-                        TextStyle {
-                            font: font.clone(),
-                            font_size: 27.0,
-                            color: Color::WHITE,
-                        },
-                    ),
-                    ..default()
-                },
-                HealthDisplay,
-            ));
-
-            outline_parent(parent, Val::Px(2.), Color::WHITE, None);
-        });
-}
-
-fn handle_health_hud(
-    mut health_text_query: Query<&mut Text, With<HealthDisplay>>,
-    mut health_bar_query: Query<&mut Style, (With<HealthDisplay>, Without<Text>)>,
-    character_health_query: Query<&Health, (With<LocalPlayer>, Changed<Health>)>,
-) {
-    let health = match character_health_query.get_single() {
-        Ok(health) => health.hp(),
-        Err(err) => {
-            match err {
-                QuerySingleError::MultipleEntities(_) => {
-                    error!("Multiple entities with `LocalPlayer` have changed `Health`!")
-                }
-                _ => {}
-            };
-            return;
-        }
-    };
-
-    health_text_query.for_each_mut(|mut text| {
-        if let Some(section) = text.sections.last_mut() {
-            section.value = health.max(0.0).ceil().to_string();
-        }
-    });
-
-    // todo add outer bar change due to max hp
-
-    health_bar_query.for_each_mut(|mut style| {
-        style.size.width = Val::Percent(health);
-    });
 }
 
 fn setup_player_guns_hud(mut commands: Commands) {
@@ -456,7 +461,7 @@ fn handle_guns_hud_update(
     }
 }
 
-pub struct HUDPlugin;
+pub(crate) struct HUDPlugin;
 impl Plugin for HUDPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems((

@@ -220,7 +220,7 @@ pub(crate) fn try_get_components_from_entities<
 ///
 /// NOTE: will only be updated if ['ActiveEvents::COLLISION_EVENTS'] is also present on the entity.
 #[derive(Component, Debug, Default, Reflect, FromReflect)]
-pub struct OngoingCollisions(HashSet<Entity>);
+pub struct OngoingCollisions(HashSet<Entity>); // todo `entry_point: Transform` when moving to own physics, and maybe normals
 
 impl OngoingCollisions {
     /// Returns the number of colliding entities.
@@ -302,6 +302,7 @@ pub fn handle_entities_out_of_bounds(
         if transform.translation.x.abs() > HALF_SCREEN_SPAN
             || transform.translation.y.abs() > HALF_SCREEN_SPAN
         {
+            #[cfg(feature = "diagnostic")]
             bevy::log::warn!("An entity {} got out of bounds!", entity.index());
             commands.entity(entity).despawn_recursive();
             // todo kill procedure first, probably

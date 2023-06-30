@@ -1,3 +1,4 @@
+use crate::network::PlayerCount;
 use crate::ui::color_interaction::ColorInteractionMap;
 use crate::ui::focus::Focus;
 use crate::ui::menu_builder::{
@@ -6,7 +7,7 @@ use crate::ui::menu_builder::{
 use crate::ui::text_input::TextInput;
 use crate::ui::user_settings::{transfer_setting_from_text_input, UserInputForm, UserSettings};
 use crate::ui::{colors, despawn_node, fonts};
-use crate::{build_menu_plugin, GamePauseEvent, GameState, PlayerCount, SceneSelector};
+use crate::{build_menu_plugin, GamePauseEvent, GameState, SceneSelector};
 use bevy::app::{AppExit, PluginGroupBuilder};
 use bevy::prelude::*;
 

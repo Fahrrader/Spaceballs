@@ -1,20 +1,23 @@
-use crate::ui::color_interaction::ColorInteractionPlugin;
-use crate::ui::focus::FocusPlugin;
-use crate::ui::hud::HUDPlugin;
-use crate::ui::menu::MenuPlugin;
-use crate::ui::text_input::TextInputPlugin;
-use crate::ui::user_settings::UserSettingsPlugin;
+use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
+use color_interaction::ColorInteractionPlugin;
+use focus::FocusPlugin;
+use hud::HUDPlugin;
+use menu::MenuPlugin;
+use text_input::TextInputPlugin;
+use user_settings::UserSettingsPlugin;
 
+pub mod chat;
 pub mod color_interaction;
 pub mod focus;
-mod hud;
+pub mod hud;
 pub mod menu;
 mod menu_builder;
 pub mod text_input;
 pub mod user_settings;
 
-pub use crate::ui::menu::MenuState;
+use crate::ui::chat::ChatPlugin;
+pub use menu::MenuState;
 
 /// Generic system that takes a component as a parameter, and will despawn all entities with that component.
 fn despawn_node<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: Commands) {
@@ -24,15 +27,17 @@ fn despawn_node<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: 
 }
 
 /// Plugin containing all UI functionality of the game.
-pub struct SpaceballsUIPlugin;
-impl Plugin for SpaceballsUIPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_plugin(UserSettingsPlugin)
-            .add_plugin(MenuPlugin)
-            .add_plugin(FocusPlugin)
-            .add_plugin(ColorInteractionPlugin)
-            .add_plugin(TextInputPlugin)
-            .add_plugin(HUDPlugin);
+pub struct UIPlugins;
+impl PluginGroup for UIPlugins {
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
+            .add(UserSettingsPlugin)
+            .add(MenuPlugin)
+            .add(FocusPlugin)
+            .add(ColorInteractionPlugin)
+            .add(TextInputPlugin)
+            .add(ChatPlugin)
+            .add(HUDPlugin)
     }
 }
 

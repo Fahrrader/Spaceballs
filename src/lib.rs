@@ -3,7 +3,7 @@ mod characters;
 mod controls;
 mod guns;
 mod health;
-mod multiplayer;
+mod network;
 mod physics;
 mod projectiles;
 mod scenes;
@@ -21,13 +21,7 @@ pub use controls::{
 };
 pub use guns::{systems::*, Equipped, Gun, GunBundle, GunPreset};
 pub use health::{handle_death, Dying, Health};
-pub use multiplayer::{
-    detect_desync, handle_player_name_broadcast, handle_receiving_peer_messages,
-    handle_reporting_peer_disconnecting, print_chat_messages, sever_connection,
-    start_matchbox_socket, update_peers, update_player_names, wait_for_players, ChatMessage,
-    GGRSConfig, GGRSPlugin, GGRSSchedule, PeerConnectionEvent, PeerHandles, PeerNames, PlayerCount,
-    PlayerRegistry,
-};
+pub use network::{GGRSConfig, GGRSPlugin, GGRSSchedule, MultiplayerPlugins, PlayerCount};
 pub use physics::{
     handle_entities_out_of_bounds, ActiveEvents, RectangularObstacleBundle, Sleeping,
     SpaceballsPhysicsPlugin, Velocity, CHUNK_SIZE,
@@ -35,7 +29,7 @@ pub use physics::{
 pub use projectiles::handle_bullet_collision_events;
 pub use scenes::{despawn_everything, summon_scene, SceneSelector};
 pub use teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
-pub use ui::{MenuState, SpaceballsUIPlugin};
+pub use ui::{chat::ChatMessage, MenuState, UIPlugins};
 
 pub use bevy::prelude::*;
 pub use bevy::render::camera::{camera_system, RenderTarget};

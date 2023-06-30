@@ -351,7 +351,7 @@ fn handle_input_field_placeholder(
 }
 
 /// Plugin handling the [`TextInput`] systems.
-pub struct TextInputPlugin;
+pub(crate) struct TextInputPlugin;
 
 impl Plugin for TextInputPlugin {
     fn build(&self, app: &mut App) {
