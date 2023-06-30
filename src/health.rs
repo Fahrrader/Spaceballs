@@ -33,6 +33,12 @@ impl Health {
     }
 }
 
+impl From<f32> for Health {
+    fn from(hp: HitPoints) -> Self {
+        Self { hp }
+    }
+}
+
 /// Marker component indicating that the entity has reached zero hit points and is about to be despawned.
 #[derive(Component, Debug, Default, Reflect, FromReflect)]
 #[component(storage = "SparseSet")]

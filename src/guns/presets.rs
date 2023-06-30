@@ -45,6 +45,7 @@ pub enum GunPreset {
     // not really a gun, but why not -- TRAVEL THROUGH TIME?? (forward, like do some stuff in advance) - also, reverse entropy
 }
 
+// probably implement some sort of reflection later on, to read new guns from .xml or .json, and get rid of this macro
 macro_rules! generate_extra_projectile_components_fns {
     ($($preset:path => [$($component:expr),* $(,)?]),* $(,)?) => {
         /// Insert extra components into a projectile that should be there, determined by its preset.
@@ -83,7 +84,7 @@ impl GunPreset {
 
     generate_extra_projectile_components_fns!(
         GunPreset::RailGun => [
-            railgun::RailGunThing,
+            railgun::RailGunThing::default(),
             Sensor,
             OngoingCollisions::default(),
             ContinuousCollisionDetection { enabled: true },
@@ -131,7 +132,7 @@ pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
 
 /// Shotgun. Individual pellets don't hit as hard and spread apart with time, but devastating at close range.
 pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
-    name: "Scattershot",
+    name: "Scattergun",
     gun_neutral_color: GunColour::new(colors::BRASS),
     projectile_color: GunColour::new(Color::rgb(0.8 * 4., 0.5 * 4., 0.2 * 4.)),
     projectile_spread_angle: PI / 6.,
@@ -154,7 +155,9 @@ pub const TYPHOON: GunPersistentStats = GunPersistentStats {
     projectile_damage: BULLET_DAMAGE * 0.4,
     projectiles_per_shot: 64,
     projectile_elasticity: 1.0,
-    fire_cooldown: Duration::from_millis(1800),
+    fire_cooldown: Duration::from_millis(200),
+    reload_time: Duration::from_millis(1600),
+    shots_before_reload: 2,
     ..REGULAR
 };
 
@@ -163,11 +166,14 @@ pub const RAILGUN: GunPersistentStats = GunPersistentStats {
     name: "Railgun",
     gun_neutral_color: GunColour::new(Color::SILVER),
     projectile_color: GunColour::new(Color::rgb(0.2 * 4., 0.5 * 4., 0.8 * 4.)),
-    // Impact damage is nullified. See [`railgun::PENETRATION_DAMAGE_PER_SECOND`] for penetration damage.
-    projectile_damage: 0.0,
+    // Impact damage is minimal. See [`railgun::PENETRATION_DAMAGE_PER_CHUNK`] for penetration damage.
+    projectile_damage: 10.0,
     projectile_speed: CHARACTER_SIZE * 15.0,
     projectile_elasticity: 0.0,
-    fire_cooldown: Duration::from_millis(1000),
+    // Doesn't matter, since `shots_before_reload` = 1, reload will be triggered immediately.
+    fire_cooldown: Duration::from_millis(100),
+    reload_time: Duration::from_millis(1000),
+    shots_before_reload: 1,
     friendly_fire: true,
     recoil: 15.0,
     ..REGULAR

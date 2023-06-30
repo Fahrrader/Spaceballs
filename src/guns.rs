@@ -195,6 +195,7 @@ impl Gun {
                 self.reload_progress.reset();
                 self.reload_progress.pause();
                 self.fire_cooldown.unpause();
+                self.fire_cooldown.tick(self.reload_progress.duration());
             }
             false
         } else {
@@ -387,7 +388,7 @@ pub mod systems {
                 );
 
                 if gun_type.has_extra_projectile_components() {
-                    /* todo maybe eventually
+                    /* todo expand macro instead of function to return a bundle of components. would take the bullet bundle or other necessary information to form new components
                     let bullets = bullets.into_iter().map(|default_bundle| (default_bundle, gun_type.get_extra_projectile_components())).collect();
                     commands.spawn_batch(bullets);*/
                     for bullet in bullets {
