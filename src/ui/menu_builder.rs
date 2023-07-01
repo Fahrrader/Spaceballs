@@ -264,12 +264,12 @@ macro_rules! process_tokens {
         $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
     // Creating a text field out of sections
-    ($parent:expr, $menu_shared_vars:ident, $token:ident + ($($extra_components:expr,)*) [ $($nest:tt)* ], $($rest:tt)*) => {
+    ($parent:expr, $menu_shared_vars:ident, $token:ident + ($($extra_components:expr $(,)?)*) [ $($nest:tt)* ], $($rest:tt)*) => {
         $crate::build_menu_item!($parent, $menu_shared_vars, $token, ($($extra_components,)*), $($nest)*);
         $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
     // Creating a text field out of sections with optional components
-    ($parent:expr, $menu_shared_vars:ident, $token:ident [ $($nest:tt)* ] + ($($extra_components:expr,)*), $($rest:tt)*) => {
+    ($parent:expr, $menu_shared_vars:ident, $token:ident [ $($nest:tt)* ] + ($($extra_components:expr $(,)?)*), $($rest:tt)*) => {
         $crate::build_menu_item!($parent, $menu_shared_vars, $token, ($($extra_components,)*), $($nest)*);
         $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
@@ -279,12 +279,12 @@ macro_rules! process_tokens {
         $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
     // Creating a text field out of sections
-    ($parent:expr, $menu_shared_vars:ident, $token:ident + ($($extra_components:expr,)*) { $($nest:tt)* }, $($rest:tt)*) => {
+    ($parent:expr, $menu_shared_vars:ident, $token:ident + ($($extra_components:expr $(,)?)*) { $($nest:tt)* }, $($rest:tt)*) => {
         $crate::build_menu_item!($parent, $menu_shared_vars, $token, ($($extra_components,)*), $($nest)*);
         $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
     // Creating a text field out of sections with optional components
-    ($parent:expr, $menu_shared_vars:ident, $token:ident { $($nest:tt)* } + ($($extra_components:expr,)*), $($rest:tt)*) => {
+    ($parent:expr, $menu_shared_vars:ident, $token:ident { $($nest:tt)* } + ($($extra_components:expr $(,)?)*), $($rest:tt)*) => {
         $crate::build_menu_item!($parent, $menu_shared_vars, $token, ($($extra_components,)*), $($nest)*);
         $crate::process_tokens!($parent, $menu_shared_vars, $($rest)*);
     };
@@ -627,8 +627,7 @@ macro_rules! create_text_sections {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! build_buttons {
-    //                                                                 $(+ $extra:tt)*, )*) => { ...
-    ($parent:expr, $menu_shared_vars:ident, $(($action:expr, $text:expr),)*) => {
+    ($parent:expr, $menu_shared_vars:ident, $(($action:expr, $text:expr) $(+ ($($extra_components:expr $(,)?)*))? $(,)?)*) => {
         let msv = $crate::get!($menu_shared_vars);
         $menu_shared_vars.reset_temporaries();
 
@@ -692,6 +691,12 @@ macro_rules! build_buttons {
                     entity_commands.insert(states);
                 }
             });
+
+            $(
+                $(
+                    entity_commands.insert($extra_components);
+                )*
+            )?
         )*
     };
 }

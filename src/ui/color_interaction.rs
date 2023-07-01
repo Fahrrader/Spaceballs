@@ -1,5 +1,6 @@
 use crate::ui::focus::Focus;
 use crate::{MenuState, SceneSelector};
+use bevy::ecs::query::WorldQuery;
 use bevy::prelude::*;
 
 /// Atlas component serving to provide colors for each different [`Interaction`] with the entity.
@@ -49,6 +50,23 @@ impl<T: IntoIterator<Item = (Interaction, Option<Color>)>> From<T> for ColorInte
     }
 }
 
+#[derive(WorldQuery)]
+#[world_query(mutable)]
+#[doc(hidden)]
+pub struct ColoredTextQuery {
+    text: &'static mut Text,
+    color_interaction_map: Option<&'static ColorInteractionMap>,
+}
+
+#[derive(WorldQuery)]
+#[world_query(mutable)]
+#[doc(hidden)]
+pub struct ColoredNodeQuery {
+    color: &'static mut BackgroundColor,
+    children: Option<&'static Children>,
+    color_interaction_map: Option<&'static ColorInteractionMap>,
+}
+
 /// Handle changing all buttons' colors based on mouse interaction.
 fn handle_button_style_change(
     interaction_query: Query<
@@ -67,12 +85,8 @@ fn handle_button_style_change(
             )>,
         ),
     >,
-    mut text_children_query: Query<(&mut Text, Option<&ColorInteractionMap>)>,
-    mut node_children_query: Query<(
-        &mut BackgroundColor,
-        Option<&ColorInteractionMap>,
-        Option<&Children>,
-    )>,
+    mut text_children_query: Query<ColoredTextQuery>,
+    mut node_children_query: Query<ColoredNodeQuery>,
 ) {
     /// Extract color from the color interaction map, if present, and if the current color is in the map.
     fn extract_color(
@@ -107,28 +121,26 @@ fn handle_button_style_change(
     fn paint_nodes(
         interaction: Interaction,
         children: &Vec<Entity>,
-        text_children_query: &mut Query<(&mut Text, Option<&ColorInteractionMap>)>,
-        node_children_query: &mut Query<(
-            &mut BackgroundColor,
-            Option<&ColorInteractionMap>,
-            Option<&Children>,
-        )>,
+        text_children_query: &mut Query<ColoredTextQuery>,
+        node_children_query: &mut Query<ColoredNodeQuery>,
     ) {
         for &child in children {
-            if let Ok((mut text, color_interaction_map)) = text_children_query.get_mut(child) {
+            if let Ok(ColoredTextQueryItem {
+                mut text,
+                color_interaction_map,
+            }) = text_children_query.get_mut(child)
+            {
                 text.sections.iter_mut().for_each(|section| {
                     section.style.color =
                         distill_color(interaction, section.style.color, color_interaction_map);
                 });
             }
 
-            if let Ok((mut background, color_interaction_map, more_children)) =
-                node_children_query.get_mut(child)
-            {
-                *background =
-                    distill_color(interaction, background.0, color_interaction_map).into();
+            if let Ok(mut node) = node_children_query.get_mut(child) {
+                *node.color =
+                    distill_color(interaction, node.color.0, node.color_interaction_map).into();
 
-                if let Some(more_children) = more_children {
+                if let Some(more_children) = node.children {
                     let children_cloned = more_children.iter().cloned().collect();
                     paint_nodes(
                         interaction,

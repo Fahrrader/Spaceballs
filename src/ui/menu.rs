@@ -1,6 +1,6 @@
 use crate::network::PlayerCount;
 use crate::ui::color_interaction::ColorInteractionMap;
-use crate::ui::focus::Focus;
+use crate::ui::focus::{Focus, KeyToButtonBinding};
 use crate::ui::lobby::PeerWaitingText;
 use crate::ui::menu_builder::{
     DEFAULT_FONT_SIZE, DEFAULT_OUTLINE_THICKNESS, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_INPUT_MARGIN,
@@ -173,7 +173,9 @@ build_menu_plugin!(
             #[cfg(not(target_arch = "wasm32"))]
             {
                 Buttons [
-                    (MenuButtonAction::Quit, "Quit"),
+                    (MenuButtonAction::Quit, "Quit") + (
+                        KeyToButtonBinding(KeyCode::Escape)
+                    ),
                 ],
             },
         },
@@ -240,7 +242,9 @@ build_menu_plugin!(
         Column {
             Buttons [
                 (MenuButtonAction::StartGame, "Start Game"),
-                (MenuButtonAction::BackToMenu, "Back"),
+                (MenuButtonAction::BackToMenu, "Back") + (
+                    KeyToButtonBinding(KeyCode::Escape)
+                ),
             ],
         },
     },
@@ -309,9 +313,11 @@ build_menu_plugin!(
     Bottom {
         Column {
             Buttons [
-                (MenuButtonAction::JoinGame, "Join Game"),
+                (MenuButtonAction::JoinGame, "Continue"),
                 // (MenuButtonAction::HostGame, "Host Game"),
-                (MenuButtonAction::BackToMenu, "Back"),
+                (MenuButtonAction::BackToMenu, "Back") + (
+                    KeyToButtonBinding(KeyCode::Escape)
+                ),
             ],
         },
     },
@@ -344,7 +350,9 @@ build_menu_plugin!(
         Column {
             Buttons [
                 (MenuButtonAction::StartGame, "Start Game"),
-                (MenuButtonAction::MultiPlayer, "Back"),
+                (MenuButtonAction::MultiPlayer, "Back") + (
+                    KeyToButtonBinding(KeyCode::Escape)
+                ),
             ],
         },
     },
@@ -364,7 +372,9 @@ build_menu_plugin!(
     },
     Bottom {
         Buttons [
-            (MenuButtonAction::BackToMenu, "Back"),
+            (MenuButtonAction::BackToMenu, "Back") + (
+                KeyToButtonBinding(KeyCode::Escape)
+            ),
         ],
     },
 );
@@ -373,7 +383,9 @@ build_menu_plugin!(
     (setup_controls_menu, Controls),
     Bottom {
         Buttons [
-            (MenuButtonAction::BackToMenu, "Back"),
+            (MenuButtonAction::BackToMenu, "Back") + (
+                KeyToButtonBinding(KeyCode::Escape)
+            ),
         ],
     },
 );
@@ -387,7 +399,9 @@ build_menu_plugin!(
     },
     Bottom {
         Buttons [
-            (MenuButtonAction::QuitToTitle, "Quit to Main Menu"),
+            (MenuButtonAction::QuitToTitle, "Quit to Main Menu") + (
+                KeyToButtonBinding(KeyCode::Escape)
+            )
         ],
     },
 );

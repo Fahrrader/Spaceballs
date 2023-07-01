@@ -5,6 +5,7 @@ use bevy::prelude::*;
 /// Since it is generic, it allows for multiple focuses with different contexts on an entity at once.
 ///
 /// Beware that its uniqueness is expected, but might not be enforced outside of this crate.
+// todo split into focus (singular), selection, and highlighted (just mouse) when doing navigation
 #[derive(Component, Clone, Copy, Debug)]
 pub enum Focus<Context = ()> {
     /// Not focused, but focusable.
@@ -92,6 +93,22 @@ fn transfer_focus_on_interaction(
     });
 }
 
+/// Component indicating that an [`Interaction`] must be `Clicked` whenever the associated key is pressed.
+#[derive(Component)]
+pub struct KeyToButtonBinding(pub KeyCode);
+
+/// System that sets [`Interaction`] to `Clicked` whenever a key associated with [`KeyToButtonBinding`] is pressed.
+fn handle_key_press_binding_to_button(
+    mut button_query: Query<(&mut Interaction, &KeyToButtonBinding)>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    button_query.for_each_mut(|(mut interaction, binding)| {
+        if keyboard.just_pressed(binding.0) {
+            *interaction = Interaction::Clicked;
+        }
+    })
+}
+
 /// Plugin handling the [`Focus`] and [`FocusSwitchedEvent`] systems for the default ([`Interaction`]) generic components.
 pub(crate) struct FocusPlugin;
 impl Plugin for FocusPlugin {
@@ -101,6 +118,10 @@ impl Plugin for FocusPlugin {
                 transfer_focus_on_interaction.run_if(not(in_state(MenuState::Disabled))),
                 remove_focus_from_non_focused_entities::<Interaction>
                     .run_if(not(in_state(MenuState::Disabled))),
+                // `Interaction` processing happens in PreUpdate, so we're safe to update it later
+                handle_key_press_binding_to_button
+                    .run_if(not(in_state(MenuState::Disabled)))
+                    .in_base_set(CoreSet::Update),
             ));
     }
 }
