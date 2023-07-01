@@ -23,6 +23,7 @@ pub struct PeerConnectionEvent {
 pub enum PeerMessage {
     PlayerName { name: String },
     Chat { message: String },
+    // todo ChatHistory { ... },
 }
 
 #[derive(Resource, Debug, Default)]
@@ -68,7 +69,7 @@ pub fn handle_receiving_peer_messages(
             PeerMessage::PlayerName { name } => {
                 if !peer_names.map.contains_key(&sender) {
                     messenger.send(ChatMessage {
-                        player_handle: None,
+                        player_handles: vec![],
                         message: format!("{} joined!", name),
                     });
                 }
@@ -76,11 +77,20 @@ pub fn handle_receiving_peer_messages(
             }
             PeerMessage::Chat { message } => {
                 // ignore the message if it came from an unregistered source
-                if let Some(handle) = peer_handles.map.get(&sender) {
-                    messenger.send(ChatMessage {
-                        player_handle: Some(*handle),
-                        message,
-                    });
+                match (peer_handles.map.get(&sender), peer_names.map.get(&sender)) {
+                    (Some(handle), _) => {
+                        messenger.send(ChatMessage {
+                            player_handles: vec![*handle],
+                            message: "{0}: ".to_owned() + &message,
+                        });
+                    },
+                    (None, Some(name)) => {
+                        messenger.send(ChatMessage {
+                            player_handles: vec![],
+                            message: format!("{}: {}", name, message),
+                        });
+                    },
+                    _ => {},
                 }
             }
         }
@@ -100,7 +110,7 @@ pub fn handle_reporting_peer_disconnecting(
             } => {
                 if let Some(name) = peer_names.map.remove(id) {
                     messenger.send(ChatMessage {
-                        player_handle: None,
+                        player_handles: vec![],
                         message: format!("{} left!", name),
                     });
                 }

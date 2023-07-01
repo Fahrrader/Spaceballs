@@ -58,7 +58,7 @@ fn main() {
         )
         .add_startup_system(standard_setup)
         .add_system(summon_scene.in_schedule(OnEnter(GameState::InGame)))
-        .add_system(despawn_everything.in_schedule(OnExit(GameState::InGame)))
+        .add_system(despawn_everything.in_schedule(OnEnter(GameState::MainMenu)))
         .add_system(handle_gamepad_connections)
         // todo:mp action routine gets abnormally long if in rollback together with ai input, might be interesting to look into
         .add_system(
