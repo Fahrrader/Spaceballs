@@ -3,14 +3,9 @@ use crate::network::PlayerHandle;
 use crate::ui::{fonts, menu_builder};
 use crate::GameState;
 use bevy::prelude::*;
-// use std::collections::VecDeque;
+use std::time::Duration;
 
 pub const MAX_CHAT_MESSAGES: usize = 32;
-
-/*#[derive(Resource, Debug)]
-pub struct Chat {
-    pub messages: VecDeque<ChatMessage>,
-}*/
 
 #[derive(Component, Clone, Debug)]
 pub struct ChatMessage {
@@ -55,34 +50,10 @@ impl ChatMessage {
     }
 }
 
-/* impl Default for Chat {
-    fn default() -> Self {
-        Self {
-            messages: VecDeque::with_capacity(MAX_CHAT_MESSAGES),
-        }
-    }
-}
-
-impl Chat {
-    pub fn push_message(&mut self, message: ChatMessage) {
-        if self.messages.len() >= self.messages.capacity() {
-            self.messages.pop_front();
-        }
-        self.messages.push_back(message);
-    }
-
-    pub fn latest(&self) -> Option<&ChatMessage> {
-        self.messages.back()
-    }
-} */
-
 #[derive(Component)]
 pub struct ChatDisplay;
 
 fn setup_chat_display(mut commands: Commands) {
-    // Reset chat
-    // commands.insert_resource(Chat::default());
-
     commands.spawn((
         NodeBundle {
             style: Style {
@@ -108,7 +79,6 @@ fn setup_chat_display(mut commands: Commands) {
 fn handle_new_chat_messages(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    // mut chat: ResMut<Chat>,
     mut new_messages: EventReader<ChatMessage>,
     players: Option<Res<PlayerRegistry>>,
     chat_display_query: Query<(Entity, Option<&Children>), With<ChatDisplay>>,
@@ -131,8 +101,6 @@ fn handle_new_chat_messages(
     let mut children_pushed = 0;
 
     for message in new_messages.iter() {
-        // chat.push_message(message.clone());
-
         let name_style = TextStyle {
             font: fonts::load(&asset_server, fonts::ULTRAGONIC),
             font_size: CHAT_FONT_SIZE,
@@ -177,6 +145,7 @@ fn handle_new_chat_messages(
                             ..default()
                         },
                         message.clone(),
+                        ChatFadeout::new(),
                     ));
                 });
         } else {
@@ -190,7 +159,77 @@ fn handle_new_chat_messages(
             commands
                 .entity(old_message_entity)
                 .insert(text)
-                .insert(message.clone());
+                .insert(message.clone())
+                .insert(ChatFadeout::new());
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct ChatFadeout {
+    pub timer: Timer,
+    pub is_fading: bool,
+}
+
+impl ChatFadeout {
+    pub const DURATION_BEFORE_FADEOUT: Duration = Duration::from_millis(3000);
+
+    pub fn new() -> Self {
+        Self {
+            timer: Timer::new(Self::DURATION_BEFORE_FADEOUT, TimerMode::Once),
+            is_fading: true,
+        }
+    }
+}
+
+fn handle_chat_message_fadeout(
+    time: Res<Time>,
+    mut query: Query<(&mut Text, &mut Visibility, &mut ChatFadeout)>,
+) {
+    // about 90 frames
+    const FADEOUT_PER_FRAME: f32 = 0.95;
+    const FADEOUT_THRESHOLD: f32 = 0.01;
+
+    for (mut text, mut visibility, mut fadeout) in query.iter_mut() {
+        fadeout.timer.tick(time.delta());
+
+        if matches!(*visibility, Visibility::Hidden) {
+            continue;
+        }
+
+        if fadeout.timer.finished() && fadeout.is_fading {
+            let mut has_faded_out = true;
+
+            for section in text.sections.iter_mut() {
+                let a = section.style.color.a();
+                section.style.color.set_a(a * FADEOUT_PER_FRAME);
+                has_faded_out &= section.style.color.a() <= FADEOUT_THRESHOLD;
+            }
+
+            if has_faded_out {
+                fadeout.timer.pause();
+                *visibility = Visibility::Hidden;
+            }
+        }
+    }
+}
+
+fn reset_fadeout_on_chat_open(
+    // replace ChatDisplay with bigger picture
+    chat_display_query: Query<&Visibility, (Changed<Visibility>, With<ChatDisplay>)>,
+    mut query: Query<(&mut Text, &mut ChatFadeout)>,
+) {
+    if chat_display_query
+        .iter()
+        .any(|visibility| matches!(*visibility, Visibility::Visible))
+    {
+        for (mut text, mut fadeout) in query.iter_mut() {
+            fadeout.timer.unpause();
+            fadeout.timer.reset();
+            fadeout.is_fading = false;
+            for section in text.sections.iter_mut() {
+                section.style.color.set_a(1.0);
+            }
         }
     }
 }
@@ -218,10 +257,11 @@ fn mock_message_sending(
 pub struct ChatPlugin;
 impl Plugin for ChatPlugin {
     fn build(&self, app: &mut App) {
-        app //.insert_resource(Chat::default())
-            .add_event::<ChatMessage>()
+        app.add_event::<ChatMessage>()
             .add_system(setup_chat_display.in_schedule(OnExit(GameState::MainMenu)))
             .add_system(handle_new_chat_messages.run_if(not(in_state(GameState::MainMenu))))
+            .add_system(handle_chat_message_fadeout.run_if(not(in_state(GameState::MainMenu))))
+            .add_system(reset_fadeout_on_chat_open.run_if(not(in_state(GameState::MainMenu))))
             .add_system(mock_message_sending.run_if(not(in_state(GameState::MainMenu))));
     }
 }

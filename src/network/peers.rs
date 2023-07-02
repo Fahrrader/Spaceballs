@@ -83,14 +83,14 @@ pub fn handle_receiving_peer_messages(
                             player_handles: vec![*handle],
                             message: "{0}: ".to_owned() + &message,
                         });
-                    },
+                    }
                     (None, Some(name)) => {
                         messenger.send(ChatMessage {
                             player_handles: vec![],
                             message: format!("{}: {}", name, message),
                         });
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         }
