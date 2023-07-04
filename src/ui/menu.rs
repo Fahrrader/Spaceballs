@@ -1,6 +1,7 @@
 use crate::network::PlayerCount;
 use crate::ui::color_interaction::ColorInteractionMap;
 use crate::ui::focus::{Focus, KeyToButtonBinding};
+use crate::ui::input_consumption::InputConsumerPriority;
 use crate::ui::lobby::PeerWaitingText;
 use crate::ui::menu_builder::{
     DEFAULT_FONT_SIZE, DEFAULT_OUTLINE_THICKNESS, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_INPUT_MARGIN,
@@ -90,47 +91,8 @@ pub(crate) enum MenuButtonAction {
     Quit,
 }
 
-/* Main menu UI structure
-* singleplayer {
-    * scene select {  } (grid of available levels)
-    * start button
-    * back button
-}
-* multiplayer {
-    * host {
-        * scene select {  }
-        * start button
-        * back button
-    }
-    * join {
-        (maybe possibly list of peers/rooms)
-        * text input { direct connection: room URL }
-        * join button
-        * back button
-    }
-    * back button
-}
-* controls {
-    * describe_controls ( on the left - wasd/left thumbstick, space, r, f, c, etc.; on the right - descriptions )
-    * back button
-}
-* settings {
-    * text { Haha you expected settings, but it was me, Dio!\nGo back to the playground, stud.}
-    * button { Back }
-}
-* quit button
- */
-
-/* In-game menu UI structure
-blurry top node
-* title?
-* text (must be selectable and copyable (text input, but non-editable?)) { [Room URL] }
-* continue
-* controls
-* settings
-* quit to main menu
-* quit
- */
+pub const GAME_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(0);
+pub const PAUSE_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(1);
 
 build_menu_plugin!(
     (setup_main_menu, Main),
@@ -183,7 +145,7 @@ build_menu_plugin!(
 );
 
 build_menu_plugin!(
-    (setup_pause_menu, Pause),
+    (setup_pause_menu, Pause, PAUSE_INPUT_LAYER),
     //once node_color = Color::TURQUOISE.with_a(0.05),
     once layout_height = Val::Percent(100.).into(),
     once layout_width = Val::Percent(50.).into(),
@@ -251,7 +213,7 @@ build_menu_plugin!(
 );
 
 build_menu_plugin!(
-    (setup_multiplayer_menu, MultiPlayer, user_settings: Res<UserSettings>),
+    (setup_multiplayer_menu(user_settings: Res<UserSettings>), MultiPlayer),
     Top {
         Column {
             Text [ "Multiplayer", ],

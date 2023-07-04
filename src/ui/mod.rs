@@ -4,6 +4,7 @@ use chat::ChatPlugin;
 use color_interaction::ColorInteractionPlugin;
 use focus::FocusPlugin;
 use hud::HUDPlugin;
+use input_consumption::InputConsumptionPlugin;
 use lobby::LobbyPlugin;
 use menu::MenuPlugin;
 use text_input::TextInputPlugin;
@@ -13,6 +14,7 @@ pub mod chat;
 pub mod color_interaction;
 pub mod focus;
 pub mod hud;
+pub mod input_consumption;
 pub mod lobby;
 pub mod menu;
 mod menu_builder;
@@ -34,6 +36,7 @@ impl PluginGroup for UIPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(UserSettingsPlugin)
+            .add(InputConsumptionPlugin)
             .add(MenuPlugin)
             .add(LobbyPlugin)
             .add(FocusPlugin)

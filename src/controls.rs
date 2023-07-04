@@ -1,5 +1,7 @@
 use crate::characters::PlayerControlled;
 use crate::network::{GGRSConfig, GGRSInput};
+use crate::ui::input_consumption::ActiveInputConsumerLayers;
+use crate::ui::menu::{GAME_INPUT_LAYER, PAUSE_INPUT_LAYER};
 use crate::GamePauseEvent;
 use bevy::ecs::schedule::SystemSet;
 use bevy::input::{
@@ -90,6 +92,7 @@ pub fn handle_online_player_input(
 pub fn process_input(
     _: In<ggrs::PlayerHandle>,
     keyboard: Res<Input<KeyCode>>,
+    input_consumers: Res<ActiveInputConsumerLayers>,
     connected_gamepad: Option<Res<GamepadWrapper>>,
     gamepad_axes: Res<Axis<GamepadAxis>>,
     gamepad_buttons: Res<Input<GamepadButton>>,
@@ -97,13 +100,15 @@ pub fn process_input(
 ) -> GGRSInput {
     let mut player_actions = CharacterActionInput::default();
 
-    process_keyboard_input(&mut player_actions, &keyboard);
-    process_gamepad_input(
-        &mut player_actions,
-        &connected_gamepad,
-        &gamepad_axes,
-        &gamepad_buttons,
-    );
+    if input_consumers.is_input_allowed_for_layer(&GAME_INPUT_LAYER) {
+        process_keyboard_input(&mut player_actions, &keyboard);
+        process_gamepad_input(
+            &mut player_actions,
+            &connected_gamepad,
+            &gamepad_axes,
+            &gamepad_buttons,
+        );
+    }
 
     player_actions.into()
 }
@@ -250,10 +255,15 @@ pub fn handle_gamepad_connections(
 /// sending a `GamePauseEvent::Toggle` event.
 pub fn handle_pause_input(
     keyboard: Res<Input<KeyCode>>,
+    input_consumers: Res<ActiveInputConsumerLayers>,
     connected_gamepad: Option<Res<GamepadWrapper>>,
     gamepad_buttons: Res<Input<GamepadButton>>,
     mut pause_events: EventWriter<GamePauseEvent>,
 ) {
+    if input_consumers.is_input_blocked_for_layer(&PAUSE_INPUT_LAYER) {
+        return;
+    }
+
     if keyboard.just_pressed(KeyCode::Escape)
         || connected_gamepad
             .filter(|gp| {

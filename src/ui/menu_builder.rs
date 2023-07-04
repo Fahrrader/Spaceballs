@@ -220,8 +220,8 @@ impl<T: Default + Copy> From<T> for MaybeDefault<T> {
 
 #[macro_export]
 macro_rules! build_menu_plugin {
-    (($system_name:ident, $menu:ident $(, $extra_argument:ident : $extra_argument_type:ty)* $(,)?), $($body:tt)*) => {
-        $crate::build_menu_system!(($system_name, $menu $(, $extra_argument: $extra_argument_type)*), $($body)*);
+    (($system_name:ident $(($($extra_argument:ident : $extra_argument_type:ty $(,)? )*))?, $menu:ident $(, $extra_component:expr)* $(,)?), $($body:tt)*) => {
+        $crate::build_menu_system!(($system_name $(($($extra_argument: $extra_argument_type, )*))?, $menu $(, $extra_component)*), $($body)*);
 
         impl Plugin for SingleMenuPlugin<menu_state::$menu> {
             fn build(&self, app: &mut App) {
@@ -236,12 +236,12 @@ macro_rules! build_menu_plugin {
 
 #[macro_export]
 macro_rules! build_menu_system {
-    (($system_name:ident, $menu:ident $(, $extra_argument:ident : $extra_argument_type:ty)* $(,)?), $($body:tt)*) => {
-        fn $system_name(mut commands: Commands, asset_server: ResMut<AssetServer> $(, $extra_argument: $extra_argument_type)*) {
+    (($system_name:ident $(($($extra_argument:ident : $extra_argument_type:ty, )*))?, $menu:ident $(, $extra_component:expr)* $(,)?), $($body:tt)*) => {
+        fn $system_name(mut commands: Commands, asset_server: ResMut<AssetServer> $($(, $extra_argument: $extra_argument_type)*)?) {
             // Configuration values
             #[allow(unused_mut)]
             let mut menu_env = $crate::ui::menu_builder::MenuBuildingEnvironment::default(&asset_server);
-            $crate::build_layout!(commands, menu_env, Screen, (OnMenu::<menu_state::$menu>::default(),), { $($body)* });
+            $crate::build_layout!(commands, menu_env, Screen, (OnMenu::<menu_state::$menu>::default(), $($extra_component, )*), { $($body)* });
         }
     };
 }
