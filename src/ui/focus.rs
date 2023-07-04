@@ -1,3 +1,4 @@
+use crate::ui::input_consumption::{ActiveInputConsumerLayers, InputConsumerPriority};
 use crate::MenuState;
 use bevy::prelude::*;
 
@@ -99,14 +100,25 @@ pub struct KeyToButtonBinding(pub KeyCode);
 
 /// System that sets [`Interaction`] to `Clicked` whenever a key associated with [`KeyToButtonBinding`] is pressed.
 fn handle_key_press_binding_to_button(
-    mut button_query: Query<(&mut Interaction, &KeyToButtonBinding)>,
+    mut button_query: Query<(
+        &mut Interaction,
+        &KeyToButtonBinding,
+        Option<&InputConsumerPriority>,
+    )>,
     keyboard: Res<Input<KeyCode>>,
+    input_consumers: Res<ActiveInputConsumerLayers>,
 ) {
-    button_query.for_each_mut(|(mut interaction, binding)| {
+    for (mut interaction, binding, maybe_input_consumer) in button_query.iter_mut() {
+        if let Some(input_consumer) = maybe_input_consumer {
+            if input_consumers.is_input_blocked_for_layer(input_consumer) {
+                continue;
+            }
+        }
+
         if keyboard.just_pressed(binding.0) {
             *interaction = Interaction::Clicked;
         }
-    })
+    }
 }
 
 /// Plugin handling the [`Focus`] and [`FocusSwitchedEvent`] systems for the default ([`Interaction`]) generic components.

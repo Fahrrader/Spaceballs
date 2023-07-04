@@ -1,5 +1,5 @@
 use crate::ui::focus::{remove_focus_from_non_focused_entities, Focus, FocusSwitchedEvent};
-use crate::MenuState;
+use crate::ui::input_consumption::{ActiveInputConsumerLayers, InputConsumerPriority};
 use bevy::prelude::*;
 #[cfg(not(target_arch = "wasm32"))]
 use clipboard::{ClipboardContext, ClipboardProvider};
@@ -243,15 +243,28 @@ impl KeyPressTimeout {
 /// System to handle text input on a focused [`TextInput`] component.
 #[cfg(not(target_arch = "wasm32"))]
 fn handle_text_input(
-    mut text_query: Query<(&mut TextInput, &Focus<TextInput>)>,
+    mut text_query: Query<(
+        &mut TextInput,
+        &Focus<TextInput>,
+        Option<&InputConsumerPriority>,
+    )>,
     mut characters_evs: EventReader<ReceivedCharacter>,
     keys: Res<Input<KeyCode>>,
+    input_consumers: Res<ActiveInputConsumerLayers>,
     time: Res<Time>,
     mut key_handler: Local<KeyPressTimeout>,
 ) {
-    for (mut input, focus) in text_query.iter_mut() {
+    for (mut input, focus, maybe_input_consumer) in text_query.iter_mut() {
         if focus.is_none() {
             continue;
+        }
+
+        if let Some(input_consumer) = maybe_input_consumer {
+            if input_consumers.is_input_blocked_for_layer(input_consumer)
+                || !input_consumers.is_layer_active(input_consumer)
+            {
+                continue;
+            }
         }
 
         key_handler.mark_not_handled();
@@ -356,15 +369,15 @@ pub(crate) struct TextInputPlugin;
 impl Plugin for TextInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<FocusSwitchedEvent<TextInput>>()
-            .add_system(handle_text_input_addition.run_if(not(in_state(MenuState::Disabled))))
+            // todo think of a state for chat maybe
+            .add_system(handle_text_input_addition)
             .add_systems(
                 (
-                    handle_text_input.run_if(not(in_state(MenuState::Disabled))),
-                    transfer_text_input.run_if(not(in_state(MenuState::Disabled))),
-                    handle_input_field_placeholder.run_if(not(in_state(MenuState::Disabled))),
-                    handle_text_input_new_focus.run_if(not(in_state(MenuState::Disabled))),
-                    remove_focus_from_non_focused_entities::<TextInput>
-                        .run_if(not(in_state(MenuState::Disabled))),
+                    handle_text_input,
+                    transfer_text_input,
+                    handle_input_field_placeholder,
+                    handle_text_input_new_focus,
+                    remove_focus_from_non_focused_entities::<TextInput>,
                 )
                     .after(handle_text_input_addition),
             );

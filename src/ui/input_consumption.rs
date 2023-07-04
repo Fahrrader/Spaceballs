@@ -43,6 +43,12 @@ impl ActiveInputConsumerLayers {
         }
     }
 
+    /// Checks whether the specified layer has active users.
+    #[must_use]
+    pub const fn is_layer_active(&self, layer: &InputConsumerPriority) -> bool {
+        self.active_layers & layer.0 != 0
+    }
+
     /// Checks whether the specified layer has no other layer blocking it.
     #[must_use]
     pub const fn is_input_allowed_for_layer(&self, layer: &InputConsumerPriority) -> bool {

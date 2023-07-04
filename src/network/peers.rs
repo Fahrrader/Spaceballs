@@ -57,6 +57,15 @@ pub fn handle_player_name_broadcast(
     }
 }
 
+pub fn handle_chat_message_broadcast(
+    mut socket: ResMut<SpaceballSocket>,
+    mut messenger: EventReader<PeerMessage>,
+) {
+    for message in messenger.iter() {
+        socket.broadcast_tcp_message(message.clone());
+    }
+}
+
 pub fn handle_receiving_peer_messages(
     mut socket: ResMut<SpaceballSocket>,
     mut peer_names: ResMut<PeerNames>,
@@ -79,16 +88,10 @@ pub fn handle_receiving_peer_messages(
                 // ignore the message if it came from an unregistered source
                 match (peer_handles.map.get(&sender), peer_names.map.get(&sender)) {
                     (Some(handle), _) => {
-                        messenger.send(ChatMessage {
-                            player_handles: vec![*handle],
-                            message: "{0}: ".to_owned() + &message,
-                        });
+                        messenger.send(ChatMessage::message(message).by_player(*handle));
                     }
                     (None, Some(name)) => {
-                        messenger.send(ChatMessage {
-                            player_handles: vec![],
-                            message: format!("{}: {}", name, message),
-                        });
+                        messenger.send(ChatMessage::message(message).by(name.clone()));
                     }
                     _ => {}
                 }
@@ -124,10 +127,12 @@ pub(crate) struct OnlinePeerPlugin;
 impl Plugin for OnlinePeerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PeerConnectionEvent>()
+            .add_event::<PeerMessage>()
             .insert_resource(PeerNames::default())
             .insert_resource(PeerHandles::default())
             // ideally, there should be `or` between `Matchmaking` and `InGame`, but no, ok
             .add_system(handle_player_name_broadcast.run_if(not(in_state(GameState::MainMenu))))
+            .add_system(handle_chat_message_broadcast.run_if(not(in_state(GameState::MainMenu))))
             .add_system(handle_receiving_peer_messages.run_if(not(in_state(GameState::MainMenu))))
             .add_system(
                 handle_reporting_peer_disconnecting.run_if(not(in_state(GameState::MainMenu))),
