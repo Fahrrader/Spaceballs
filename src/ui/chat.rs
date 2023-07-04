@@ -399,26 +399,6 @@ fn handle_chat_message_fadeout(
     }
 }
 
-fn mock_message_sending(
-    mut messenger: EventWriter<ChatMessage>,
-    keyboard: Res<Input<KeyCode>>,
-    messages: Query<With<ChatMessage>>,
-    mut n_messages: Local<usize>,
-) {
-    if keyboard.just_pressed(KeyCode::M) {
-        *n_messages += 2;
-        messenger.send(ChatMessage::message(messages.iter().len().to_string()));
-        messenger.send(ChatMessage::message(format!(
-            "{}: I'm a businessman with a business plan",
-            *n_messages - 1
-        )));
-        messenger.send(ChatMessage::message(format!(
-            "{}: I'm gonna make you money in business land",
-            *n_messages
-        )));
-    }
-}
-
 pub struct ChatPlugin;
 impl Plugin for ChatPlugin {
     fn build(&self, app: &mut App) {
@@ -428,7 +408,6 @@ impl Plugin for ChatPlugin {
             .add_system(handle_new_chat_messages.run_if(not(in_state(GameState::MainMenu))))
             .add_system(handle_chat_opening.run_if(not(in_state(GameState::MainMenu))))
             .add_system(handle_chat_sending.run_if(not(in_state(GameState::MainMenu))))
-            .add_system(handle_chat_message_fadeout.run_if(not(in_state(GameState::MainMenu))))
-            .add_system(mock_message_sending.run_if(not(in_state(GameState::MainMenu))));
+            .add_system(handle_chat_message_fadeout.run_if(not(in_state(GameState::MainMenu))));
     }
 }
