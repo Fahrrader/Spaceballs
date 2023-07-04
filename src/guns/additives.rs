@@ -10,11 +10,12 @@ use bevy::reflect::{FromReflect, Reflect};
 pub mod railgun {
     use super::*;
 
+    const PENETRATIONS_TO_KILL: f32 = 4.0;
     /// Due to the rail gun's penetrative properties, damage is applied per second of travel inside a body.
     /// Correlates heavily with projectile speed. Used by a special system.
-    // under a normal angle and fully crossing the body, should kill in [5] hits
+    // under a normal angle and fully crossing the body, should kill in [`PENETRATIONS_TO_KILL`]
     pub const PENETRATION_DAMAGE_PER_DISTANCE: HitPoints =
-        CHARACTER_MAX_HEALTH / CHARACTER_SIZE / 5.0;
+        CHARACTER_MAX_HEALTH / CHARACTER_SIZE / PENETRATIONS_TO_KILL;
 
     /// Marker component for a rail gun projectile.
     #[derive(Component, Debug, Default, Reflect, FromReflect)]
