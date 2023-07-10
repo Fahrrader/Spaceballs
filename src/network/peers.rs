@@ -6,9 +6,7 @@ use crate::network::{PeerId, PlayerHandle};
 use crate::ui::chat::ChatMessage;
 use crate::ui::user_settings::UserSettings;
 use crate::GameState;
-use bevy::prelude::{
-    in_state, not, App, EventReader, EventWriter, IntoSystemConfig, Plugin, Res, ResMut, Resource,
-};
+use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_matchbox::prelude::PeerState;
 use serde::{Deserialize, Serialize};
@@ -50,7 +48,7 @@ pub fn handle_player_name_broadcast(
             }
         )
     }) {
-        // broadcasting our local user-set name
+        // broadcasting our local user-set name to other (including newly joined) peers
         socket.broadcast_tcp_message(PeerMessage::PlayerName {
             name: settings.player_name.clone(),
         });

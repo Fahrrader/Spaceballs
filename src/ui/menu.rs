@@ -10,7 +10,9 @@ use crate::ui::text_input::TextInput;
 use crate::ui::user_settings::{transfer_setting_from_text_input, UserInputForm, UserSettings};
 use crate::ui::{colors, despawn_node, fonts};
 use crate::{build_menu_plugin, GamePauseEvent, GameState, SceneSelector};
-use bevy::app::{AppExit, PluginGroupBuilder};
+#[cfg(not(target_arch = "wasm32"))]
+use bevy::app::AppExit;
+use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
 
 macro_rules! generate_menu_states {
@@ -88,6 +90,7 @@ pub(crate) enum MenuButtonAction {
     Settings,
     BackToMenu,
     QuitToTitle,
+    #[cfg(not(target_arch = "wasm32"))]
     Quit,
 }
 
@@ -445,7 +448,7 @@ pub(crate) fn handle_menu_actions(
     // focus_query: Query<&Focus>,
     mut scene_focus_query: Query<&mut Focus<SceneSelector>>,
     mut pause_events: EventWriter<GamePauseEvent>,
-    mut app_exit_events: EventWriter<AppExit>,
+    #[cfg(not(target_arch = "wasm32"))] mut app_exit_events: EventWriter<AppExit>,
     mut menu_state: ResMut<NextState<MenuState>>,
     mut game_state: ResMut<NextState<GameState>>,
     current_game_state: Res<State<GameState>>,
@@ -453,6 +456,7 @@ pub(crate) fn handle_menu_actions(
     for (interaction, menu_button_action, entity) in &interaction_query {
         if *interaction == Interaction::Clicked {
             match menu_button_action {
+                #[cfg(not(target_arch = "wasm32"))]
                 MenuButtonAction::Quit => app_exit_events.send(AppExit),
                 MenuButtonAction::SinglePlayer => {
                     commands.insert_resource(PlayerCount(1));

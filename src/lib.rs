@@ -40,6 +40,7 @@ pub use rand::{
     Rng, SeedableRng,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
 use bevy::core_pipeline::bloom::{BloomPrefilterSettings, BloomSettings};
 use bevy::reflect::ReflectFromReflect;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
@@ -75,11 +76,14 @@ pub fn standard_setup(mut commands: Commands) {
     commands.spawn((
         Camera2dBundle {
             camera: Camera {
+                // disable until bevy 0.11 (https://github.com/bevyengine/bevy/pull/8631)
+                #[cfg(not(target_arch = "wasm32"))]
                 hdr: true,
                 ..default()
             },
             ..default()
         },
+        #[cfg(not(target_arch = "wasm32"))]
         BloomSettings {
             prefilter_settings: BloomPrefilterSettings {
                 threshold: 0.5,
@@ -165,21 +169,16 @@ pub fn calculate_main_camera_projection_scale(
 
 /// System to query JS whether the browser window size has changed, and resize the game window
 /// according to the JS-supplied data.
+#[cfg(target_arch = "wasm32")]
 pub fn handle_browser_window_resizing(
-    #[cfg(target_arch = "wasm32")] mut primary_window_query: Query<
-        &mut Window,
-        With<PrimaryWindow>,
-    >,
+    mut primary_window_query: Query<&mut Window, With<PrimaryWindow>>,
 ) {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if !detect_window_resize_from_js() {
-            return;
-        }
-        let size = get_new_window_size_from_js();
-        for mut window in primary_window_query.iter_mut() {
-            window.resolution = (size[0], size[1]).into();
-        }
+    if !detect_window_resize_from_js() {
+        return;
+    }
+    let size = get_new_window_size_from_js();
+    for mut window in primary_window_query.iter_mut() {
+        window.resolution = (size[0], size[1]).into();
     }
 }
 

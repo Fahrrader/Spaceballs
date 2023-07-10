@@ -36,7 +36,7 @@ fn handle_peer_waiting_text(
     })
 }
 
-fn intercept_matchmaking_menu_state(
+fn intercept_matchmaking_menu_state_if_single_player(
     mut next_menu_state: ResMut<NextState<MenuState>>,
     player_count: Option<Res<PlayerCount>>,
 ) {
@@ -57,7 +57,7 @@ impl Plugin for LobbyPlugin {
         app.add_system(handle_peer_waiting_text.run_if(in_state(MenuState::MatchmakingLobby)))
             .add_system(disable_matchmaking_menu_state.in_schedule(OnExit(GameState::Matchmaking)))
             .add_system(
-                intercept_matchmaking_menu_state
+                intercept_matchmaking_menu_state_if_single_player
                     .run_if(in_state(GameState::MainMenu))
                     .after(handle_menu_actions),
             );

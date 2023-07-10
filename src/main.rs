@@ -96,12 +96,14 @@ fn main() {
             handle_gun_ownership_cosmetic_change,
             handle_gun_idle_bobbing,
         ))
-        .add_system(handle_browser_window_resizing)
         .add_system(
             calculate_main_camera_projection_scale
                 .before(camera_system::<OrthographicProjection>)
                 .in_base_set(CoreSet::PostUpdate),
         );
+
+    #[cfg(target_arch = "wasm32")]
+    app.add_system(handle_browser_window_resizing);
 
     if let Some(scene) = scene_arg {
         app.insert_resource(scene)

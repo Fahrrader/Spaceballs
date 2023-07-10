@@ -1,9 +1,6 @@
 use crate::network::peers::{PeerHandles, PeerNames};
 use crate::GameState;
-use bevy::log::prelude::*;
-use bevy::prelude::{
-    in_state, not, App, DetectChanges, IntoSystemConfig, Plugin, Res, ResMut, Resource,
-};
+use bevy::prelude::*;
 
 #[derive(Debug, Default)]
 pub struct PlayerData {
@@ -56,6 +53,6 @@ pub(crate) struct OnlinePlayerPlugin;
 impl Plugin for OnlinePlayerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(PlayerRegistry::default())
-            .add_system(update_player_names.run_if(not(in_state(GameState::MainMenu))));
+            .add_system(update_player_names.run_if(in_state(GameState::InGame)));
     }
 }
