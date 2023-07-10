@@ -32,6 +32,7 @@ impl Default for UserSettings {
 impl UserSettings {
     /// Sets the value of the setting specified by `UserInputForm` to `value`.
     pub fn set(&mut self, setting: UserInputForm, value: String) {
+        let value = value.trim().to_string();
         match setting {
             UserInputForm::PlayerName => self.player_name = value,
             UserInputForm::ServerUrl => self.server_url = value,

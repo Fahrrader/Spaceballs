@@ -37,25 +37,20 @@ impl ChatMessage {
     pub fn separate_handles(&self) -> Vec<String> {
         let mut parts: Vec<String> = Vec::new();
 
-        let mut start = 0;
-        while let Some(begin) = self.message[start..].find('{') {
-            if let Some(end) = self.message[start + begin..].find('}') {
-                if let Ok(idx) =
-                    self.message[start + begin + 1..start + begin + end].parse::<usize>()
-                {
-                    if let Some(player_handle) = self.player_handles.get(idx) {
-                        parts.push(self.message[start..start + begin].to_string());
-                        parts.push(player_handle.to_string());
-                        start += begin + end + 1;
-                        continue;
-                    }
+        let pieces: Vec<&str> = self.message.split(|c| c == '{' || c == '}').collect();
+        for (idx, piece) in pieces.iter().enumerate() {
+            // Every even index is outside of curly braces
+            if idx % 2 == 0 {
+                parts.push(piece.to_string());
+            } else if *piece == "You" {
+                parts.push(piece.to_string());
+            } else if let Ok(idx) = piece.parse::<usize>() {
+                if let Some(player_handle) = self.player_handles.get(idx) {
+                    parts.push(player_handle.to_string());
                 }
+            } else {
+                parts.push(format!("{{{}}}", piece));
             }
-            break;
-        }
-
-        if start < self.message.len() {
-            parts.push(self.message[start..].to_string());
         }
 
         parts
@@ -183,13 +178,15 @@ fn handle_new_chat_messages(
         .expect("Failed to fetch singular chat display");
     let mut children_pushed = 0;
 
-    for message in new_messages.iter() {
-        let name_style = TextStyle {
-            font: fonts::load(&asset_server, fonts::ULTRAGONIC),
-            font_size: CHAT_FONT_SIZE,
-            color: menu_builder::DEFAULT_TEXT_COLOR.with_a(0.8),
-        };
+    let you_style = TextStyle {
+        font: fonts::load(&asset_server, fonts::ULTRAGONIC),
+        font_size: CHAT_FONT_SIZE,
+        color: menu_builder::DEFAULT_TEXT_COLOR.with_a(0.8),
+    };
 
+    let name_style = you_style.clone();
+
+    for message in new_messages.iter() {
         // Parse the chat message in case it contains any players handles, in which case we want to prettify them
         let texts = message
             .separate_handles()
@@ -198,12 +195,20 @@ fn handle_new_chat_messages(
             .map(|(i, piece)| {
                 // `ChatMessage`'s `separate_handles` leaves player handles at odd indices
                 if i % 2 == 1 {
-                    let player_name = players
-                        .as_ref()
-                        .and_then(|registry| registry.get(piece.parse::<usize>().ok()?))
-                        .map(|data| data.name.clone())
-                        .unwrap_or("{player}".into());
-                    TextSection::new(player_name, name_style.clone())
+                    match piece.as_str() {
+                        "You" => TextSection::new("You", you_style.clone()),
+                        _ => {
+                            let player_name = players
+                                .as_ref()
+                                .and_then(|registry| {
+                                    let maybe_id = piece.parse::<usize>().ok();
+                                    maybe_id.and_then(|id| registry.get(id))
+                                })
+                                .map(|data| data.name.clone())
+                                .unwrap_or("[unknown]".to_string());
+                            TextSection::new(player_name, name_style.clone())
+                        }
+                    }
                 } else {
                     TextSection::new(piece, text_style.clone())
                 }
@@ -299,7 +304,7 @@ fn handle_chat_opening(
         return;
     }
 
-    if keyboard.just_pressed(KeyCode::T) {
+    if keyboard.any_just_pressed([KeyCode::T, KeyCode::Return]) {
         for mut focus in chat_typing_query.iter_mut() {
             *focus = Focus::Focused(None);
         }
@@ -349,8 +354,9 @@ fn handle_chat_sending(
                 if return_pressed {
                     if let Some(message) = text.sections.last() {
                         if !message.value.is_empty() {
-                            let message = message.value.clone();
-                            messenger.send(ChatMessage::message(message.clone()).by("You".into()));
+                            let message = message.value.trim_end().to_string();
+                            messenger
+                                .send(ChatMessage::message(message.clone()).by("{You}".into()));
                             broadcaster.send(PeerMessage::Chat { message });
                             input.reset_text();
                         }
