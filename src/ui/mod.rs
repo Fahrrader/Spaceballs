@@ -11,6 +11,7 @@ use text_input::TextInputPlugin;
 use user_settings::UserSettingsPlugin;
 
 pub mod chat;
+pub mod clipboard_util;
 pub mod color_interaction;
 pub mod focus;
 pub mod hud;

@@ -257,6 +257,10 @@ extern "C" {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(module = "/public/main.js")]
 extern "C" {
+    /// Get info from the browser with JS on whether the client is a phone or similar.
+    #[wasm_bindgen(js_name = detectMob)]
+    fn is_mobile() -> bool;
+
     /// Get input from the JS side on which scene to load as an argument in its raw form.
     #[wasm_bindgen(js_name = getSceneFromUrl)]
     fn get_scene_from_js() -> String;
@@ -268,4 +272,10 @@ extern "C" {
     /// Take from JS its new window size.
     #[wasm_bindgen(js_name = getNewWindowSize)]
     fn get_new_window_size_from_js() -> Vec<f32>;
+
+    #[wasm_bindgen(js_name = setPasteBuffer)]
+    fn set_js_paste_buffer(entity_index: u32);
+
+    #[wasm_bindgen(catch, js_name = getPasteBuffer)]
+    fn get_js_paste_buffer(entity_index: u32) -> Result<Option<String>, JsValue>;
 }

@@ -23,7 +23,10 @@ getrandom = { version = "0.2", features = ["js"] }
 clipboard = "0.5.0"
 clap = { version = "4", features = ["derive"] }
 console_error_panic_hook = "0.1"
-wasm-bindgen = "*"
+futures = "0.3"
+wasm-bindgen = { version = "0.2" }
+wasm-bindgen-futures = { version = "0.4" }
+web-sys = { version = "0.3", features = ["Clipboard"] }
 
 [features]
 diagnostic = []

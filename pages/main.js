@@ -1,4 +1,4 @@
-export {detectMob, detectWindowResize, getNewWindowSize, getSceneFromUrl, setupCanvasSize, setupControls};
+export {detectMob, detectWindowResize, getNewWindowSize, getSceneFromUrl, getPasteBuffer, setPasteBuffer, setupCanvasSize, setupControls};
 
 function getUrlParam(param) {
     const paramString = window.location.search.slice(1);
@@ -19,6 +19,30 @@ function getNewWindowSize() {
     const size = [window.playAreaSide, window.playAreaSide];
     window.playAreaSide = undefined;
     return size;
+}
+
+class PasteData {
+    constructor(value, error) {
+        this.paste = value;
+        this.error = error;
+    }
+}
+
+function setPasteBuffer(entity_index) {
+    if (!window.pasteBufferMap) window.pasteBufferMap = new Map();
+
+    window.navigator.clipboard.readText()
+        .then(paste => window.pasteBufferMap.set(entity_index, new PasteData(paste, "")))
+        .catch(err => window.pasteBufferMap.set(entity_index, new PasteData("", err)));
+}
+
+function getPasteBuffer(entity_index) {
+    if (window.pasteBufferMap && window.pasteBufferMap.has(entity_index)) {
+        const clipboardData = window.pasteBufferMap.get(entity_index);
+        window.pasteBufferMap.delete(entity_index);
+        if (clipboardData.error) throw new clipboardData.error;
+        return clipboardData.paste
+    }
 }
 
 function detectMob() {

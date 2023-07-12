@@ -1,8 +1,9 @@
+#[cfg(target_arch = "wasm32")]
+use crate::ui::clipboard_util;
+use crate::ui::clipboard_util::Clipboard;
 use crate::ui::focus::{remove_focus_from_non_focused_entities, Focus, FocusSwitchedEvent};
 use crate::ui::input_consumption::{ActiveInputConsumerLayers, InputConsumerPriority};
 use bevy::prelude::*;
-#[cfg(not(target_arch = "wasm32"))]
-use clipboard::{ClipboardContext, ClipboardProvider};
 use std::time::Duration;
 
 /// Text input component, meant to be working together with [`Text`] and [`Focus<TextInput>`].
@@ -16,8 +17,8 @@ pub struct TextInput {
     pub text_style: TextStyle,
     pub cursor_position: usize,
     pub max_symbols: usize,
-    // regex: ...
-    // line_breaks_allowed: ...
+    pub line_breaks_allowed: bool,
+    // custom_regex: ...
 }
 
 impl Default for TextInput {
@@ -28,6 +29,7 @@ impl Default for TextInput {
             text_style: TextStyle::default(),
             cursor_position: 0,
             max_symbols: usize::MAX,
+            line_breaks_allowed: false,
         }
     }
 }
@@ -41,21 +43,30 @@ impl TextInput {
             text_style,
             cursor_position: initial_value.len(),
             max_symbols: usize::MAX,
+            line_breaks_allowed: false,
         }
     }
 
     /// Returns this [`TextInput`] with updated `max_symbols`.
-    pub fn with_max_symbols(mut self, max_symbols: usize) -> Self {
+    #[allow(unused)]
+    pub const fn with_max_symbols(mut self, max_symbols: usize) -> Self {
         self.max_symbols = max_symbols;
         self
     }
 
-    /*
+    /// Returns this [`TextInput`] with updated `line_breaks_allowed`.
+    #[allow(unused)]
+    pub const fn with_line_breaks_allowed(mut self, allowed: bool) -> Self {
+        self.line_breaks_allowed = allowed;
+        self
+    }
+
     /// Returns this [`TextInput`] with updated `cursor_position`.
-    pub fn with_cursor_position(mut self, cursor_position: usize) -> Self {
+    #[allow(unused)]
+    pub const fn with_cursor_position(mut self, cursor_position: usize) -> Self {
         self.cursor_position = cursor_position;
         self
-    } */
+    }
 
     /// Insert a `char` into the `text` at `cursor_position`.
     ///
@@ -131,23 +142,6 @@ impl TextInput {
     /// Shift `cursor_position` several positions to the right.
     pub fn shift_cursor_right(&mut self, steps: usize) {
         self.cursor_position = (self.cursor_position + steps).min(self.text.len());
-    }
-}
-
-/// Copy a string to the OS' clipboard.
-#[cfg(not(target_arch = "wasm32"))]
-fn copy_to_clipboard(contents: String) {
-    let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
-    ctx.set_contents(contents).unwrap();
-}
-
-/// Copy a string from the OS' clipboard.
-#[cfg(not(target_arch = "wasm32"))]
-fn paste_from_clipboard() -> String {
-    let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
-    match ctx.get_contents() {
-        Ok(contents) => contents,
-        Err(_) => String::new(), // Handle error (empty string in this case)
     }
 }
 
@@ -241,20 +235,21 @@ impl KeyPressTimeout {
 }
 
 /// System to handle text input on a focused [`TextInput`] component.
-#[cfg(not(target_arch = "wasm32"))]
 fn handle_text_input(
     mut text_query: Query<(
         &mut TextInput,
         &Focus<TextInput>,
         Option<&InputConsumerPriority>,
+        Entity,
     )>,
     mut characters_evs: EventReader<ReceivedCharacter>,
     keys: Res<Input<KeyCode>>,
     input_consumers: Res<ActiveInputConsumerLayers>,
     time: Res<Time>,
+    #[cfg(target_arch = "wasm32")] mut commands: Commands,
     mut key_handler: Local<KeyPressTimeout>,
 ) {
-    for (mut input, focus, maybe_input_consumer) in text_query.iter_mut() {
+    for (mut input, focus, maybe_input_consumer, _entity) in text_query.iter_mut() {
         if focus.is_none() {
             continue;
         }
@@ -268,14 +263,6 @@ fn handle_text_input(
         }
 
         key_handler.mark_not_handled();
-
-        key_handler.press_with_timeout(
-            KeyCode::Return,
-            &mut || {
-                input.insert('\n');
-            },
-            (&keys, &time),
-        );
 
         key_handler.press_with_timeout(
             KeyCode::Left,
@@ -307,19 +294,25 @@ fn handle_text_input(
 
         if keys.pressed(KeyCode::LControl) || keys.pressed(KeyCode::RControl) {
             if keys.just_pressed(KeyCode::C) {
-                copy_to_clipboard(input.text.clone());
+                Clipboard::write(input.text.clone());
                 key_handler.mark_handled();
             }
 
             if keys.just_pressed(KeyCode::X) {
-                copy_to_clipboard(input.reset_text());
+                Clipboard::write(input.reset_text());
                 key_handler.mark_handled();
             }
 
             key_handler.press_with_timeout(
                 KeyCode::V,
                 &mut || {
-                    input.insert_string(paste_from_clipboard());
+                    #[cfg(not(target_arch = "wasm32"))]
+                    input.insert_string(Clipboard::read());
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        crate::set_js_paste_buffer(entity.index());
+                        commands.entity(_entity).insert(clipboard_util::PasteJob);
+                    }
                 },
                 (&keys, &time),
             );
@@ -328,7 +321,11 @@ fn handle_text_input(
         if !key_handler.handled {
             for ev in characters_evs.iter() {
                 if ev.char.is_ascii_graphic() || ev.char.is_ascii_whitespace() {
-                    input.insert(ev.char);
+                    let is_allowed =
+                        input.line_breaks_allowed || (ev.char != '\n' && ev.char != '\r');
+                    if is_allowed {
+                        input.insert(ev.char);
+                    }
                 }
             }
         }
@@ -336,7 +333,37 @@ fn handle_text_input(
 }
 
 #[cfg(target_arch = "wasm32")]
-fn handle_text_input() {}
+fn handle_wasm_text_paste(
+    mut text_query: Query<(&mut TextInput, Entity), With<clipboard_util::PasteJob>>,
+    mut commands: Commands,
+) {
+    for (mut input, entity) in text_query.iter_mut() {
+        let reading: Result<Option<String>, wasm_bindgen::JsValue> =
+            crate::get_js_paste_buffer(entity.index());
+
+        // The promise has not yet been fulfilled.
+        if reading.as_ref().is_ok_and(|option| option.is_none()) {
+            continue;
+        }
+
+        if reading.is_err() {
+            error!(
+                "{}",
+                reading
+                    .unwrap_err()
+                    .as_string()
+                    .unwrap_or_else(|| "Failed to convert JS error message on pasting.".into())
+            );
+            continue;
+        }
+
+        let string = reading.unwrap().unwrap();
+        if !string.is_empty() {
+            input.insert_string(string);
+        }
+        commands.entity(entity).remove::<clipboard_util::PasteJob>();
+    }
+}
 
 /// System to transfer [`TextInput`]'s text to [`Text`] component.
 fn transfer_text_input(mut text_query: Query<(&mut Text, &TextInput), Changed<TextInput>>) {
@@ -369,17 +396,27 @@ pub(crate) struct TextInputPlugin;
 impl Plugin for TextInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<FocusSwitchedEvent<TextInput>>()
-            // todo think of a state for chat maybe
-            .add_system(handle_text_input_addition)
-            .add_systems(
-                (
-                    handle_text_input,
-                    transfer_text_input,
-                    handle_input_field_placeholder,
-                    handle_text_input_new_focus,
-                    remove_focus_from_non_focused_entities::<TextInput>,
-                )
-                    .after(handle_text_input_addition),
-            );
+            .add_system(handle_text_input_addition);
+
+        #[cfg(target_arch = "wasm32")]
+        if !crate::is_mobile() {
+            app.add_systems((
+                handle_text_input.after(handle_text_input_addition),
+                handle_wasm_text_paste,
+            ));
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        app.add_system(handle_text_input.after(handle_text_input_addition));
+
+        app.add_systems(
+            (
+                transfer_text_input,
+                handle_input_field_placeholder,
+                handle_text_input_new_focus,
+                remove_focus_from_non_focused_entities::<TextInput>,
+            )
+                .after(handle_text_input_addition),
+        );
     }
 }
