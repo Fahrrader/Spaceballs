@@ -7,7 +7,7 @@ before_script:
   - rustup target add wasm32-unknown-unknown
   # must keep this the same version as "wasm-bindgen" in Cargo.lock; an environment variable might be in order
   - cargo install -f wasm-bindgen-cli --version 0.2.84
-  - curl -fsSL https://deb.nodesource.com/setup_19.x | bash
+  - curl -fsSL https://deb.nodesource.com/setup_20.x | bash
   - apt-get install -y nodejs
   - cd web; npm ci; cd ..
 
