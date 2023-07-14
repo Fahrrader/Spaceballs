@@ -310,7 +310,7 @@ fn handle_text_input(
                     input.insert_string(Clipboard::read());
                     #[cfg(target_arch = "wasm32")]
                     {
-                        crate::set_js_paste_buffer(entity.index());
+                        crate::set_js_paste_buffer(_entity.index());
                         commands.entity(_entity).insert(clipboard_util::PasteJob);
                     }
                 },
