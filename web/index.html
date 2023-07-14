@@ -1,0 +1,151 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cosmic Spaceball Tactical Action Arena</title>
+    <style>
+      body {
+        background-color: #000000;
+        touch-action: none;
+        margin: 0px;
+        padding: 0px;
+        border: 0px;
+      }
+
+      canvas {
+        display: block;
+        margin: 0 auto;
+      }
+
+      canvas:focus {
+        outline: none;
+      }
+
+      .loader {
+        border: 16px solid #f3f3f3; /* Light grey */
+        border-top: 16px solid #00ffff; /* Blue */
+        border-radius: 50%;
+        width: 120px;
+        height: 120px;
+        position: absolute;
+        margin-top: -60px;
+        margin-left: -60px;
+        top: 50%;
+        left: 50%;
+        animation: spin 2s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      @media (orientation: portrait) {
+        :root {
+          --button-size: 100px;
+        }
+      }
+
+      @media (orientation: landscape) {
+        :root {
+          --button-size: 50px;
+        }
+      }
+
+      .controls_panel {
+        margin: 2.5%;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 95%;
+        visibility: hidden;
+      }
+
+      .controls_left {
+        float: left;
+      }
+
+      .controls_right {
+        float: right;
+      }
+
+      .button {
+        width: var(--button-size);
+        height: var(--button-size);
+        border-radius: calc(var(--button-size) / 2);
+        background-color: #eee;
+      }
+
+      .button p {
+        margin: 0px;
+        width: 100%;
+        text-align: center;
+        position: relative;
+        top: 50%;
+        transform: translate(0px, -50%);
+        font-size: calc(var(--button-size) * 0.5);
+        color:dimgray;
+      }
+
+      .controls_left .button {
+        position: absolute;
+        left: calc(var(--button-size) / 2);
+        bottom: calc(var(--button-size) / 2);
+      }
+
+      .controls_right .button {
+        position: absolute;
+        right: calc(var(--button-size) / 2);
+        bottom: calc(var(--button-size) / 2);
+      }
+
+      .rotate0 {transform: translate(calc(2 * var(--button-size)));}
+      .rotate45 {transform: rotate(-45deg) translate(calc(2 * var(--button-size))) rotate(45deg);}
+      .rotate90 {transform: rotate(-90deg) translate(calc(2 * var(--button-size))) rotate(90deg);}
+      .rotate180 {transform: rotate(-180deg) translate(calc(2 * var(--button-size))) rotate(180deg);}
+      .rotate135 {transform: rotate(-135deg) translate(calc(2 * var(--button-size))) rotate(135deg);}
+
+      .stick {
+        width: calc(var(--button-size) * 2);
+        height: calc(var(--button-size) * 2);
+        position: relative;
+        background-color: black;
+        display: inline-block;
+        margin: 0;
+      }
+    </style>
+  </head>
+
+
+  <body>
+    <div class="loader"></div>
+
+    <div class='controls_panel'>
+      <div class='controls_left'>
+        <div id="left_stick" class="stick"></div>
+        <div class='button rotate0 key_c'><p>C</p></div>
+        <div class="button rotate45 key_f"><p>F</p></div>
+        <div class="button rotate90 key_space"><p>S</p></div>
+      </div>
+
+      <div class='controls_right'>
+        <div id="right_stick" class="stick"></div>
+        <div class='button rotate180 key_c'><p>C</p></div>
+        <div class="button rotate135 key_f"><p>F</p></div>
+        <div class="button rotate90 key_space"><p>S</p></div>
+      </div>
+    </div>
+
+    <script type="module">
+      import init from './cosmic-spaceball-tactical-action-arena.js';
+      import {run} from './main.ts';
+
+      init()
+        .catch((e) => {
+          console.error(e, e.stack);
+        })
+        .finally(() => {
+          run();
+        });
+    </script>
+  </body>
+</html>

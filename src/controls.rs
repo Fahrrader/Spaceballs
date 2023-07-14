@@ -1,5 +1,7 @@
 use crate::actions::CharacterActionInput;
 use crate::characters::PlayerControlled;
+#[cfg(target_arch="wasm32")]
+use crate::js_interop::get_sticks_positions_from_js;
 use bevy::input::{Axis, Input};
 use bevy::prelude::{
     Commands, EventReader, Gamepad, GamepadAxis, GamepadAxisType, GamepadButton, GamepadButtonType,
@@ -124,6 +126,18 @@ pub fn handle_gamepad_connections(
                 }
             }
             _ => {}
+        }
+    }
+}
+
+pub fn handle_js_input(
+    mut query: Query<&mut CharacterActionInput, With<PlayerControlled>>,
+) {
+    #[cfg(target_arch="wasm32")] {
+        for mut player_actions in query.iter_mut() {
+            let js_input = get_sticks_positions_from_js();
+            player_actions.up += js_input[1];
+            player_actions.right += js_input[0];
         }
     }
 }
