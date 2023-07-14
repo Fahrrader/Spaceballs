@@ -5,7 +5,8 @@ variables:
 
 before_script:
   - rustup target add wasm32-unknown-unknown
-  - cargo install wasm-bindgen-cli
+  # must keep this the same version as "wasm-bindgen" in Cargo.lock; an environment variable might be in order
+  - cargo install -f wasm-bindgen-cli --version 0.2.84
   - curl -fsSL https://deb.nodesource.com/setup_19.x | bash
   - apt-get install -y nodejs
   - cd web; npm ci; cd ..
@@ -14,8 +15,6 @@ pages:
   stage: deploy
   script:
     - mkdir public
-    # the following is highly experimental and unorthodox
-    - cargo update -p wasm-bindgen
     - cargo build --release --target=wasm32-unknown-unknown
     - .cargo/bin/wasm-bindgen --no-typescript --out-dir ./web/ --target web target/wasm32-unknown-unknown/release/cosmic-spaceball-tactical-action-arena.wasm
     - cd web; npm run build; cd ..
