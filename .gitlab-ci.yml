@@ -14,6 +14,8 @@ pages:
   stage: deploy
   script:
     - mkdir public
+    # the following is highly experimental and unorthodox
+    - cargo update -p wasm-bindgen
     - cargo build --release --target=wasm32-unknown-unknown
     - .cargo/bin/wasm-bindgen --no-typescript --out-dir ./web/ --target web target/wasm32-unknown-unknown/release/cosmic-spaceball-tactical-action-arena.wasm
     - cd web; npm run build; cd ..
