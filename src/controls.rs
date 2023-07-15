@@ -102,6 +102,8 @@ pub fn process_input(
 
     if input_consumers.is_input_allowed_for_layer(&GAME_INPUT_LAYER) {
         process_keyboard_input(&mut player_actions, &keyboard);
+        #[cfg(target_arch = "wasm32")]
+        process_js_joysticks_input(&mut player_actions);
         process_gamepad_input(
             &mut player_actions,
             &connected_gamepad,
@@ -146,6 +148,15 @@ fn process_keyboard_input(actions: &mut CharacterActionInput, keyboard: &Input<K
     set_flag_if_keys_changed(&mut actions.reload, vec![KeyCode::R]);
     set_flag_if_keys_changed(&mut actions.interact_1, vec![KeyCode::F]);
     set_flag_if_keys_changed(&mut actions.interact_2, vec![KeyCode::C]);
+}
+
+#[cfg(target_arch = "wasm32")]
+fn process_js_joysticks_input(
+    actions: &mut CharacterActionInput,
+) {
+    let js_input = crate::js_interop::get_sticks_positions_from_js();
+    actions.up += js_input[1];
+    actions.right += js_input[0];
 }
 
 /*

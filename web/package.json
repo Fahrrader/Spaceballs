@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "name": "cosmic-spaceball-tactical-action-arena",
+  "source": "index.html",
+  "scripts": {
+    "start": "parcel",
+    "build": "parcel build"
+  },
+  "devDependencies": {
+    "parcel": "^2.8.3"
+  },
+  "dependencies": {
+    "nipplejs": "^0.10.1"
+  }
+}

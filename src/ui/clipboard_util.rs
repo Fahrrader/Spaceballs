@@ -57,7 +57,6 @@ fn read_from_clipboard() -> Result<String, String> {
         .map_err(|err| err.to_string())
 }
 
-// todo add `RUSTFLAGS=--cfg=web_sys_unstable_apis` to CI and Readme
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 /// Copy a string to the WebAssembly's clipboard.

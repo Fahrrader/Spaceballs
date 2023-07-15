@@ -1,8 +1,15 @@
+# npm stuff
+/web/dist
+/web/.parcel-cache
+/web/.cache
+/web/node_modules
+/web/cosmic-spaceball-tactical-action-arena*
+/web/snippets
+
 # Cargo
 /target
 
 # Local setup for convinience
-Makefile
 /public
 
 
@@ -16,8 +23,11 @@ Makefile
 # User-specific stuff
 .idea/**/workspace.xml
 .idea/**/tasks.xml
+.idea/**/vcs.xml
 .idea/**/usage.statistics.xml
+.idea/**/misc.xml
 .idea/**/dictionaries
+.idea/**/inspectionProfiles
 .idea/**/shelf
 
 # AWS User-specific
@@ -38,6 +48,9 @@ Makefile
 # Gradle
 .idea/**/gradle.xml
 .idea/**/libraries
+
+# Begone! If anything else comes up I'll ignore the whole dir instead
+.idea/**/.gitignore
 
 # Gradle and Maven with auto-import
 # When using Gradle or Maven with auto-import, you should exclude module files,

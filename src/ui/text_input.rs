@@ -310,7 +310,7 @@ fn handle_text_input(
                     input.insert_string(Clipboard::read());
                     #[cfg(target_arch = "wasm32")]
                     {
-                        crate::set_js_paste_buffer(_entity.index());
+                        crate::js_interop::set_js_paste_buffer(_entity.index());
                         commands.entity(_entity).insert(clipboard_util::PasteJob);
                     }
                 },
@@ -339,7 +339,7 @@ fn handle_wasm_text_paste(
 ) {
     for (mut input, entity) in text_query.iter_mut() {
         let reading: Result<Option<String>, wasm_bindgen::JsValue> =
-            crate::get_js_paste_buffer(entity.index());
+            crate::js_interop::get_js_paste_buffer(entity.index());
 
         // The promise has not yet been fulfilled.
         if reading.as_ref().is_ok_and(|option| option.is_none()) {
@@ -399,7 +399,7 @@ impl Plugin for TextInputPlugin {
             .add_system(handle_text_input_addition);
 
         #[cfg(target_arch = "wasm32")]
-        if !crate::is_mobile() {
+        if !crate::js_interop::is_mobile() {
             app.add_systems((
                 handle_text_input.after(handle_text_input_addition),
                 handle_wasm_text_paste,

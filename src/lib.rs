@@ -9,6 +9,8 @@ mod projectiles;
 mod scenes;
 mod teams;
 mod ui;
+#[cfg(target_arch = "wasm32")]
+mod js_interop;
 
 pub use ai::{handle_ai_input, AIActionRoutine};
 pub use characters::{
@@ -45,9 +47,6 @@ use bevy::core_pipeline::bloom::{BloomPrefilterSettings, BloomSettings};
 use bevy::reflect::ReflectFromReflect;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use clap::Parser;
-
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
 
 /// Client's current state of the game.
 #[derive(States, Clone, Default, Eq, PartialEq, Debug, Hash)]
@@ -173,10 +172,10 @@ pub fn calculate_main_camera_projection_scale(
 pub fn handle_browser_window_resizing(
     mut primary_window_query: Query<&mut Window, With<PrimaryWindow>>,
 ) {
-    if !detect_window_resize_from_js() {
+    if !js_interop::detect_window_resize_from_js() {
         return;
     }
-    let size = get_new_window_size_from_js();
+    let size = js_interop::get_new_window_size_from_js();
     for mut window in primary_window_query.iter_mut() {
         window.resolution = (size[0], size[1]).into();
     }
@@ -228,54 +227,5 @@ pub fn parse_scene_ext_input() -> Option<SceneSelector> {
 /// Try to get input from the JS side's URL arguments on which scene to load.
 #[cfg(target_arch = "wasm32")]
 pub fn parse_scene_ext_input() -> Option<SceneSelector> {
-    get_scene_from_js().try_into().ok()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[macro_export]
-macro_rules! log {
-    () => (println!());
-    ($($arg:tt)*) => ({
-        println!($($arg)*)
-    })
-}
-
-#[cfg(target_arch = "wasm32")]
-#[macro_export]
-macro_rules! log {
-    () => (log("\n"));
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(module = "/public/main.js")]
-extern "C" {
-    /// Get info from the browser with JS on whether the client is a phone or similar.
-    #[wasm_bindgen(js_name = detectMob)]
-    fn is_mobile() -> bool;
-
-    /// Get input from the JS side on which scene to load as an argument in its raw form.
-    #[wasm_bindgen(js_name = getSceneFromUrl)]
-    fn get_scene_from_js() -> String;
-
-    /// Ask JS whether the window size got changed lately.
-    #[wasm_bindgen(js_name = detectWindowResize)]
-    fn detect_window_resize_from_js() -> bool;
-
-    /// Take from JS its new window size.
-    #[wasm_bindgen(js_name = getNewWindowSize)]
-    fn get_new_window_size_from_js() -> Vec<f32>;
-
-    #[wasm_bindgen(js_name = setPasteBuffer)]
-    fn set_js_paste_buffer(entity_index: u32);
-
-    #[wasm_bindgen(catch, js_name = getPasteBuffer)]
-    fn get_js_paste_buffer(entity_index: u32) -> Result<Option<String>, JsValue>;
+    js_interop::get_scene_from_js().try_into().ok()
 }
