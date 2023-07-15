@@ -24,12 +24,10 @@ pages:
   artifacts:
     paths:
       - public
-  only:
-    - master
   rules:
-    - if: '$CI_MERGE_REQUEST_LABELS =~ /Do Not Deploy/'
-      when: never
-    - when: always
+    - if: '$CI_COMMIT_REF_NAME == "master" && $CI_MERGE_REQUEST_LABELS !~ /Do Not Deploy/'
+      when: always
+    - when: never
   cache:
     key: cargo_caches
     paths:
