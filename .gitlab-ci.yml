@@ -25,7 +25,8 @@ pages:
     paths:
       - public
   rules:
-    - if: '$CI_COMMIT_REF_NAME == "master" && $CI_MERGE_REQUEST_LABELS !~ /Do Not Deploy/'
+    # run only on master
+    - if: '$CI_COMMIT_REF_NAME == "master"'
       when: always
     - when: never
   cache:
@@ -38,11 +39,11 @@ pages:
   
 pages:review:
   extends: pages
-  only:
-    refs:
-      - merge_requests
-  except:
-    - master
+  rules:
+    # run only on merge requests and if the branch is not master
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_REF_NAME != "master" && $CI_MERGE_REQUEST_LABELS !~ /Do Not Deploy/'
+      when: always
+    - when: never
   environment:
     name: review/$CI_COMMIT_REF_NAME
     url: https://$CI_PROJECT_NAMESPACE.gitlab.io/-/$CI_PROJECT_NAME/-/jobs/$CI_JOB_ID/artifacts/public/index.html
