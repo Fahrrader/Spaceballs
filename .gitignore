@@ -12,6 +12,11 @@
 # Local setup for convinience
 /public
 
+# Executable artifacts
+*.exe
+
+# No. Begone!
+.idea
 
 # Created by https://www.toptal.com/developers/gitignore/api/macos,rust,windows,linux,clion,visualstudiocode,vim
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,rust,windows,linux,clion,visualstudiocode,vim
@@ -49,7 +54,7 @@
 .idea/**/gradle.xml
 .idea/**/libraries
 
-# Begone! If anything else comes up I'll ignore the whole dir instead
+# Begone! If anything else comes up I'll ignore the whole dir instead. EDIT: did.
 .idea/**/.gitignore
 
 # Gradle and Maven with auto-import

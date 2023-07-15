@@ -26,6 +26,10 @@ pages:
       - public
   only:
     - master
+  rules:
+    - if: '$CI_MERGE_REQUEST_LABELS =~ /Do Not Deploy/'
+      when: never
+    - when: always
   cache:
     key: cargo_caches
     paths:
