@@ -1,35 +1,15 @@
 image: rust:latest
 
-stages:
-  - check_labels
-  - prepare
-  - deploy
-
 variables:
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
 
-check_labels:
-  stage: check_labels
-  script:
-    - 'echo "Got a letter here. It says \"Do Not Deploy\". I wonder what it means..."'
-  rules:
-    - if: '$CI_MERGE_REQUEST_LABELS =~ /Do Not Deploy/'
-      when: never
-    - when: always
-
-prepare_pages:
-  stage: prepare
-  script:
-    - rustup target add wasm32-unknown-unknown
-    # must keep this the same version as "wasm-bindgen" in Cargo.lock; an environment variable might be in order
-    - cargo install -f wasm-bindgen-cli --version 0.2.87
-    - curl -fsSL https://deb.nodesource.com/setup_19.x | bash
-    - apt-get install -y nodejs
-    - cd web; npm install -g npm; npm ci; cd ..
-  rules:
-    - if: '$CI_MERGE_REQUEST_LABELS !~ /Do Not Deploy/'
-      when: always
-    - when: never
+before_script:
+  - rustup target add wasm32-unknown-unknown
+  # must keep this the same version as "wasm-bindgen" in Cargo.lock; an environment variable might be in order
+  - cargo install -f wasm-bindgen-cli --version 0.2.87
+  - curl -fsSL https://deb.nodesource.com/setup_19.x | bash
+  - apt-get install -y nodejs
+  - cd web; npm install -g npm; npm ci; cd ..
 
 pages:
   stage: deploy
@@ -45,8 +25,8 @@ pages:
     paths:
       - public
   rules:
-    # run only on master, when the label "Do Not Deploy" is not present (how, I wonder though)
-    - if: '$CI_COMMIT_REF_NAME == "master" && $CI_MERGE_REQUEST_LABELS !~ /Do Not Deploy/'
+    # run only on master
+    - if: '$CI_COMMIT_REF_NAME == "master"'
       when: always
     - when: never
   cache:
