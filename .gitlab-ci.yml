@@ -1,15 +1,35 @@
 image: rust:latest
 
+stages:
+  - check_labels
+  - prepare
+  - deploy
+
 variables:
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
 
-before_script:
-  - rustup target add wasm32-unknown-unknown
-  # must keep this the same version as "wasm-bindgen" in Cargo.lock; an environment variable might be in order
-  - cargo install -f wasm-bindgen-cli --version 0.2.87
-  - curl -fsSL https://deb.nodesource.com/setup_19.x | bash
-  - apt-get install -y nodejs
-  - cd web; npm install -g npm; npm ci; cd ..
+check_labels:
+  stage: check_labels
+  script:
+    - 'echo "Got a letter here. It says \"Do Not Deploy\". I wonder what it means..."'
+  rules:
+    - if: '$CI_MERGE_REQUEST_LABELS =~ /Do Not Deploy/'
+      when: never
+    - when: always
+
+prepare_pages:
+  stage: prepare
+  script:
+    - rustup target add wasm32-unknown-unknown
+    # must keep this the same version as "wasm-bindgen" in Cargo.lock; an environment variable might be in order
+    - cargo install -f wasm-bindgen-cli --version 0.2.87
+    - curl -fsSL https://deb.nodesource.com/setup_19.x | bash
+    - apt-get install -y nodejs
+    - cd web; npm install -g npm; npm ci; cd ..
+  rules:
+    - if: '$CI_MERGE_REQUEST_LABELS !~ /Do Not Deploy/'
+      when: always
+    - when: never
 
 pages:
   stage: deploy
@@ -25,8 +45,8 @@ pages:
     paths:
       - public
   rules:
-    # run only on master
-    - if: '$CI_COMMIT_REF_NAME == "master"'
+    # run only on master, when the label "Do Not Deploy" is not present (how, I wonder though)
+    - if: '$CI_COMMIT_REF_NAME == "master" && $CI_MERGE_REQUEST_LABELS !~ /Do Not Deploy/'
       when: always
     - when: never
   cache:
@@ -40,8 +60,8 @@ pages:
 pages:review:
   extends: pages
   rules:
-    # run only on merge requests and if the branch is not master
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_REF_NAME != "master" && $CI_MERGE_REQUEST_LABELS !~ /Do Not Deploy/'
+    # run only if the branch is not master and on merge requests, when the label "Do Not Deploy" is not present
+    - if: '$CI_COMMIT_REF_NAME != "master" && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_LABELS !~ /Do Not Deploy/'
       when: always
     - when: never
   environment:
