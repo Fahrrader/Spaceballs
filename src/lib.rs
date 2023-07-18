@@ -11,6 +11,7 @@ mod teams;
 mod ui;
 #[cfg(target_arch = "wasm32")]
 mod js_interop;
+mod easter;
 
 pub use ai::{handle_ai_input, AIActionRoutine};
 pub use characters::{
@@ -30,6 +31,7 @@ pub use physics::{
 };
 pub use projectiles::handle_bullet_collision_events;
 pub use scenes::{despawn_everything, summon_scene, SceneSelector};
+pub use easter::EasterAnnouncementPlugin;
 pub use teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 pub use ui::{MenuState, UIPlugins};
 

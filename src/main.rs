@@ -48,6 +48,7 @@ fn main() {
         .add_plugins(UIPlugins)
         .add_plugin(RapierPhysicsPlugin::<()>::default())
         .add_plugin(SpaceballsPhysicsPlugin)
+        .add_plugin(EasterAnnouncementPlugin)
         .configure_sets(
             // ggrs couldn't give two flying shits about this one
             (

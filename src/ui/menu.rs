@@ -114,10 +114,11 @@ build_menu_plugin!(
         ] + (
             ColorInteractionMap::from([
                 (Interaction::None, Some(DEFAULT_TEXT_COLOR.with_a(0.99))),
-                (Interaction::Hovered, Some(DEFAULT_TEXT_COLOR.with_a(0.99))),
+                // (Interaction::Hovered, Some(DEFAULT_TEXT_COLOR.with_a(0.99))),
                 (Interaction::Clicked, Some(colors::LEMON)),
             ]),
             Interaction::None,
+            crate::easter::EasterAnnouncerActivator,
         ),
     },
     Bottom {
