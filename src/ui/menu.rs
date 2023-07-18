@@ -149,32 +149,39 @@ build_menu_plugin!(
 
 build_menu_plugin!(
     (setup_pause_menu, Pause, PAUSE_INPUT_LAYER),
-    //once node_color = Color::TURQUOISE.with_a(0.05),
     once layout_height = Val::Percent(100.).into(),
     once layout_width = Val::Percent(50.).into(),
     justify_content = JustifyContent::Start.into(),
     once align_items = AlignItems::Center.into(),
-    button_width = Val::Px(280.),
+    button_width = Val::Px(380.),
     button_font_size = 30.,
     button_margin = UiRect::all(Val::Px(2.)),
     outline_width = Val::Px(0.),
     Left {
-        once align_items = AlignItems::Start.into(),
-        Column {
-            once text_color = colors::ORCHID.into(),
-            Text [
-                "Menu",
-            ],
-            Buttons [
-                (MenuButtonAction::Resume, "Resume"),
-                (MenuButtonAction::Controls, "Controls"),
-                (MenuButtonAction::QuitToTitle, "Quit to Main Menu"),
-            ],
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                Buttons [
-                    (MenuButtonAction::Quit, "Quit"),
+        once node_color = Color::WHITE.with_a(0.01),
+        once layout_height = Val::Px(420.).into(),
+        once layout_width = Val::Px(400.).into(),
+        once justify_content = JustifyContent::Center.into(),
+        Node {
+            once align_items = AlignItems::Start.into(),
+            once justify_content = JustifyContent::Center.into(),
+            once margin = UiRect::all(Val::Px(10.)).into(),
+            Column {
+                once text_color = colors::ORCHID.into(),
+                Text [
+                    "Menu",
                 ],
+                Buttons [
+                    (MenuButtonAction::Resume, "Resume"),
+                    (MenuButtonAction::Controls, "Controls"),
+                    (MenuButtonAction::QuitToTitle, "Quit to Main Menu"),
+                ],
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    Buttons [
+                        (MenuButtonAction::Quit, "Quit"),
+                    ],
+                },
             },
         },
     },
