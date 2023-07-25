@@ -1,8 +1,9 @@
 use crate::characters::{AICharacterBundle, BuildCharacter, PlayerCharacterBundle};
 use crate::network::session::{LocalPlayer, LocalPlayerHandle};
+use crate::physics::{Chunks, ChunksAnchor};
 use crate::{
-    EntropyGenerator, GunBundle, GunPreset, RectangularObstacleBundle, AI_DEFAULT_TEAM, CHUNK_SIZE,
-    PLAYER_DEFAULT_TEAM, SCREEN_SPAN,
+    Color, EntropyGenerator, GunBundle, GunPreset, RectangularObstacleBundle, AI_DEFAULT_TEAM,
+    PLAYER_DEFAULT_TEAM,
 };
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{
@@ -13,8 +14,8 @@ use std::f32::consts::PI;
 /// Specifier of the scene which to load.
 #[derive(clap::ValueEnum, Resource, Clone, Copy, Debug)]
 pub enum SceneSelector {
+    Main,
     Experimental,
-    Lite,
 }
 
 impl TryFrom<String> for SceneSelector {
@@ -22,8 +23,8 @@ impl TryFrom<String> for SceneSelector {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
+            "m" | "main" | "master" => Ok(SceneSelector::Main),
             "experimental" | "exp" | "e" => Ok(SceneSelector::Experimental),
-            "lite" | "l" => Ok(SceneSelector::Lite),
             _ => Err("Nothing too bad, should use the default scene"),
         }
     }
@@ -37,12 +38,12 @@ pub fn summon_scene(
     local_player_handle: Res<LocalPlayerHandle>,
 ) {
     match scene {
-        None => setup_lite(commands, random_state),
+        None => setup_main(commands, random_state),
         Some(scene) => match scene.into_inner() {
+            SceneSelector::Main => setup_main(commands, random_state),
             SceneSelector::Experimental => {
                 setup_experimental(commands, random_state, local_player_handle)
             }
-            SceneSelector::Lite => setup_lite(commands, random_state),
         },
     }
 }
@@ -121,9 +122,12 @@ pub fn setup_experimental(
     .spawn_with_equipment(&mut commands, random_state.fork(), vec![GunPreset::RailGun]);
 
     // Random wall in the middle
-    commands.spawn(RectangularObstacleBundle::new(Transform::from_scale(
-        Vec3::new(1.0, 2.0, 1.0),
-    )));
+    commands.spawn(RectangularObstacleBundle::new_chunk(
+        ChunksAnchor::Center,
+        ChunksAnchor::Center,
+        1.0,
+        2.0,
+    ));
 
     // Some minute trash - this system is going to get overhauled with repeated player spawn soon anyway.
     commands
@@ -135,8 +139,77 @@ pub fn setup_experimental(
 }
 
 /// Set up a lighter, stable scene. Considered default.
-pub fn setup_lite(mut commands: Commands, mut random_state: ResMut<EntropyGenerator>) {
+pub fn setup_main(mut commands: Commands, mut random_state: ResMut<EntropyGenerator>) {
     setup_base_arena(&mut commands);
+
+    // TOP BLOCK
+    commands.spawn(RectangularObstacleBundle::new_chunk(
+        ChunksAnchor::Center,
+        Chunks::Blocks(3.0),
+        Chunks::Screen(0.55) - 2.,
+        Chunks::Blocks(1.5),
+    ));
+
+    // LITTLE BLOCKS ENCLOSING THE TOP BLOCK
+    commands.spawn(RectangularObstacleBundle::new_chunk(
+        Chunks::Screen(-0.55 / 2.),
+        1.0,
+        1.,
+        2.,
+    ));
+    commands.spawn(RectangularObstacleBundle::new_chunk(
+        Chunks::Screen(0.55 / 2.).right(),
+        1.0,
+        // todo:physics allow negative scale to work like something from inside the usual dimension
+        1., // -1.,
+        2.,
+    ));
+
+    // ROTATED WEDGES SURROUNDING THE TOP BLOCK
+    let wedge_len = (1.5f32.powi(2) + 1.).sqrt();
+    commands.spawn(
+        RectangularObstacleBundle::new_chunk(
+            Chunks::Screen(-0.55 / 2.),
+            Chunks::Blocks(3.0),
+            1.5 / wedge_len,
+            wedge_len,
+        )
+        .with_rotation(-(1. / wedge_len).asin())
+        .with_color(Color::ORANGE_RED * 3.),
+    );
+    commands.spawn(
+        RectangularObstacleBundle::new_chunk(
+            Chunks::Screen(0.55 / 2.) - 1.,
+            Chunks::Blocks(4.5),
+            1.5 / wedge_len,
+            wedge_len,
+        )
+        .with_rotation(PI + (1. / wedge_len).asin())
+        .with_color(Color::ORANGE_RED * 3.),
+    );
+
+    // BOTTOM BLOCK
+    let bottom_block_len: Chunks = Chunks::Screen(0.5) - 3.;
+    commands.spawn(RectangularObstacleBundle::new_chunk(
+        ChunksAnchor::Center,
+        -Chunks::Screen(0.5) + 1.75,
+        2.5,
+        bottom_block_len,
+    ));
+
+    // SIDE BLOCKS
+    commands.spawn(RectangularObstacleBundle::new_chunk(
+        Chunks::Screen(-0.5),
+        -2.,
+        1.,
+        3.,
+    ));
+    commands.spawn(RectangularObstacleBundle::new_chunk(
+        Chunks::Screen(0.5).right(),
+        -2.,
+        1.,
+        3.,
+    ));
 
     let player_entity = PlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0)
         .spawn_with_equipment(&mut commands, random_state.fork(), vec![GunPreset::Regular])[0];
@@ -147,33 +220,30 @@ pub fn setup_lite(mut commands: Commands, mut random_state: ResMut<EntropyGenera
 /// Set up common stuff attributable to all levels.
 fn setup_base_arena(commands: &mut Commands) {
     // ----- Walls of the arena
-    commands.spawn(RectangularObstacleBundle::new(
-        Transform::from_translation(Vec3::X * -SCREEN_SPAN / 2.0).with_scale(Vec3::new(
-            0.5,
-            SCREEN_SPAN / CHUNK_SIZE + 0.5,
-            1.0,
-        )),
+    commands.spawn(RectangularObstacleBundle::new_chunk(
+        Chunks::Screen(-0.5) - 0.5 / 2.,
+        Chunks::Screen(-0.5) - 0.5 / 2.,
+        0.5,
+        Chunks::Screen(1.0) + 0.5,
     ));
-    commands.spawn(RectangularObstacleBundle::new(
-        Transform::from_translation(Vec3::X * SCREEN_SPAN / 2.0).with_scale(Vec3::new(
-            0.5,
-            SCREEN_SPAN / CHUNK_SIZE + 0.5,
-            1.0,
-        )),
+    commands.spawn(RectangularObstacleBundle::new_chunk(
+        Chunks::Screen(-0.5) - 0.5 / 2.,
+        Chunks::Screen(-0.5) - 0.5 / 2.,
+        Chunks::Screen(1.0) + 0.5,
+        0.5,
     ));
-    commands.spawn(RectangularObstacleBundle::new(
-        Transform::from_translation(Vec3::Y * SCREEN_SPAN / 2.0).with_scale(Vec3::new(
-            SCREEN_SPAN / CHUNK_SIZE + 0.5,
-            0.5,
-            1.0,
-        )),
+    commands.spawn(RectangularObstacleBundle::new_chunk(
+        Chunks::Screen(0.5) - 0.5 / 2.,
+        Chunks::Screen(-0.5) - 0.5 / 2.,
+        0.5,
+        // make it pretty with Chunks::Screen(-1.0) of negative scale once physics are overhauled
+        Chunks::Screen(1.0) + 0.5,
     ));
-    commands.spawn(RectangularObstacleBundle::new(
-        Transform::from_translation(Vec3::Y * -SCREEN_SPAN / 2.0).with_scale(Vec3::new(
-            SCREEN_SPAN / CHUNK_SIZE + 0.5,
-            0.5,
-            1.0,
-        )),
+    commands.spawn(RectangularObstacleBundle::new_chunk(
+        Chunks::Screen(-0.5) - 0.5 / 2.,
+        Chunks::Screen(0.5) - 0.5 / 2.,
+        Chunks::Screen(1.0) + 0.5,
+        0.5,
     ));
     // Walls of the arena -----
 }

@@ -205,7 +205,7 @@ build_menu_plugin!(
                 button_width = Val::Px(330.0),
                 button_height = Val::Px(165.0),
                 Buttons [
-                    (MenuButtonAction::SelectScene(SceneSelector::Lite), "Scene\nLite"),
+                    (MenuButtonAction::SelectScene(SceneSelector::Main), "Scene\nMain"),
                     (MenuButtonAction::SelectScene(SceneSelector::Experimental), "Scene\nExperimental"),
                 ],
             },
@@ -313,7 +313,7 @@ build_menu_plugin!(
                 button_width = Val::Px(330.0),
                 button_height = Val::Px(165.0),
                 Buttons [
-                    (MenuButtonAction::SelectScene(SceneSelector::Lite), "Scene\nLite"),
+                    (MenuButtonAction::SelectScene(SceneSelector::Main), "Scene\nMain"),
                     (MenuButtonAction::SelectScene(SceneSelector::Experimental), "Scene\nExperimental"),
                 ],
             },

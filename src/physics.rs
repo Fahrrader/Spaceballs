@@ -3,8 +3,8 @@ use bevy::ecs::query::{ReadOnlyWorldQuery, WorldQuery};
 use bevy::math::Vec3;
 use bevy::prelude::{
     default, App, Bundle, Color, Commands, Component, CoreSet, DespawnRecursiveExt, Entity,
-    EventReader, FromReflect, IntoSystemConfig, Plugin, Query, Reflect, RemovedComponents, Sprite,
-    SpriteBundle, Transform, With,
+    EventReader, FromReflect, IntoSystemConfig, Plugin, Quat, Query, Reflect, RemovedComponents,
+    Sprite, SpriteBundle, Transform, With,
 };
 use bevy::utils::HashSet;
 use bevy_rapier2d::prelude::*;
@@ -16,6 +16,7 @@ pub use bevy_rapier2d::prelude::{
 
 /// The size of a standard world cell chunk. Useful to keep about the same as a character's body size to configure the terrain easier.
 pub const CHUNK_SIZE: f32 = 50.0;
+pub const CHUNKS_ON_SCREEN_SIDE: f32 = SCREEN_SPAN / CHUNK_SIZE;
 pub const DEFAULT_OBSTACLE_COLOR: Color = Color::WHITE;
 
 /// Collection of components desired for physics and collision simulation.
@@ -132,7 +133,8 @@ impl Default for RectangularObstacleBundle {
 }
 
 impl RectangularObstacleBundle {
-    /// Make a thing that stuff can't pass through. Warning: calculates its size based on the scale given and the normal obstacle size.
+    /// Makes a thing that stuff can't pass through. Takes in a transform with positional, rotational and scaling values.
+    /// To create an obstacle with multiples of the translation and scale by [`CHUNK_SIZE`], see `new_chunk`.
     pub fn new(transform: Transform) -> Self {
         Self {
             collider: popular_collider::square(1.0),
@@ -141,11 +143,198 @@ impl RectangularObstacleBundle {
                     color: DEFAULT_OBSTACLE_COLOR,
                     ..default()
                 },
-                transform: transform.with_scale(transform.scale * CHUNK_SIZE),
+                transform,
                 ..default()
             },
             ..default()
         }
+    }
+
+    pub fn new_chunk(
+        x: impl Into<AnchoredChunks>,
+        y: impl Into<AnchoredChunks>,
+        width: impl Into<Chunks>,
+        height: impl Into<Chunks>,
+    ) -> Self {
+        let width = width.into().to_px();
+        let height = height.into().to_px();
+        Self::new(
+            Transform::from_translation(Vec3::new(
+                x.into().evaluate(width),
+                y.into().evaluate(height),
+                0.0,
+            ))
+            .with_scale(Vec3::new(width, height, 1.0)),
+        )
+    }
+
+    pub fn with_rotation(mut self, angle: f32) -> Self {
+        let rot = Quat::from_rotation_z(angle);
+        let scale = self.sprite_bundle.transform.scale;
+        let pivot_offset = Vec3::new(scale.x / 2.0, scale.y / 2.0, 0.0);
+
+        self.sprite_bundle.transform.translation +=
+            rot * pivot_offset - self.sprite_bundle.transform.rotation * pivot_offset;
+        self.sprite_bundle.transform.rotation = rot;
+
+        self
+    }
+
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.sprite_bundle.sprite.color = color;
+        self
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Chunks {
+    Blocks(f32),
+    Screen(f32),
+}
+
+impl Chunks {
+    pub fn to_px(self) -> f32 {
+        match self {
+            Chunks::Blocks(chunks) => chunks * CHUNK_SIZE,
+            Chunks::Screen(fraction) => fraction * SCREEN_SPAN,
+        }
+    }
+
+    pub fn to_blocks(self) -> f32 {
+        match self {
+            Chunks::Blocks(chunks) => chunks,
+            Chunks::Screen(fraction) => fraction * CHUNKS_ON_SCREEN_SIDE,
+        }
+    }
+
+    pub fn left(self) -> AnchoredChunks {
+        AnchoredChunks(self, ChunksAnchor::Start)
+    }
+    pub fn top(self) -> AnchoredChunks {
+        AnchoredChunks(self, ChunksAnchor::Start)
+    }
+    pub fn center(self) -> AnchoredChunks {
+        AnchoredChunks(self, ChunksAnchor::Center)
+    }
+    pub fn right(self) -> AnchoredChunks {
+        AnchoredChunks(self, ChunksAnchor::End)
+    }
+    pub fn bottom(self) -> AnchoredChunks {
+        AnchoredChunks(self, ChunksAnchor::End)
+    }
+}
+
+impl Into<Chunks> for f32 {
+    fn into(self) -> Chunks {
+        Chunks::Blocks(self)
+    }
+}
+
+impl Default for Chunks {
+    fn default() -> Self {
+        Self::Blocks(0.0)
+    }
+}
+
+impl std::ops::Add<f32> for Chunks {
+    type Output = Self;
+    #[inline]
+    fn add(self, rhs: f32) -> Self {
+        match self {
+            Chunks::Blocks(blocks) => Chunks::Blocks(blocks + rhs),
+            chunks => Chunks::Blocks(chunks.to_blocks() + rhs),
+        }
+    }
+}
+
+impl std::ops::Sub<f32> for Chunks {
+    type Output = Self;
+    #[inline]
+    fn sub(self, rhs: f32) -> Self {
+        match self {
+            Chunks::Blocks(blocks) => Chunks::Blocks(blocks - rhs),
+            chunks => Chunks::Blocks(chunks.to_blocks() - rhs),
+        }
+    }
+}
+
+impl std::ops::Neg for Chunks {
+    type Output = Self;
+    #[inline]
+    fn neg(self) -> Self {
+        match self {
+            Chunks::Blocks(blocks) => Chunks::Blocks(-blocks),
+            Chunks::Screen(fraction) => Chunks::Screen(-fraction),
+        }
+    }
+}
+
+#[derive(Default, Debug, Copy, Clone)]
+pub enum ChunksAnchor {
+    #[default]
+    Start,
+    Center,
+    End,
+}
+
+pub struct AnchoredChunks(pub Chunks, pub ChunksAnchor);
+
+impl AnchoredChunks {
+    pub fn evaluate(self, width: f32) -> f32 {
+        let pos = self.0.to_px();
+        match self.1 {
+            ChunksAnchor::Start => pos + width / 2.,
+            ChunksAnchor::Center => pos,
+            ChunksAnchor::End => pos - width / 2.,
+        }
+    }
+}
+
+impl Into<AnchoredChunks> for f32 {
+    fn into(self) -> AnchoredChunks {
+        Into::<Chunks>::into(self).into()
+    }
+}
+
+impl Into<AnchoredChunks> for Chunks {
+    fn into(self) -> AnchoredChunks {
+        AnchoredChunks(self, ChunksAnchor::default())
+    }
+}
+
+impl Into<AnchoredChunks> for ChunksAnchor {
+    fn into(self) -> AnchoredChunks {
+        AnchoredChunks(Chunks::default(), self)
+    }
+}
+
+impl Into<AnchoredChunks> for (Chunks, ChunksAnchor) {
+    fn into(self) -> AnchoredChunks {
+        AnchoredChunks(self.0, self.1)
+    }
+}
+
+impl std::ops::Add<f32> for AnchoredChunks {
+    type Output = Self;
+    #[inline]
+    fn add(self, rhs: f32) -> Self {
+        AnchoredChunks(self.0 + rhs, self.1)
+    }
+}
+
+impl std::ops::Sub<f32> for AnchoredChunks {
+    type Output = Self;
+    #[inline]
+    fn sub(self, rhs: f32) -> Self {
+        AnchoredChunks(self.0 - rhs, self.1)
+    }
+}
+
+impl std::ops::Neg for AnchoredChunks {
+    type Output = Self;
+    #[inline]
+    fn neg(self) -> Self {
+        AnchoredChunks(-self.0, self.1)
     }
 }
 
