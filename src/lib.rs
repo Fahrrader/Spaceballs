@@ -1,17 +1,17 @@
 mod ai;
 mod characters;
 mod controls;
+mod easter;
 mod guns;
 mod health;
+#[cfg(target_arch = "wasm32")]
+mod js_interop;
 mod network;
 mod physics;
 mod projectiles;
 mod scenes;
 mod teams;
 mod ui;
-#[cfg(target_arch = "wasm32")]
-mod js_interop;
-mod easter;
 
 pub use ai::{handle_ai_input, AIActionRoutine};
 pub use characters::{
@@ -22,16 +22,16 @@ pub use controls::{
     handle_gamepad_connections, handle_online_player_input, handle_pause_input, process_input,
     CharacterActionInput, InputHandlingSet,
 };
+pub use easter::EasterAnnouncementPlugin;
 pub use guns::{systems::*, Equipped, Gun, GunBundle, GunPreset};
 pub use health::{handle_death, Dying, Health};
 pub use network::{GGRSConfig, GGRSPlugin, GGRSSchedule, MultiplayerPlugins, PlayerCount};
 pub use physics::{
     handle_entities_out_of_bounds, ActiveEvents, RectangularObstacleBundle, Sleeping,
-    SpaceballsPhysicsPlugin, Velocity, CHUNK_SIZE,
+    SpaceballsPhysicsPlugin, Velocity, CHUNKS_ON_SCREEN_SIDE, CHUNK_SIZE,
 };
 pub use projectiles::handle_bullet_collision_events;
 pub use scenes::{despawn_everything, summon_scene, SceneSelector};
-pub use easter::EasterAnnouncementPlugin;
 pub use teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 pub use ui::{MenuState, UIPlugins};
 

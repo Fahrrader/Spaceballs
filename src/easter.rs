@@ -1,8 +1,8 @@
 //! What have I done, sweet Jesus, what have I done
 //! probably delete this later, it's making me uncomfortable
 
-use bevy::prelude::*;
 use crate::GameState;
+use bevy::prelude::*;
 
 #[derive(Default, Debug, Resource)]
 struct EasterGreeting(bool);
@@ -14,12 +14,18 @@ fn activate_easter_greeting(
     activators: Query<&Interaction, (With<EasterAnnouncerActivator>, Changed<Interaction>)>,
     mut greeting: ResMut<EasterGreeting>,
 ) {
-    activators.for_each(|interaction| if *interaction == Interaction::Clicked {
-        greeting.0 = !greeting.0;
+    activators.for_each(|interaction| {
+        if *interaction == Interaction::Clicked {
+            greeting.0 = !greeting.0;
+        }
     });
 }
 
-fn play_easter_greeting(asset_server: Res<AssetServer>, audio: Res<Audio>, should_play: Res<EasterGreeting>) {
+fn play_easter_greeting(
+    asset_server: Res<AssetServer>,
+    audio: Res<Audio>,
+    should_play: Res<EasterGreeting>,
+) {
     if !should_play.0 {
         return;
     }

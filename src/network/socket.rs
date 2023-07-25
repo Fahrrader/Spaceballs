@@ -136,7 +136,7 @@ pub fn start_matchbox_socket(
             Some(3),
         )
     } else {
-        ("ws://localhost/spaceballs?next=".to_string(), None)
+        ("ws://localhost".to_string(), None)
     };
     info!("Connecting to Matchbox server: {:?}", room_url);
     commands.insert_resource(SpaceballSocket::from(

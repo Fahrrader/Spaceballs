@@ -151,9 +151,7 @@ fn process_keyboard_input(actions: &mut CharacterActionInput, keyboard: &Input<K
 }
 
 #[cfg(target_arch = "wasm32")]
-fn process_js_joysticks_input(
-    actions: &mut CharacterActionInput,
-) {
+fn process_js_joysticks_input(actions: &mut CharacterActionInput) {
     let js_input = crate::js_interop::get_sticks_positions_from_js();
     actions.up += js_input[1];
     actions.right += js_input[0];
