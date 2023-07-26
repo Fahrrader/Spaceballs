@@ -23,7 +23,7 @@ pub use controls::{
     CharacterActionInput, InputHandlingSet,
 };
 pub use easter::EasterAnnouncementPlugin;
-pub use guns::{systems::*, Equipped, Gun, GunBundle, GunPreset};
+pub use guns::{systems::*, Equipped, Gun, GunBundle, GunPreset, LastUnequippedAt};
 pub use health::{handle_death, Dying, Health};
 pub use network::{
     GGRSConfig, GGRSPlugin, GGRSSchedule, MultiplayerPlugins, PlayerCount, PlayerDied, PlayerJoined,
@@ -129,6 +129,14 @@ impl EntropyGenerator {
 impl Default for EntropyGenerator {
     fn default() -> Self {
         Self::new(42)
+    }
+}
+
+impl std::ops::Deref for EntropyGenerator {
+    type Target = StdRng;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

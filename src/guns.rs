@@ -43,6 +43,9 @@ const GUN_VELOCITY_DAMPING_RATIO: f32 = 1.15;
 /// Make it visible!
 const GUN_Z_LAYER: f32 = 5.0;
 
+/// Maximum number of unequipped guns in the world before they start disappearing.
+const MAX_FREE_WEAPONS: usize = 5;
+
 /// Collection of components making up a gun entity. Starts independent and has to be equipped.
 /// Note that the kinematics bundle will be stripped when equipped.
 #[derive(Bundle)]
@@ -338,6 +341,10 @@ pub struct Equipped {
     pub by: Option<Entity>,
 }
 
+/// Component telling when, at what time this entity has been last unequipped.
+#[derive(Component, Debug, Default, PartialEq, Reflect, FromReflect)]
+pub struct LastUnequippedAt(pub Duration);
+
 pub mod systems {
     pub use super::additives::systems::*;
     use super::*;
@@ -473,5 +480,25 @@ pub mod systems {
                 *body_type = RigidBody::Fixed;
             }
         }
+    }
+
+    /// System to clean up guns when there are too many free ones in the world.
+    pub fn handle_gun_cleanup(
+        mut commands: Commands,
+        query_weapons: Query<(Entity, &LastUnequippedAt), (With<Gun>, Without<Equipped>)>,
+    ) {
+        if query_weapons.iter().len() <= MAX_FREE_WEAPONS {
+            return;
+        }
+
+        let mut oldest = (Duration::from_secs(u64::MAX), Entity::PLACEHOLDER);
+
+        for (entity, last_unequipped) in query_weapons.iter() {
+            if last_unequipped.0 < oldest.0 {
+                oldest = (last_unequipped.0, entity);
+            }
+        }
+
+        commands.entity(oldest.1).despawn();
     }
 }

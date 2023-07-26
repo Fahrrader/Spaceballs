@@ -1,5 +1,5 @@
 use crate::characters::{AICharacterBundle, BuildCharacter, PlayerCharacterBundle};
-use crate::network::session::{LocalPlayer, LocalPlayerHandle};
+use crate::network::session::{LocalPlayer, LocalPlayerHandle, MAINTAINED_FPS};
 use crate::network::PlayerHandle;
 use crate::physics::{Chunks, ChunksAnchor};
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{
     default, Bundle, Camera, Commands, Component, Entity, EventReader, FromReflect, Query, Reflect,
-    Res, ResMut, Resource, Time, Timer, Transform, Window, Without,
+    Res, ResMut, Resource, Timer, Transform, Window, Without,
 };
 use bevy::reflect::ReflectFromReflect;
 use std::collections::VecDeque;
@@ -405,7 +405,7 @@ pub fn handle_respawn_point_occupation(
 
         if let Some(player_to_spawn) = spawn_queue.0.pop_front() {
             spawn_point.occupy(player_to_spawn.0);
-            if player_to_spawn.1 {
+            if !player_to_spawn.1 {
                 spawn_point.skip_timeout();
             }
             sprite.color = Color::CYAN * 3.;
@@ -417,7 +417,6 @@ pub fn handle_respawn_point_occupation(
 
 pub fn handle_player_respawning(
     mut commands: Commands,
-    time: Res<Time>,
     mut spawn_point_query: Query<(
         &mut SpawnPoint,
         &Transform,
@@ -426,7 +425,9 @@ pub fn handle_player_respawning(
     mut random_state: ResMut<EntropyGenerator>,
 ) {
     for (mut spawn_point, transform, mut sprite) in spawn_point_query.iter_mut() {
-        if spawn_point.is_free() || !spawn_point.tick(time.delta()) {
+        if spawn_point.is_free()
+            || !spawn_point.tick(Duration::from_secs_f64(1. / MAINTAINED_FPS as f64))
+        {
             continue;
         }
 
@@ -437,16 +438,19 @@ pub fn handle_player_respawning(
                 .occupant_handle
                 .expect("Spawn beacon is occupied, but occupant handle is None? Preposterous!"),
         )
-        .spawn_with_equipment(&mut commands, random_state.fork(), vec![GunPreset::Regular])[0];
+        .spawn_with_equipment(
+            &mut commands,
+            random_state.fork(),
+            vec![GunPreset::random(&mut random_state.0)],
+        )[0];
 
+        // todo
         commands.entity(player_entity).insert(LocalPlayer);
 
         spawn_point.free();
         sprite.color = Color::TOMATO * 2.
     }
 }
-
-// todo clean up extra guns on the floor
 
 pub fn reset_spawn_queue(mut spawn_queue: ResMut<SpawnQueue>) {
     spawn_queue.0.clear();

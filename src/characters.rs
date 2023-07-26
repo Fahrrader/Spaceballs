@@ -1,6 +1,6 @@
 use crate::ai::AIActionRoutine;
 use crate::controls::CharacterActionInput;
-use crate::guns::{Equipped, Gun, GunBundle, GunPreset};
+use crate::guns::{Equipped, Gun, GunBundle, GunPreset, LastUnequippedAt};
 use crate::health::{Health, HitPoints};
 use crate::network::PlayerHandle;
 use crate::physics::{
@@ -12,11 +12,12 @@ use crate::EntropyGenerator;
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{Vec2, Vec3};
 use bevy::prelude::{
-    Bundle, Changed, Commands, Component, Entity, Query, Sprite, SpriteBundle, Transform, With,
-    Without,
+    Bundle, Changed, Commands, Component, Entity, Query, Res, Sprite, SpriteBundle, Time,
+    Transform, With, Without,
 };
 use bevy::utils::default;
 use std::f32::consts::PI;
+use std::time::Duration;
 
 // todo resize all sizes and speeds as percentages of screen-range
 /// Standard size for a character body in the prime time of their life.
@@ -216,10 +217,16 @@ fn equip_gear(
 
 /// Un-attach something equipped on some entity and give it physics.
 /// No safety checks are made.
-fn unequip_gear(commands: &mut Commands, gear_entity: Entity, kinematics: KinematicsBundle) {
+fn unequip_gear(
+    commands: &mut Commands,
+    gear_entity: Entity,
+    kinematics: KinematicsBundle,
+    time: Duration,
+) {
     commands
         .entity(gear_entity)
         .insert(Equipped { by: None })
+        .insert(LastUnequippedAt(time))
         .insert(kinematics);
 }
 
@@ -232,6 +239,7 @@ fn throw_away_gear(
     gun_type: GunPreset,
     gear_transform: &mut Transform,
     gear_given_velocity: Vec3,
+    time: Duration,
 ) {
     let kinematics = gun_type
         .stats()
@@ -240,7 +248,7 @@ fn throw_away_gear(
         .with_angular_velocity(GUN_THROW_SPIN_SPEED)
         .with_rigidbody_type(RigidBody::Dynamic);
 
-    unequip_gear(commands, gear_entity, kinematics);
+    unequip_gear(commands, gear_entity, kinematics, time);
 
     let gear_offset_forward = char_transform.up() * char_transform.scale.y * CHARACTER_SIZE / 2.;
     *gear_transform = Transform::from_translation(
@@ -307,6 +315,7 @@ pub fn handle_letting_gear_go(
         ),
         Without<Equipped>,
     >,
+    time: Res<Time>,
     // todo maybe events? or some other sophisticated way with physics
     mut query_gear: Query<(&Gun, &mut Transform), With<Equipped>>,
 ) {
@@ -332,6 +341,7 @@ pub fn handle_letting_gear_go(
                     gun.preset,
                     &mut gun_transform,
                     gun_velocity,
+                    time.elapsed(),
                 );
             }
         }

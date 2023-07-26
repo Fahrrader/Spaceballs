@@ -8,6 +8,7 @@ use crate::ui::colors;
 use bevy::ecs::system::EntityCommands;
 use bevy::prelude::Color;
 use bevy::reflect::{FromReflect, Reflect};
+use rand::Rng;
 use std::f32::consts::PI;
 use std::time::Duration;
 
@@ -79,6 +80,18 @@ impl GunPreset {
             GunPreset::Typhoon => &TYPHOON,
             GunPreset::RailGun => &RAILGUN,
             GunPreset::LaserGun => &LASER_GUN,
+        }
+    }
+
+    pub fn random<R: Rng + ?Sized>(rng: &mut R) -> GunPreset {
+        match rng.gen_range(0..5) {
+            0 => GunPreset::Imprecise,
+            1 => GunPreset::RailGun,
+            2 => GunPreset::Scattershot,
+            3 => GunPreset::Typhoon,
+            4 => GunPreset::LaserGun,
+            // 0 .. 5 would never reach Regular; we don't serve default in this establishment
+            _ => GunPreset::Regular,
         }
     }
 

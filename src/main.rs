@@ -24,6 +24,7 @@ fn main() {
         .register_rollback_component::<AIActionRoutine>()
         .register_rollback_component::<Gun>()
         .register_rollback_component::<Equipped>()
+        .register_rollback_component::<LastUnequippedAt>()
         .register_rollback_component::<Health>()
         .register_rollback_component::<Dying>()
         // .register_rollback_component::<Children>()
@@ -89,6 +90,7 @@ fn main() {
                 handle_gunfire,
                 handle_letting_gear_go,
                 handle_gun_picking,
+                handle_gun_cleanup,
                 handle_inventory_layout_change,
                 handle_gun_arriving_at_rest,
                 handle_bullet_collision_events,
