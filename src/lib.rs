@@ -25,13 +25,18 @@ pub use controls::{
 pub use easter::EasterAnnouncementPlugin;
 pub use guns::{systems::*, Equipped, Gun, GunBundle, GunPreset};
 pub use health::{handle_death, Dying, Health};
-pub use network::{GGRSConfig, GGRSPlugin, GGRSSchedule, MultiplayerPlugins, PlayerCount};
+pub use network::{
+    GGRSConfig, GGRSPlugin, GGRSSchedule, MultiplayerPlugins, PlayerCount, PlayerDied, PlayerJoined,
+};
 pub use physics::{
     handle_entities_out_of_bounds, ActiveEvents, RectangularObstacleBundle, Sleeping,
     SpaceballsPhysicsPlugin, Velocity, CHUNKS_ON_SCREEN_SIDE, CHUNK_SIZE,
 };
 pub use projectiles::handle_bullet_collision_events;
-pub use scenes::{despawn_everything, summon_scene, SceneSelector};
+pub use scenes::{
+    despawn_everything, handle_player_respawning, handle_respawn_point_occupation,
+    reset_spawn_queue, summon_scene, SceneSelector, SpawnQueue,
+};
 pub use teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 pub use ui::{MenuState, UIPlugins};
 
@@ -123,8 +128,12 @@ impl EntropyGenerator {
 
 impl Default for EntropyGenerator {
     fn default() -> Self {
-        Self::new(0)
+        Self::new(42)
     }
+}
+
+pub fn reset_entropy(mut entropy: ResMut<EntropyGenerator>) {
+    *entropy = EntropyGenerator::default();
 }
 
 /// The size of a side of the arena, in in-game units of distance.

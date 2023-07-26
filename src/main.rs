@@ -14,6 +14,7 @@ fn main() {
     GGRSPlugin::<GGRSConfig>::new()
         .with_input_system(process_input)
         .register_rollback_resource::<EntropyGenerator>()
+        .register_rollback_resource::<SpawnQueue>()
         .register_rollback_component::<GlobalTransform>()
         .register_rollback_component::<Transform>()
         .register_rollback_component::<Velocity>()
@@ -33,11 +34,13 @@ fn main() {
         .add_plugin(FrameTimeDiagnosticsPlugin::default());
 
     app.insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(EntropyGenerator::new(42))
+        .init_resource::<EntropyGenerator>()
         .insert_resource(RapierConfiguration {
             gravity: Vec2::default(),
             ..default()
         })
+        // probably displace to plugin
+        .init_resource::<SpawnQueue>()
         .add_state::<GameState>()
         .add_event::<GamePauseEvent>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -58,7 +61,13 @@ fn main() {
                 .chain(),
         )
         .add_startup_system(standard_setup)
+        .add_system(
+            reset_entropy
+                .in_schedule(OnEnter(GameState::InGame))
+                .in_base_set(CoreSet::PreUpdate),
+        )
         .add_system(summon_scene.in_schedule(OnEnter(GameState::InGame)))
+        // maybe just despawn literally everything, but make `standard_setup` apply
         .add_system(despawn_everything.in_schedule(OnEnter(GameState::MainMenu)))
         .add_system(handle_gamepad_connections)
         // todo:mp action routine gets abnormally long if in rollback together with ai input, might be interesting to look into
@@ -91,6 +100,17 @@ fn main() {
                 .after(InputHandlingSet::InputReading)
                 .in_schedule(GGRSSchedule),
         )
+        .add_systems(
+            (
+                // todo:mp
+                // handle_respawn_point_occupation,
+                handle_player_respawning.before(handle_gunfire),
+            )
+                .chain()
+                .in_schedule(GGRSSchedule),
+        )
+        .add_system(handle_respawn_point_occupation.run_if(in_state(GameState::InGame)))
+        .add_system(reset_spawn_queue.in_schedule(OnExit(GameState::InGame)))
         .add_system(handle_pause_input.run_if(in_state(GameState::InGame)))
         .add_system(handle_entities_out_of_bounds)
         .add_systems((

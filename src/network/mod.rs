@@ -9,6 +9,7 @@ use bevy::app::PluginGroupBuilder;
 pub use bevy_ggrs::{GGRSPlugin, GGRSSchedule};
 pub use controls::GGRSInput;
 pub use ggrs_config::{GGRSConfig, PeerId, PlayerHandle};
+pub use players::{PlayerDied, PlayerJoined, PlayerRegistry};
 pub use session::PlayerCount;
 
 use bevy::prelude::PluginGroup;

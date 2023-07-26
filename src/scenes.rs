@@ -3,14 +3,16 @@ use crate::network::session::{LocalPlayer, LocalPlayerHandle};
 use crate::network::PlayerHandle;
 use crate::physics::{Chunks, ChunksAnchor};
 use crate::{
-    Color, EntropyGenerator, GunBundle, GunPreset, RectangularObstacleBundle, TimerMode,
-    AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM,
+    Color, EntropyGenerator, GunBundle, GunPreset, RectangularObstacleBundle, ReflectResource,
+    TimerMode, AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM,
 };
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{
-    default, Bundle, Camera, Commands, Component, Entity, Query, Res, ResMut, Resource, Timer,
-    Transform, Window, Without,
+    default, Bundle, Camera, Commands, Component, Entity, EventReader, FromReflect, Query, Reflect,
+    Res, ResMut, Resource, Time, Timer, Transform, Window, Without,
 };
+use bevy::reflect::ReflectFromReflect;
+use std::collections::VecDeque;
 use std::f32::consts::PI;
 use std::time::Duration;
 
@@ -53,7 +55,10 @@ impl Default for SpawnPoint {
 }
 
 impl SpawnPoint {
-    /*
+    pub fn is_free(&self) -> bool {
+        self.occupant_handle.is_none()
+    }
+
     pub fn occupy(&mut self, occupant_handle: PlayerHandle) {
         self.occupant_handle = Some(occupant_handle);
         self.timeout.reset();
@@ -65,12 +70,18 @@ impl SpawnPoint {
         self.timeout.pause();
     }
 
+    pub fn tick(&mut self, time_delta: Duration) -> bool {
+        self.timeout.tick(time_delta).finished()
+    }
+
     pub fn skip_timeout(&mut self) {
         self.timeout.tick(self.timeout.duration());
-    }*/
+    }
 }
 
+use crate::network::players::{PlayerDied, PlayerJoined};
 use bevy::prelude::{Sprite, SpriteBundle, Vec2};
+use rand::prelude::SliceRandom;
 
 #[derive(Bundle, Default)]
 pub struct SpawnPointBundle {
@@ -87,7 +98,7 @@ impl SpawnPointBundle {
                 transform,
                 sprite: Sprite {
                     color: Color::PINK * 3.,
-                    custom_size: Some(Vec2::new(30., 10.)),
+                    custom_size: Some(Vec2::new(10., 30.)),
                     ..default()
                 },
                 ..default()
@@ -294,7 +305,7 @@ pub fn setup_main(mut commands: Commands, mut random_state: ResMut<EntropyGenera
             (Chunks::Screen(-0.55 / 2.) - 1.).to_px(),
             (bottom_block_y_start + bottom_block_len / 2.).to_px(),
         )
-        .with_rotation(PI / 4.),
+        .with_rotation(-PI / 4.),
     );
 
     // bottom-right spawn point
@@ -303,7 +314,7 @@ pub fn setup_main(mut commands: Commands, mut random_state: ResMut<EntropyGenera
             (Chunks::Screen(0.55 / 2.) + 1.).to_px(),
             (bottom_block_y_start + bottom_block_len / 2.).to_px(),
         )
-        .with_rotation(-PI / 4.),
+        .with_rotation(PI / 4.),
     );
 
     // top-left spawn point
@@ -312,7 +323,7 @@ pub fn setup_main(mut commands: Commands, mut random_state: ResMut<EntropyGenera
             (Chunks::Screen(-0.55 / 2.) - 1.).to_px(),
             Chunks::Screen(0.33).to_px(),
         )
-        .with_rotation(PI * 3. / 4.),
+        .with_rotation(-PI * 3. / 4.),
     );
 
     // top-right spawn point
@@ -321,7 +332,7 @@ pub fn setup_main(mut commands: Commands, mut random_state: ResMut<EntropyGenera
             (Chunks::Screen(0.55 / 2.) + 1.).to_px(),
             Chunks::Screen(0.33).to_px(),
         )
-        .with_rotation(-PI * 3. / 4.),
+        .with_rotation(PI * 3. / 4.),
     );
 
     let player_entity = PlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0)
@@ -359,4 +370,84 @@ fn setup_base_arena(commands: &mut Commands) {
         0.5,
     ));
     // Walls of the arena -----
+}
+
+#[derive(Resource, Debug, Default, Clone, Reflect, FromReflect)]
+#[reflect_value(Debug, Resource, FromReflect)]
+// bool to skip timeout or not to skip timeout
+pub struct SpawnQueue(VecDeque<(PlayerHandle, bool)>);
+
+pub fn handle_respawn_point_occupation(
+    mut new_player_events: EventReader<PlayerJoined>,
+    mut dead_player_events: EventReader<PlayerDied>,
+    mut spawn_point_query: Query<(&mut SpawnPoint, /* temporary */ &mut Sprite)>,
+    mut random_state: ResMut<EntropyGenerator>,
+    mut spawn_queue: ResMut<SpawnQueue>,
+) {
+    new_player_events
+        .iter()
+        .for_each(|event| spawn_queue.0.push_back((event.player_handle, true)));
+    dead_player_events
+        .iter()
+        .for_each(|event| spawn_queue.0.push_back((event.player_handle, false)));
+
+    if spawn_queue.0.is_empty() {
+        return;
+    }
+
+    let mut spawn_point_vec: Vec<_> = spawn_point_query.iter_mut().collect();
+    spawn_point_vec.shuffle(&mut random_state.0);
+
+    for (ref mut spawn_point, ref mut sprite) in spawn_point_vec.iter_mut() {
+        if !spawn_point.is_free() {
+            continue;
+        }
+
+        if let Some(player_to_spawn) = spawn_queue.0.pop_front() {
+            spawn_point.occupy(player_to_spawn.0);
+            if player_to_spawn.1 {
+                spawn_point.skip_timeout();
+            }
+            sprite.color = Color::CYAN * 3.;
+        } else {
+            return;
+        }
+    }
+}
+
+pub fn handle_player_respawning(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut spawn_point_query: Query<(
+        &mut SpawnPoint,
+        &Transform,
+        /* temporary */ &mut Sprite,
+    )>,
+    mut random_state: ResMut<EntropyGenerator>,
+) {
+    for (mut spawn_point, transform, mut sprite) in spawn_point_query.iter_mut() {
+        if spawn_point.is_free() || !spawn_point.tick(time.delta()) {
+            continue;
+        }
+
+        let player_entity = PlayerCharacterBundle::new(
+            *transform,
+            PLAYER_DEFAULT_TEAM, /* todo get actual team from PlayerRegistry*/
+            spawn_point
+                .occupant_handle
+                .expect("Spawn beacon is occupied, but occupant handle is None? Preposterous!"),
+        )
+        .spawn_with_equipment(&mut commands, random_state.fork(), vec![GunPreset::Regular])[0];
+
+        commands.entity(player_entity).insert(LocalPlayer);
+
+        spawn_point.free();
+        sprite.color = Color::TOMATO * 2.
+    }
+}
+
+// todo clean up extra guns on the floor
+
+pub fn reset_spawn_queue(mut spawn_queue: ResMut<SpawnQueue>) {
+    spawn_queue.0.clear();
 }
