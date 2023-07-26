@@ -1,15 +1,18 @@
 use crate::characters::{AICharacterBundle, BuildCharacter, PlayerCharacterBundle};
 use crate::network::session::{LocalPlayer, LocalPlayerHandle};
+use crate::network::PlayerHandle;
 use crate::physics::{Chunks, ChunksAnchor};
 use crate::{
-    Color, EntropyGenerator, GunBundle, GunPreset, RectangularObstacleBundle, AI_DEFAULT_TEAM,
-    PLAYER_DEFAULT_TEAM,
+    Color, EntropyGenerator, GunBundle, GunPreset, RectangularObstacleBundle, TimerMode,
+    AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM,
 };
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{
-    Camera, Commands, Entity, Query, Res, ResMut, Resource, Transform, Window, Without,
+    default, Bundle, Camera, Commands, Component, Entity, Query, Res, ResMut, Resource, Timer,
+    Transform, Window, Without,
 };
 use std::f32::consts::PI;
+use std::time::Duration;
 
 /// Specifier of the scene which to load.
 #[derive(clap::ValueEnum, Resource, Clone, Copy, Debug)]
@@ -27,6 +30,79 @@ impl TryFrom<String> for SceneSelector {
             "experimental" | "exp" | "e" => Ok(SceneSelector::Experimental),
             _ => Err("Nothing too bad, should use the default scene"),
         }
+    }
+}
+
+pub const RESPAWN_TIMEOUT: Duration = Duration::from_millis(3500);
+
+#[derive(Component)]
+pub struct SpawnPoint {
+    pub occupant_handle: Option<PlayerHandle>,
+    pub timeout: Timer,
+}
+
+impl Default for SpawnPoint {
+    fn default() -> Self {
+        let mut new = Self {
+            occupant_handle: None,
+            timeout: Timer::new(RESPAWN_TIMEOUT, TimerMode::Once),
+        };
+        new.timeout.pause();
+        new
+    }
+}
+
+impl SpawnPoint {
+    /*
+    pub fn occupy(&mut self, occupant_handle: PlayerHandle) {
+        self.occupant_handle = Some(occupant_handle);
+        self.timeout.reset();
+        self.timeout.unpause();
+    }
+
+    pub fn free(&mut self) {
+        self.occupant_handle = None;
+        self.timeout.pause();
+    }
+
+    pub fn skip_timeout(&mut self) {
+        self.timeout.tick(self.timeout.duration());
+    }*/
+}
+
+use bevy::prelude::{Sprite, SpriteBundle, Vec2};
+
+#[derive(Bundle, Default)]
+pub struct SpawnPointBundle {
+    // pub transform: Transform,
+    pub respawn_point: SpawnPoint,
+    #[bundle]
+    pub sprite_bundle: SpriteBundle,
+}
+
+impl SpawnPointBundle {
+    pub fn new(transform: Transform) -> Self {
+        Self {
+            sprite_bundle: SpriteBundle {
+                transform,
+                sprite: Sprite {
+                    color: Color::PINK * 3.,
+                    custom_size: Some(Vec2::new(30., 10.)),
+                    ..default()
+                },
+                ..default()
+            },
+            ..default()
+        }
+    }
+
+    pub fn new_at(x: f32, y: f32) -> Self {
+        Self::new(Transform::from_translation(Vec3::new(x, y, 0.0)))
+    }
+
+    pub fn with_rotation(mut self, angle: f32) -> Self {
+        self.sprite_bundle.transform.rotation = Quat::from_rotation_z(angle);
+        self
     }
 }
 
@@ -150,7 +226,7 @@ pub fn setup_main(mut commands: Commands, mut random_state: ResMut<EntropyGenera
         Chunks::Blocks(1.5),
     ));
 
-    // LITTLE BLOCKS ENCLOSING THE TOP BLOCK
+    // LITTLE BLOCKS SURROUNDING THE TOP BLOCK
     commands.spawn(RectangularObstacleBundle::new_chunk(
         Chunks::Screen(-0.55 / 2.),
         1.0,
@@ -189,10 +265,11 @@ pub fn setup_main(mut commands: Commands, mut random_state: ResMut<EntropyGenera
     );
 
     // BOTTOM BLOCK
+    let bottom_block_y_start: Chunks = -Chunks::Screen(0.5) + 1.75;
     let bottom_block_len: Chunks = Chunks::Screen(0.5) - 3.;
     commands.spawn(RectangularObstacleBundle::new_chunk(
         ChunksAnchor::Center,
-        -Chunks::Screen(0.5) + 1.75,
+        bottom_block_y_start,
         2.5,
         bottom_block_len,
     ));
@@ -210,6 +287,42 @@ pub fn setup_main(mut commands: Commands, mut random_state: ResMut<EntropyGenera
         1.,
         3.,
     ));
+
+    // bottom-left spawn point
+    commands.spawn(
+        SpawnPointBundle::new_at(
+            (Chunks::Screen(-0.55 / 2.) - 1.).to_px(),
+            (bottom_block_y_start + bottom_block_len / 2.).to_px(),
+        )
+        .with_rotation(PI / 4.),
+    );
+
+    // bottom-right spawn point
+    commands.spawn(
+        SpawnPointBundle::new_at(
+            (Chunks::Screen(0.55 / 2.) + 1.).to_px(),
+            (bottom_block_y_start + bottom_block_len / 2.).to_px(),
+        )
+        .with_rotation(-PI / 4.),
+    );
+
+    // top-left spawn point
+    commands.spawn(
+        SpawnPointBundle::new_at(
+            (Chunks::Screen(-0.55 / 2.) - 1.).to_px(),
+            Chunks::Screen(0.33).to_px(),
+        )
+        .with_rotation(PI * 3. / 4.),
+    );
+
+    // top-right spawn point
+    commands.spawn(
+        SpawnPointBundle::new_at(
+            (Chunks::Screen(0.55 / 2.) + 1.).to_px(),
+            Chunks::Screen(0.33).to_px(),
+        )
+        .with_rotation(-PI * 3. / 4.),
+    );
 
     let player_entity = PlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0)
         .spawn_with_equipment(&mut commands, random_state.fork(), vec![GunPreset::Regular])[0];

@@ -258,6 +258,28 @@ impl std::ops::Sub<f32> for Chunks {
     }
 }
 
+impl std::ops::Mul<f32> for Chunks {
+    type Output = Self;
+    #[inline]
+    fn mul(self, rhs: f32) -> Self {
+        match self {
+            Chunks::Blocks(blocks) => Chunks::Blocks(blocks * rhs),
+            Chunks::Screen(fraction) => Chunks::Screen(fraction * rhs),
+        }
+    }
+}
+
+impl std::ops::Div<f32> for Chunks {
+    type Output = Self;
+    #[inline]
+    fn div(self, rhs: f32) -> Self {
+        match self {
+            Chunks::Blocks(blocks) => Chunks::Blocks(blocks / rhs),
+            Chunks::Screen(fraction) => Chunks::Screen(fraction / rhs),
+        }
+    }
+}
+
 impl std::ops::Neg for Chunks {
     type Output = Self;
     #[inline]
@@ -266,6 +288,22 @@ impl std::ops::Neg for Chunks {
             Chunks::Blocks(blocks) => Chunks::Blocks(-blocks),
             Chunks::Screen(fraction) => Chunks::Screen(-fraction),
         }
+    }
+}
+
+impl std::ops::Add<Chunks> for Chunks {
+    type Output = Self;
+    #[inline]
+    fn add(self, rhs: Chunks) -> Self {
+        Chunks::Blocks(self.to_blocks() + rhs.to_blocks())
+    }
+}
+
+impl std::ops::Sub<Chunks> for Chunks {
+    type Output = Self;
+    #[inline]
+    fn sub(self, rhs: Chunks) -> Self {
+        Chunks::Blocks(self.to_blocks() - rhs.to_blocks())
     }
 }
 
@@ -280,12 +318,12 @@ pub enum ChunksAnchor {
 pub struct AnchoredChunks(pub Chunks, pub ChunksAnchor);
 
 impl AnchoredChunks {
-    pub fn evaluate(self, width: f32) -> f32 {
+    pub fn evaluate(self, length: f32) -> f32 {
         let pos = self.0.to_px();
         match self.1 {
-            ChunksAnchor::Start => pos + width / 2.,
+            ChunksAnchor::Start => pos + length / 2.,
             ChunksAnchor::Center => pos,
-            ChunksAnchor::End => pos - width / 2.,
+            ChunksAnchor::End => pos - length / 2.,
         }
     }
 }
