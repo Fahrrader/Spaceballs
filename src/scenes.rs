@@ -1,6 +1,6 @@
 use crate::characters::{AICharacterBundle, BuildCharacter, PlayerCharacterBundle};
 use crate::network::session::{LocalPlayer, LocalPlayerHandle, MAINTAINED_FPS};
-use crate::network::PlayerHandle;
+use crate::network::{PlayerHandle, PlayerRegistry};
 use crate::physics::{Chunks, ChunksAnchor};
 use crate::{
     Color, EntropyGenerator, GunBundle, GunPreset, RectangularObstacleBundle, ReflectResource,
@@ -422,6 +422,8 @@ pub fn handle_player_respawning(
         &Transform,
         /* temporary */ &mut Sprite,
     )>,
+    player_registry: Res<PlayerRegistry>,
+    local_player: Res<LocalPlayerHandle>,
     mut random_state: ResMut<EntropyGenerator>,
 ) {
     for (mut spawn_point, transform, mut sprite) in spawn_point_query.iter_mut() {
@@ -431,12 +433,13 @@ pub fn handle_player_respawning(
             continue;
         }
 
+        let player_handle = spawn_point
+            .occupant_handle
+            .expect("Spawn beacon is occupied, but occupant handle is `None`? Preposterous!");
         let player_entity = PlayerCharacterBundle::new(
             *transform,
-            PLAYER_DEFAULT_TEAM, /* todo get actual team from PlayerRegistry*/
-            spawn_point
-                .occupant_handle
-                .expect("Spawn beacon is occupied, but occupant handle is None? Preposterous!"),
+            player_registry.get(player_handle).expect("Spawn beacon is occupied, but occupant handle is not registered as a player? Preposterous!").team,
+            player_handle,
         )
         .spawn_with_equipment(
             &mut commands,
@@ -444,8 +447,10 @@ pub fn handle_player_respawning(
             vec![GunPreset::random(&mut random_state.0)],
         )[0];
 
-        // todo
-        commands.entity(player_entity).insert(LocalPlayer);
+        if player_handle == local_player.0 {
+            // this is with assumption that if we're resurrecting the local player, no other must exist.
+            commands.entity(player_entity).insert(LocalPlayer);
+        }
 
         spawn_point.free();
         sprite.color = Color::TOMATO * 2.

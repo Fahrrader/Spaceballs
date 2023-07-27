@@ -3,6 +3,7 @@ use crate::network::peers::{PeerConnectionEvent, PeerHandles};
 use crate::network::players::{PlayerData, PlayerRegistry};
 use crate::network::socket::SpaceballSocket;
 use crate::network::PlayerHandle;
+use crate::teams::TeamNumber;
 use crate::ui::user_settings::UserSettings;
 use crate::GameState;
 use bevy::log::prelude::*;
@@ -12,7 +13,6 @@ use bevy::prelude::{
     in_state, not, App, Commands, Component, EventWriter, IntoSystemAppConfig, IntoSystemConfig,
     NextState, OnExit, Plugin, Res, ResMut, Resource,
 };
-use bevy::utils::default;
 use bevy_ggrs::ggrs;
 use bevy_ggrs::ggrs::{DesyncDetection, PlayerType};
 #[cfg(feature = "diagnostic")]
@@ -70,7 +70,8 @@ pub fn update_peers(
 
 /// Initialize the multiplayer session.
 /// Having input systems in GGRS schedule will not execute them until a session is initialized.
-pub fn wait_for_players(
+/// Will wait until all players have joined.
+pub fn build_session(
     mut commands: Commands,
     mut socket: ResMut<SpaceballSocket>,
     player_count: Res<PlayerCount>,
@@ -115,16 +116,17 @@ pub fn wait_for_players(
             .add_player(player, i)
             .expect("failed to add player");
 
+        // todo ensure consistency of team ordering, i.e the order of players joining? Nah.
+        // maybe implement ability to choose own color or join a specific team later, for now tis will do.
         match player {
             PlayerType::Remote(peer_id) => {
-                player_registry.0.push(PlayerData::default());
+                player_registry
+                    .0
+                    .push(PlayerData::from_team(i as TeamNumber));
                 peer_handles.map.insert(peer_id, i);
             }
             PlayerType::Local => {
-                player_registry.0.push(PlayerData {
-                    name: settings.player_name.clone(),
-                    ..default()
-                });
+                player_registry.0.push(PlayerData::from_team(i as TeamNumber).with_name(settings.player_name.clone()));
                 commands.insert_resource(LocalPlayerHandle(i));
             }
             PlayerType::Spectator(_) => {}
@@ -176,7 +178,7 @@ pub(crate) struct SessionPlugin;
 impl Plugin for SessionPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(update_peers.run_if(not(in_state(GameState::MainMenu))))
-            .add_system(wait_for_players.run_if(in_state(GameState::Matchmaking)))
+            .add_system(build_session.run_if(in_state(GameState::Matchmaking)))
             .add_system(sever_connection.in_schedule(OnExit(GameState::InGame)));
 
         #[cfg(feature = "diagnostic")]

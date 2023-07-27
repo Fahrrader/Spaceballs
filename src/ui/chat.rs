@@ -157,7 +157,7 @@ fn handle_new_chat_messages(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut new_messages: EventReader<ChatMessage>,
-    players: Option<Res<PlayerRegistry>>,
+    players: Res<PlayerRegistry>,
     chat_display_query: Query<(Entity, Option<&Children>), With<ChatMessagesDisplay>>,
 ) {
     if new_messages.is_empty() {
@@ -198,12 +198,10 @@ fn handle_new_chat_messages(
                     match piece.as_str() {
                         "You" => TextSection::new("You", you_style.clone()),
                         _ => {
-                            let player_name = players
-                                .as_ref()
-                                .and_then(|registry| {
-                                    let maybe_id = piece.parse::<usize>().ok();
-                                    maybe_id.and_then(|id| registry.get(id))
-                                })
+                            let player_name = piece
+                                .parse::<usize>()
+                                .ok()
+                                .and_then(|id| players.get(id))
                                 .map(|data| data.name.clone())
                                 .unwrap_or("[unknown]".to_string());
                             TextSection::new(player_name, name_style.clone())

@@ -1,14 +1,38 @@
 use crate::network::peers::{PeerHandles, PeerNames};
 use crate::network::PlayerHandle;
+use crate::teams::{TeamNumber, PLAYER_DEFAULT_TEAM};
 use crate::GameState;
 use bevy::prelude::*;
+use std::slice::Iter;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct PlayerData {
     pub name: String,
-    // team?
+    pub team: TeamNumber,
     pub kills: usize,
     pub deaths: usize,
+}
+
+impl Default for PlayerData {
+    fn default() -> Self {
+        Self {
+            name: "".to_string(),
+            team: PLAYER_DEFAULT_TEAM,
+            kills: 0,
+            deaths: 0,
+        }
+    }
+}
+
+impl PlayerData {
+    pub fn from_team(team: TeamNumber) -> Self {
+        Self { team: PLAYER_DEFAULT_TEAM + team, ..default() }
+    }
+
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
 }
 
 #[derive(Resource, Debug, Default)]
@@ -26,6 +50,10 @@ pub struct PlayerDied {
 }
 
 impl PlayerRegistry {
+    pub fn iter(&self) -> Iter<PlayerData> {
+        self.0.iter()
+    }
+
     #[allow(unused)]
     pub fn get(&self, handle: PlayerHandle) -> Option<&PlayerData> {
         self.0.get(handle).or_else(|| {
@@ -67,7 +95,7 @@ pub fn send_all_players_joined(
 ) {
     // maybe should compare to all existing players, see if their PlayerControlled characters exist
     // for drop-in
-    for (index, _) in players.0.iter().enumerate() {
+    for (index, _) in players.iter().enumerate() {
         player_teller.send(PlayerJoined {
             player_handle: index,
         });
