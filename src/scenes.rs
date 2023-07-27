@@ -336,7 +336,7 @@ pub fn setup_main(mut commands: Commands, mut random_state: ResMut<EntropyGenera
     );
 
     let player_entity = PlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0)
-        .spawn_with_equipment(&mut commands, random_state.fork(), vec![GunPreset::Regular])[0];
+        .spawn_with_equipment(&mut commands, random_state.fork(), vec![GunPreset::RailGun])[0];
 
     commands.entity(player_entity).insert(LocalPlayer);
 }
@@ -405,7 +405,7 @@ pub fn handle_respawn_point_occupation(
 
         if let Some(player_to_spawn) = spawn_queue.0.pop_front() {
             spawn_point.occupy(player_to_spawn.0);
-            if !player_to_spawn.1 {
+            if player_to_spawn.1 {
                 spawn_point.skip_timeout();
             }
             sprite.color = Color::CYAN * 3.;

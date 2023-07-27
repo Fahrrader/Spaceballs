@@ -46,7 +46,7 @@ pub mod railgun {
                     let damage = PENETRATION_DAMAGE_PER_DISTANCE * distance_travelled;
                     Projectile::do_damage(
                         &mut commands,
-                        (gun_stats, bullet_team),
+                        (gun_stats, bullet.shooter_handle, bullet_team),
                         (*body_entity, &mut body_health, body_team),
                         Some(damage),
                     );

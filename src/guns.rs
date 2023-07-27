@@ -22,6 +22,7 @@ pub mod additives;
 mod presets;
 mod stats;
 
+use crate::network::PlayerHandle;
 pub use presets::GunPreset;
 pub use stats::GunPersistentStats;
 
@@ -246,6 +247,7 @@ impl Gun {
     fn fire_and_produce_projectiles(
         &mut self,
         gun_transform: &GlobalTransform,
+        maybe_shooter_handle: Option<PlayerHandle>,
         team: &Team,
         character_transform: &mut Transform,
         fast_forward_rounds: Option<(u128, u128)>,
@@ -295,6 +297,7 @@ impl Gun {
 
                 let mut bullet = ProjectileBundle::new(
                     self.preset,
+                    maybe_shooter_handle,
                     team.0,
                     bullet_transform,
                     facing_direction * gun_stats.projectile_speed,
@@ -348,26 +351,39 @@ pub struct LastUnequippedAt(pub Duration);
 pub mod systems {
     pub use super::additives::systems::*;
     use super::*;
+    use crate::characters::PlayerControlled;
 
     /// System to spawn projectiles out of guns and keep track of their firing cooldowns, magazine sizes, and character recoil.
     pub fn handle_gunfire(
         mut commands: Commands,
         time: Res<Time>,
         mut query_weapons: Query<(&mut Gun, &GlobalTransform, &Equipped)>,
-        // todo:mp event for movement instead?
-        mut query_characters: Query<(&CharacterActionInput, &Team, &mut Transform)>,
+        mut query_characters: Query<(
+            &CharacterActionInput,
+            &Team,
+            &mut Transform,
+            Option<&PlayerControlled>,
+        )>,
     ) {
         for (mut gun, gun_transform, equipped) in query_weapons.iter_mut() {
             if equipped.by.is_none() {
                 continue;
             }
 
-            let (wants_to_fire, wants_to_reload, team, mut transform) =
+            let (wants_to_fire, wants_to_reload, team, mut transform, maybe_player_handle) =
                 query_characters
                     .get_mut(equipped.by.expect(
                         "Should've checked if it was none! The gun is not equipped by anyone.",
                     ))
-                    .map(|(input, team, transform)| (input.fire, input.reload, team, transform))
+                    .map(|(input, team, transform, maybe_player)| {
+                        (
+                            input.fire,
+                            input.reload,
+                            team,
+                            transform,
+                            maybe_player.map(|player| player.handle),
+                        )
+                    })
                     .unwrap();
 
             if wants_to_reload {
@@ -389,6 +405,7 @@ pub mod systems {
 
                 let (bullets, _rounds_fired) = gun.fire_and_produce_projectiles(
                     gun_transform,
+                    maybe_player_handle,
                     team,
                     &mut transform,
                     Some((cooldown_times_over, cooldown_latest_time_elapsed)),

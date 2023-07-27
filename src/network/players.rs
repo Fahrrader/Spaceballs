@@ -26,7 +26,10 @@ impl Default for PlayerData {
 
 impl PlayerData {
     pub fn from_team(team: TeamNumber) -> Self {
-        Self { team: PLAYER_DEFAULT_TEAM + team, ..default() }
+        Self {
+            team: PLAYER_DEFAULT_TEAM + team,
+            ..default()
+        }
     }
 
     pub fn with_name(mut self, name: String) -> Self {
@@ -46,7 +49,7 @@ pub struct PlayerJoined {
 #[derive(Debug, Default)]
 pub struct PlayerDied {
     pub player_handle: PlayerHandle,
-    // killed_by, bla-bla-bla
+    pub killed_by: Option<PlayerHandle>,
 }
 
 impl PlayerRegistry {

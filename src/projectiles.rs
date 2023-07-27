@@ -1,5 +1,6 @@
 use crate::guns::{GunPersistentStats, GunPreset};
 use crate::health::{Dying, Health, HitPoints};
+use crate::network::PlayerHandle;
 use crate::physics::{
     popular_collider, try_get_components_from_entities, ActiveEvents, CollisionEvent,
     CollisionLayer, KinematicsBundle, Velocity,
@@ -27,6 +28,7 @@ pub struct ProjectileBundle {
 impl ProjectileBundle {
     pub fn new(
         gun_type: GunPreset,
+        shooter_handle: Option<PlayerHandle>,
         team: TeamNumber,
         transform: Transform,
         velocity: Vec3,
@@ -34,7 +36,10 @@ impl ProjectileBundle {
         let gun_stats = gun_type.stats();
         let bullet_transform = transform.with_scale(Vec3::ONE * gun_stats.projectile_size);
         Self {
-            projectile: Projectile { gun_type },
+            projectile: Projectile {
+                gun_type,
+                shooter_handle,
+            },
             team: Team(team),
             kinematics: KinematicsBundle::new(
                 // radius + bit of an oomph to the collider, no need to be so accurate
@@ -62,13 +67,14 @@ impl ProjectileBundle {
 #[derive(Component, Debug, Default, Reflect, FromReflect)]
 pub struct Projectile {
     pub gun_type: GunPreset,
+    pub shooter_handle: Option<PlayerHandle>,
 }
 
 impl Projectile {
     /// Apply damage to a body affected by a projectile. If the remaining health happens to be below 0, marks it Dying.
     pub fn do_damage(
         commands: &mut Commands,
-        projectile: (&GunPersistentStats, &Team),
+        projectile: (&GunPersistentStats, Option<PlayerHandle>, &Team),
         body: (Entity, &mut Health, Option<&Team>),
         damage_substitute: Option<HitPoints>,
     ) {
@@ -78,7 +84,7 @@ impl Projectile {
         }
         let mut should_be_damaged = true;
         if let Some(body_team) = body.2 {
-            should_be_damaged = projectile.0.friendly_fire || projectile.1 != body_team;
+            should_be_damaged = projectile.0.friendly_fire || projectile.2 != body_team;
         }
         if should_be_damaged
             && body
@@ -86,7 +92,9 @@ impl Projectile {
                 .damage(damage_substitute.unwrap_or(projectile.0.projectile_damage))
         {
             // todo panics if an entity is already despawned. issues on bevy are still open.
-            commands.entity(body.0).insert(Dying);
+            commands.entity(body.0).insert(Dying {
+                by_shooter: projectile.1,
+            });
         }
     }
 }
@@ -109,9 +117,16 @@ pub fn handle_bullet_collision_events(
             try_get_components_from_entities(&query_bullets, &query_bodies, entity_a, entity_b)
         {
             let (body_health, body_team) = query_bodies.get_mut(body_entity).unwrap();
-            let (gun_stats, bullet_team, bullet_velocity) = query_bullets
+            let (gun_stats, maybe_shooter, bullet_team, bullet_velocity) = query_bullets
                 .get(bullet_entity)
-                .map(|(bullet, team, velocity)| (bullet.gun_type.stats(), team, velocity))
+                .map(|(bullet, team, velocity)| {
+                    (
+                        bullet.gun_type.stats(),
+                        bullet.shooter_handle,
+                        team,
+                        velocity,
+                    )
+                })
                 .unwrap();
             // todo deal damage proportionate to the momentum transferred, armor changes restitution of the body - deal less damage if a bullet is deflected
             // There'd be double damage if we don't pick a type of events.
@@ -120,7 +135,7 @@ pub fn handle_bullet_collision_events(
                 if let Some(mut life) = body_health {
                     Projectile::do_damage(
                         &mut commands,
-                        (&gun_stats, bullet_team),
+                        (&gun_stats, maybe_shooter, bullet_team),
                         (body_entity, &mut life, body_team),
                         None,
                     );

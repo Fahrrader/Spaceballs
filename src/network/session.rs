@@ -126,7 +126,9 @@ pub fn build_session(
                 peer_handles.map.insert(peer_id, i);
             }
             PlayerType::Local => {
-                player_registry.0.push(PlayerData::from_team(i as TeamNumber).with_name(settings.player_name.clone()));
+                player_registry.0.push(
+                    PlayerData::from_team(i as TeamNumber).with_name(settings.player_name.clone()),
+                );
                 commands.insert_resource(LocalPlayerHandle(i));
             }
             PlayerType::Spectator(_) => {}

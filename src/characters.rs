@@ -378,5 +378,3 @@ pub fn handle_inventory_layout_change(
         }
     }
 }
-
-// dead men walking parsing (dying characters and other entities, through sparse-set components --> do a variety of laying-to-rest activities to them prior to their passing)

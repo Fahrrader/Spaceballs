@@ -114,6 +114,9 @@ fn main() {
         .add_system(handle_respawn_point_occupation.run_if(in_state(GameState::InGame)))
         .add_system(reset_spawn_queue.in_schedule(OnExit(GameState::InGame)))
         .add_system(handle_pause_input.run_if(in_state(GameState::InGame)))
+        // might duplicate if not in GGRS
+        .add_system(handle_reporting_death.run_if(in_state(GameState::InGame)))
+        // probably should be in GGRS
         .add_system(handle_entities_out_of_bounds)
         .add_systems((
             handle_gun_ownership_cosmetic_change,
