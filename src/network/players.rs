@@ -5,23 +5,12 @@ use crate::GameState;
 use bevy::prelude::*;
 use std::slice::Iter;
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct PlayerData {
     pub name: String,
     pub team: TeamNumber,
     pub kills: usize,
     pub deaths: usize,
-}
-
-impl Default for PlayerData {
-    fn default() -> Self {
-        Self {
-            name: "".to_string(),
-            team: PLAYER_DEFAULT_TEAM,
-            kills: 0,
-            deaths: 0,
-        }
-    }
 }
 
 impl PlayerData {

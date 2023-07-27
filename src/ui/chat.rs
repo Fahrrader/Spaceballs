@@ -1,6 +1,7 @@
 use crate::network::peers::PeerMessage;
 use crate::network::players::PlayerRegistry;
 use crate::network::PlayerHandle;
+use crate::teams::try_team_color;
 use crate::ui::focus::Focus;
 use crate::ui::input_consumption::{ActiveInputConsumerLayers, InputConsumerPriority};
 use crate::ui::text_input::TextInput;
@@ -184,8 +185,6 @@ fn handle_new_chat_messages(
         color: menu_builder::DEFAULT_TEXT_COLOR.with_a(0.8),
     };
 
-    let name_style = you_style.clone();
-
     for message in new_messages.iter() {
         // Parse the chat message in case it contains any players handles, in which case we want to prettify them
         let texts = message
@@ -198,13 +197,24 @@ fn handle_new_chat_messages(
                     match piece.as_str() {
                         "You" => TextSection::new("You", you_style.clone()),
                         _ => {
-                            let player_name = piece
+                            let (player_name, name_color) = piece
                                 .parse::<usize>()
                                 .ok()
                                 .and_then(|id| players.get(id))
-                                .map(|data| data.name.clone())
-                                .unwrap_or("[unknown]".to_string());
-                            TextSection::new(player_name, name_style.clone())
+                                .map(|data| {
+                                    (
+                                        data.name.clone(),
+                                        try_team_color(data.team).unwrap_or(you_style.color),
+                                    )
+                                })
+                                .unwrap_or(("[unknown]".to_string(), you_style.color));
+                            TextSection::new(
+                                player_name,
+                                TextStyle {
+                                    color: name_color,
+                                    ..you_style.clone()
+                                },
+                            )
                         }
                     }
                 } else {

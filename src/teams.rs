@@ -21,17 +21,21 @@ impl Team {
 }
 
 /// Get the color associated with the team.
-pub fn team_color(team: TeamNumber) -> Color {
+pub fn try_team_color(team: TeamNumber) -> Option<Color> {
     match team {
-        1 => Color::CYAN,
-        2 => Color::CRIMSON,
-        3 => Color::LIME_GREEN,
-        4 => Color::GOLD,
-        5 => Color::PURPLE,
-        6 => Color::SEA_GREEN,
-        7 => Color::ORANGE_RED,
-        8 => Color::INDIGO,
-        9 => Color::SILVER,
-        _ => panic!("The team number is out of bounds!"),
+        1 => Some(Color::CYAN),
+        2 => Some(Color::CRIMSON),
+        3 => Some(Color::LIME_GREEN),
+        4 => Some(Color::GOLD),
+        5 => Some(Color::PURPLE),
+        6 => Some(Color::SEA_GREEN),
+        7 => Some(Color::ORANGE_RED),
+        8 => Some(Color::INDIGO),
+        9 => Some(Color::SILVER),
+        _ => None,
     }
+}
+
+pub fn team_color(team: TeamNumber) -> Color {
+    try_team_color(team).expect("The team number is out of bounds!")
 }
