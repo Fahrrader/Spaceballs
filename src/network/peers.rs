@@ -98,6 +98,7 @@ pub fn handle_receiving_peer_messages(
     }
 }
 
+// todo actually go through how all this works and should works, high risk of going wtf
 pub fn handle_reporting_peer_disconnecting(
     mut peer_names: ResMut<PeerNames>,
     mut peer_events: EventReader<PeerConnectionEvent>,
@@ -121,19 +122,25 @@ pub fn handle_reporting_peer_disconnecting(
     }
 }
 
+pub fn reset_peer_names(mut peer_names: ResMut<PeerNames>, mut peer_handles: ResMut<PeerHandles>) {
+    peer_names.map.clear();
+    peer_handles.map.clear();
+}
+
 pub(crate) struct OnlinePeerPlugin;
 impl Plugin for OnlinePeerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<PeerConnectionEvent>()
             .add_event::<PeerMessage>()
-            .insert_resource(PeerNames::default())
-            .insert_resource(PeerHandles::default())
+            .init_resource::<PeerNames>()
+            .init_resource::<PeerHandles>()
             // ideally, there should be `or` between `Matchmaking` and `InGame`, but no, ok
             .add_system(handle_player_name_broadcast.run_if(not(in_state(GameState::MainMenu))))
             .add_system(handle_chat_message_broadcast.run_if(not(in_state(GameState::MainMenu))))
             .add_system(handle_receiving_peer_messages.run_if(not(in_state(GameState::MainMenu))))
             .add_system(
                 handle_reporting_peer_disconnecting.run_if(not(in_state(GameState::MainMenu))),
-            );
+            )
+            .add_system(reset_peer_names.in_schedule(OnEnter(GameState::MainMenu)));
     }
 }
