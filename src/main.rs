@@ -10,16 +10,18 @@ fn main() {
 
     let mut app = App::new();
 
-    // todo:mp probably run systems used by ggrs also outside of ggrs schedule for single-player if chosen in menu
     GGRSPlugin::<GGRSConfig>::new()
         .with_input_system(process_input)
         .register_rollback_resource::<EntropyGenerator>()
-        .register_rollback_resource::<SpawnQueue>()
+        // todo:mp figure out why rolling back `SpawnQueue` forces re-rolls of EntropyGenerator
+        // not critical
+        // .register_rollback_resource::<SpawnQueue>()
         .register_rollback_component::<GlobalTransform>()
         .register_rollback_component::<Transform>()
         .register_rollback_component::<Velocity>()
         .register_rollback_component::<Sleeping>()
         .register_rollback_component::<ActiveEvents>()
+        .register_rollback_component::<SpawnPoint>()
         .register_rollback_component::<CharacterActionInput>()
         .register_rollback_component::<AIActionRoutine>()
         .register_rollback_component::<Gun>()
@@ -35,11 +37,11 @@ fn main() {
         .add_plugin(FrameTimeDiagnosticsPlugin::default());
 
     app.insert_resource(ClearColor(Color::BLACK))
-        .init_resource::<EntropyGenerator>()
         .insert_resource(RapierConfiguration {
             gravity: Vec2::default(),
             ..default()
         })
+        .init_resource::<EntropyGenerator>()
         // probably displace to plugin
         .init_resource::<SpawnQueue>()
         .add_state::<GameState>()
@@ -96,22 +98,16 @@ fn main() {
                 handle_bullet_collision_events,
                 handle_railgun_penetration_damage,
                 handle_death,
+                send_new_players_joined,
+                handle_respawn_point_occupation,
+                handle_player_respawning,
             )
                 .chain()
                 .in_set(InputHandlingSet::ResponseProcessing)
                 .after(InputHandlingSet::InputReading)
                 .in_schedule(GGRSSchedule),
         )
-        .add_systems(
-            (
-                // todo:mp
-                // handle_respawn_point_occupation,
-                handle_player_respawning.before(handle_gunfire),
-            )
-                .chain()
-                .in_schedule(GGRSSchedule),
-        )
-        .add_system(handle_respawn_point_occupation.run_if(in_state(GameState::InGame)))
+        .add_system(handle_respawn_point_occupation.in_schedule(OnEnter(GameState::InGame)))
         .add_system(reset_spawn_queue.in_schedule(OnExit(GameState::InGame)))
         .add_system(handle_pause_input.run_if(in_state(GameState::InGame)))
         // might duplicate if not in GGRS

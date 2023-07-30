@@ -25,6 +25,7 @@ pub use controls::{
 pub use easter::EasterAnnouncementPlugin;
 pub use guns::{systems::*, Equipped, Gun, GunBundle, GunPreset, LastUnequippedAt};
 pub use health::{handle_death, handle_reporting_death, Dying, Health};
+pub use network::players::send_new_players_joined;
 pub use network::{
     GGRSConfig, GGRSPlugin, GGRSSchedule, MultiplayerPlugins, PlayerCount, PlayerDied, PlayerJoined,
 };
@@ -35,7 +36,7 @@ pub use physics::{
 pub use projectiles::handle_bullet_collision_events;
 pub use scenes::{
     despawn_everything, handle_player_respawning, handle_respawn_point_occupation,
-    reset_spawn_queue, summon_scene, SceneSelector, SpawnQueue,
+    reset_spawn_queue, summon_scene, SceneSelector, SpawnPoint, SpawnQueue,
 };
 pub use teams::{AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM};
 pub use ui::{MenuState, UIPlugins};

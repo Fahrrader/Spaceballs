@@ -37,7 +37,7 @@ impl TryFrom<String> for SceneSelector {
 
 pub const RESPAWN_TIMEOUT: Duration = Duration::from_millis(3500);
 
-#[derive(Component)]
+#[derive(Component, Debug, Reflect, FromReflect)]
 pub struct SpawnPoint {
     pub occupant_handle: Option<PlayerHandle>,
     pub timeout: Timer,
@@ -125,9 +125,9 @@ pub fn summon_scene(
     local_player_handle: Res<LocalPlayerHandle>,
 ) {
     match scene {
-        None => setup_main(commands, random_state),
+        None => setup_main(commands),
         Some(scene) => match scene.into_inner() {
-            SceneSelector::Main => setup_main(commands, random_state),
+            SceneSelector::Main => setup_main(commands),
             SceneSelector::Experimental => {
                 setup_experimental(commands, random_state, local_player_handle)
             }
@@ -226,7 +226,7 @@ pub fn setup_experimental(
 }
 
 /// Set up a lighter, stable scene. Considered default.
-pub fn setup_main(mut commands: Commands, mut random_state: ResMut<EntropyGenerator>) {
+pub fn setup_main(mut commands: Commands) {
     setup_base_arena(&mut commands);
 
     // TOP BLOCK
@@ -334,11 +334,6 @@ pub fn setup_main(mut commands: Commands, mut random_state: ResMut<EntropyGenera
         )
         .with_rotation(PI * 3. / 4.),
     );
-
-    let player_entity = PlayerCharacterBundle::new(Transform::default(), PLAYER_DEFAULT_TEAM, 0)
-        .spawn_with_equipment(&mut commands, random_state.fork(), vec![GunPreset::RailGun])[0];
-
-    commands.entity(player_entity).insert(LocalPlayer);
 }
 
 /// Set up common stuff attributable to all levels.
@@ -384,12 +379,17 @@ pub fn handle_respawn_point_occupation(
     mut random_state: ResMut<EntropyGenerator>,
     mut spawn_queue: ResMut<SpawnQueue>,
 ) {
-    new_player_events
-        .iter()
-        .for_each(|event| spawn_queue.0.push_back((event.player_handle, true)));
-    dead_player_events
-        .iter()
-        .for_each(|event| spawn_queue.0.push_back((event.player_handle, false)));
+    // inefficient! but spawn queue is rarely > 0, not critical
+    new_player_events.iter().for_each(|event| {
+        if !spawn_queue.0.iter().any(|&(h, _)| h == event.player_handle) {
+            spawn_queue.0.push_back((event.player_handle, true));
+        }
+    });
+    dead_player_events.iter().for_each(|event| {
+        if !spawn_queue.0.iter().any(|&(h, _)| h == event.player_handle) {
+            spawn_queue.0.push_back((event.player_handle, false));
+        }
+    });
 
     if spawn_queue.0.is_empty() {
         return;

@@ -34,9 +34,11 @@ pub const INPUT_DELAY: usize = 2;
 #[derive(Resource)]
 pub struct PlayerCount(pub usize);
 
+/// Resource containing a player handle from the GGRS session as having [`PlayerType::Local`].
 #[derive(Resource)]
 pub struct LocalPlayerHandle(pub PlayerHandle);
 
+/// Marker component indicating that this entity should be used for some peer-side-only systems, like HUD.
 #[derive(Component)]
 pub struct LocalPlayer;
 

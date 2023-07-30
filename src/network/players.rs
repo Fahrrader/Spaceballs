@@ -46,6 +46,10 @@ impl PlayerRegistry {
         self.0.iter()
     }
 
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     #[allow(unused)]
     pub fn get(&self, handle: PlayerHandle) -> Option<&PlayerData> {
         self.0.get(handle).or_else(|| {
@@ -81,35 +85,33 @@ pub fn update_player_names(
     }
 }
 
-pub fn send_all_players_joined(
+pub fn send_new_players_joined(
     players: Res<PlayerRegistry>,
     mut player_teller: EventWriter<PlayerJoined>,
+    mut previous_players_len: Local<usize>,
+    state: Res<State<GameState>>,
 ) {
-    // maybe should compare to all existing players, see if their PlayerControlled characters exist
-    // for drop-in
-    for (index, _) in players.iter().enumerate() {
-        player_teller.send(PlayerJoined {
-            player_handle: index,
-        });
+    if state.is_changed() {
+        *previous_players_len = 0;
+    }
+    if *previous_players_len != players.len() {
+        // maybe should compare to all existing players, see if their PlayerControlled characters exist
+        // for drop-in
+        for index in *previous_players_len..players.len() {
+            player_teller.send(PlayerJoined {
+                player_handle: index,
+            });
+        }
+        *previous_players_len = players.len();
     }
 }
-
-/*pub fn send_player_joined_event_if_in_game(
-    // mut peer_reader: EventReader<PeerConnectionEvent>,
-    players: Res<PlayerRegistry>,
-    // mut player_teller: EventWriter<PlayerJoined>,
-) {
-    // only send the new event if the player handle (not available from peer_connection_event) is not present in the player registry
-}*/
 
 pub(crate) struct OnlinePlayerPlugin;
 impl Plugin for OnlinePlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(PlayerRegistry::default())
+        app.init_resource::<PlayerRegistry>()
             .add_event::<PlayerJoined>()
             .add_event::<PlayerDied>()
-            .add_system(update_player_names.run_if(in_state(GameState::InGame)))
-            .add_system(send_all_players_joined.in_schedule(OnEnter(GameState::InGame))/* GGRSSchedule? rework if implementing drop-in */)
-        ;
+            .add_system(update_player_names.run_if(in_state(GameState::InGame)));
     }
 }
