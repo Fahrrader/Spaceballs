@@ -438,7 +438,7 @@ pub fn handle_player_respawning(
             .expect("Spawn beacon is occupied, but occupant handle is `None`? Preposterous!");
         let player_entity = PlayerCharacterBundle::new(
             *transform,
-            player_registry.get(player_handle).expect("Spawn beacon is occupied, but occupant handle is not registered as a player? Preposterous!").team,
+            *player_registry.get(player_handle).expect("Spawn beacon is occupied, but occupant handle is not registered as a player? Preposterous!").team,
             player_handle,
         )
         .spawn_with_equipment(

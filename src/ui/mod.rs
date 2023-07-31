@@ -7,6 +7,7 @@ use hud::HUDPlugin;
 use input_consumption::InputConsumptionPlugin;
 use lobby::LobbyPlugin;
 use menu::MenuPlugin;
+use score::PlayerScorePlugin;
 use text_input::TextInputPlugin;
 use user_settings::UserSettingsPlugin;
 
@@ -19,6 +20,7 @@ pub mod input_consumption;
 pub mod lobby;
 pub mod menu;
 mod menu_builder;
+pub mod score;
 pub mod text_input;
 pub mod user_settings;
 
@@ -44,6 +46,7 @@ impl PluginGroup for UIPlugins {
             .add(ColorInteractionPlugin)
             .add(TextInputPlugin)
             .add(ChatPlugin)
+            .add(PlayerScorePlugin)
             .add(HUDPlugin)
     }
 }

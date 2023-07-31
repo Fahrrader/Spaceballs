@@ -1,7 +1,8 @@
 use crate::characters::PlayerControlled;
 use crate::network::{GGRSConfig, GGRSInput};
-use crate::ui::input_consumption::ActiveInputConsumerLayers;
-use crate::ui::menu::{GAME_INPUT_LAYER, PAUSE_INPUT_LAYER};
+use crate::ui::input_consumption::{
+    ActiveInputConsumerLayers, GAME_INPUT_LAYER, PAUSE_INPUT_LAYER,
+};
 use crate::GamePauseEvent;
 use bevy::ecs::schedule::SystemSet;
 use bevy::input::{

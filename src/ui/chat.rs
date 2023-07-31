@@ -1,14 +1,25 @@
 use crate::network::peers::PeerMessage;
 use crate::network::players::PlayerRegistry;
 use crate::network::PlayerHandle;
-use crate::teams::try_team_color;
 use crate::ui::focus::Focus;
-use crate::ui::input_consumption::{ActiveInputConsumerLayers, InputConsumerPriority};
+use crate::ui::input_consumption::{
+    ActiveInputConsumerLayers, CHAT_INPUT_LAYER, CHAT_OPEN_INPUT_LAYER,
+};
 use crate::ui::text_input::TextInput;
 use crate::ui::{fonts, menu_builder};
 use crate::GameState;
 use bevy::prelude::*;
 use std::time::Duration;
+
+const MAX_CHAT_MESSAGES: usize = 16;
+const CHAT_FONT_SIZE: f32 = 14.0;
+
+// about 90 frames to reach the fadeout threshold
+const FADEOUT_PER_FRAME: f32 = 0.95;
+const FADEOUT_THRESHOLD: f32 = 0.01;
+
+// this shit will stay here at least until bevy 0.11
+const CHAT_WIDTH: f32 = 0.35 * 800.;
 
 #[derive(Component, Clone, Debug)]
 pub struct ChatMessage {
@@ -70,12 +81,6 @@ pub struct ChatTypingDisplay;
 #[derive(Component)]
 pub struct ChatDisplayBackground;
 
-pub const CHAT_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(7);
-pub const CHAT_OPEN_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(6);
-
-// this shit will stay here at least until bevy 0.11
-const CHAT_WIDTH: f32 = 0.35 * 800.;
-
 fn setup_chat_display(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn((
@@ -84,8 +89,8 @@ fn setup_chat_display(mut commands: Commands, asset_server: Res<AssetServer>) {
                     size: Size::new(Val::Percent(35.0), Val::Percent(20.0)),
                     position_type: PositionType::Absolute,
                     position: UiRect {
-                        right: Val::Px(20.0),
-                        top: Val::Px(20.0),
+                        right: Val::Percent(2.5),
+                        top: Val::Percent(2.5),
                         ..default()
                     },
                     flex_direction: FlexDirection::Column,
@@ -165,9 +170,6 @@ fn handle_new_chat_messages(
         return;
     }
 
-    const MAX_CHAT_MESSAGES: usize = 16;
-    const CHAT_FONT_SIZE: f32 = 14.0;
-
     let text_style = TextStyle {
         font: fonts::load(&asset_server, fonts::ULTRAGONIC),
         font_size: CHAT_FONT_SIZE,
@@ -204,7 +206,7 @@ fn handle_new_chat_messages(
                                 .map(|data| {
                                     (
                                         data.name.clone(),
-                                        try_team_color(data.team).unwrap_or(you_style.color),
+                                        data.team.safe_color().unwrap_or(you_style.color),
                                     )
                                 })
                                 .unwrap_or(("[unknown]".to_string(), you_style.color));
@@ -285,11 +287,11 @@ pub struct ChatFadeout {
 }
 
 impl ChatFadeout {
-    pub const DURATION_BEFORE_FADEOUT: Duration = Duration::from_millis(3000);
+    pub const DURATION_BEFORE_STARTING: Duration = Duration::from_millis(3000);
 
     pub fn new() -> Self {
         Self {
-            timer: Timer::new(Self::DURATION_BEFORE_FADEOUT, TimerMode::Once),
+            timer: Timer::new(Self::DURATION_BEFORE_STARTING, TimerMode::Once),
         }
     }
 }
@@ -385,10 +387,6 @@ fn handle_chat_message_fadeout(
     chat_fade: Res<ChatIsFading>,
     mut query: Query<(&mut Text, &mut Visibility, &mut ChatFadeout)>,
 ) {
-    // about 90 frames
-    const FADEOUT_PER_FRAME: f32 = 0.95;
-    const FADEOUT_THRESHOLD: f32 = 0.01;
-
     for (mut text, mut visibility, mut fadeout) in query.iter_mut() {
         fadeout.timer.tick(time.delta());
 
@@ -419,6 +417,7 @@ impl Plugin for ChatPlugin {
         app.add_event::<ChatMessage>()
             .insert_resource(ChatIsFading { is_fading: true })
             .add_system(setup_chat_display.in_schedule(OnExit(GameState::MainMenu)))
+            // despawn_node::<ChatDisplay> -- handled by despawn_everything
             .add_system(handle_new_chat_messages.run_if(not(in_state(GameState::MainMenu))))
             .add_system(handle_chat_opening.run_if(not(in_state(GameState::MainMenu))))
             .add_system(handle_chat_sending.run_if(not(in_state(GameState::MainMenu))))

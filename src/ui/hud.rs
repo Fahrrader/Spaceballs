@@ -22,8 +22,8 @@ fn setup_player_health_hud(mut commands: Commands, asset_server: Res<AssetServer
                     size: Size::new(Val::Px(300.0), Val::Px(36.0)),
                     position_type: PositionType::Absolute,
                     position: UiRect {
-                        left: Val::Px(20.0),
-                        bottom: Val::Px(20.0),
+                        left: Val::Percent(2.5),
+                        bottom: Val::Percent(2.5),
                         ..default()
                     },
                     align_items: AlignItems::Center,
@@ -208,8 +208,8 @@ fn setup_player_guns_hud(mut commands: Commands) {
                 align_items: AlignItems::End,
                 position_type: PositionType::Absolute,
                 position: UiRect {
-                    right: Val::Px(20.0),
-                    bottom: Val::Px(20.0),
+                    right: Val::Percent(2.5),
+                    bottom: Val::Percent(2.5),
                     ..default()
                 },
                 ..default()

@@ -1,6 +1,6 @@
 use crate::network::peers::{PeerHandles, PeerNames};
 use crate::network::PlayerHandle;
-use crate::teams::{TeamNumber, PLAYER_DEFAULT_TEAM};
+use crate::teams::{Team, TeamNumber, PLAYER_DEFAULT_TEAM};
 use crate::GameState;
 use bevy::prelude::*;
 use std::slice::Iter;
@@ -8,15 +8,15 @@ use std::slice::Iter;
 #[derive(Default, Debug)]
 pub struct PlayerData {
     pub name: String,
-    pub team: TeamNumber,
+    pub team: Team,
     pub kills: usize,
     pub deaths: usize,
 }
 
 impl PlayerData {
-    pub fn from_team(team: TeamNumber) -> Self {
+    pub fn from_player_handle(player_handle: PlayerHandle) -> Self {
         Self {
-            team: PLAYER_DEFAULT_TEAM + team,
+            team: Team(PLAYER_DEFAULT_TEAM + player_handle as TeamNumber),
             ..default()
         }
     }
@@ -42,14 +42,6 @@ pub struct PlayerDied {
 }
 
 impl PlayerRegistry {
-    pub fn iter(&self) -> Iter<PlayerData> {
-        self.0.iter()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
     #[allow(unused)]
     pub fn get(&self, handle: PlayerHandle) -> Option<&PlayerData> {
         self.0.get(handle).or_else(|| {
@@ -64,6 +56,24 @@ impl PlayerRegistry {
             warn!("Could not find player by handle {}!", handle);
             None
         })
+    }
+}
+
+impl std::ops::Deref for PlayerRegistry {
+    type Target = [PlayerData];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0[..]
+    }
+}
+
+impl<'a> IntoIterator for &'a PlayerRegistry {
+    type Item = <Self::IntoIter as Iterator>::Item;
+
+    type IntoIter = Iter<'a, PlayerData>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
 }
 

@@ -3,7 +3,6 @@ use crate::network::peers::{PeerConnectionEvent, PeerHandles};
 use crate::network::players::{PlayerData, PlayerRegistry};
 use crate::network::socket::SpaceballSocket;
 use crate::network::PlayerHandle;
-use crate::teams::TeamNumber;
 use crate::ui::user_settings::UserSettings;
 use crate::GameState;
 use bevy::log::prelude::*;
@@ -55,7 +54,6 @@ pub fn update_peers(
         peer_updater.send(PeerConnectionEvent { id, state });
     }
 
-    // todo some debug mode maybe?
     #[cfg(feature = "diagnostic")]
     {
         let n_connected_peers = socket.inner().connected_peers().count();
@@ -91,7 +89,7 @@ pub fn build_session(
 
     if players.len() > player_count.0 {
         error!("You are trying to join an already full game! Exiting to main menu.");
-        // todo test without when `update_peers` is called externally. Maybe that would let a spectator in.
+        // test without when `update_peers` is called externally. Maybe that would let a spectator in.
         next_state.set(GameState::MainMenu);
         return;
     } else {
@@ -122,14 +120,12 @@ pub fn build_session(
         // maybe implement ability to choose own color or join a specific team later, for now tis will do.
         match player {
             PlayerType::Remote(peer_id) => {
-                player_registry
-                    .0
-                    .push(PlayerData::from_team(i as TeamNumber));
+                player_registry.0.push(PlayerData::from_player_handle(i));
                 peer_handles.map.insert(peer_id, i);
             }
             PlayerType::Local => {
                 player_registry.0.push(
-                    PlayerData::from_team(i as TeamNumber).with_name(settings.player_name.clone()),
+                    PlayerData::from_player_handle(i).with_name(settings.player_name.clone()),
                 );
                 commands.insert_resource(LocalPlayerHandle(i));
             }

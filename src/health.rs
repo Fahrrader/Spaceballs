@@ -1,9 +1,9 @@
 use crate::characters::PlayerControlled;
-use crate::network::PlayerHandle;
+use crate::network::{PlayerHandle, PlayerRegistry};
 use crate::ui::chat::ChatMessage;
 use crate::PlayerDied;
 use bevy::prelude::{
-    Commands, Component, DespawnRecursiveExt, Entity, EventReader, EventWriter, Query,
+    Commands, Component, DespawnRecursiveExt, Entity, EventReader, EventWriter, Query, ResMut,
 };
 use bevy::reflect::{FromReflect, Reflect};
 
@@ -76,9 +76,14 @@ pub fn handle_death(
 pub fn handle_reporting_death(
     mut dead_reader: EventReader<PlayerDied>,
     mut postman: EventWriter<ChatMessage>,
+    mut players: ResMut<PlayerRegistry>,
 ) {
     for event in dead_reader.iter() {
+        players.get_mut(event.player_handle).unwrap().deaths += 1;
+
         let message = if let Some(killer) = event.killed_by {
+            players.get_mut(killer).unwrap().kills += 1;
+
             ChatMessage {
                 message: "{0} killed {1}!".to_string(),
                 player_handles: vec![killer, event.player_handle],

@@ -1,5 +1,38 @@
 use bevy::prelude::*;
 
+/// Component representing the input layer that an entity is set to consume.
+/// The [`u8`] value represents the priority of the input layer, where a higher value means higher priority.
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct InputConsumerPriority(u8);
+
+pub const GAME_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(0);
+pub const PAUSE_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(1);
+pub const CHAT_OPEN_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(5);
+pub const CHAT_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(6);
+pub const PLAYER_SCORE_VIEW_LAYER: InputConsumerPriority = InputConsumerPriority::new(7);
+
+impl InputConsumerPriority {
+    /// Creates a new `InputConsumerPriority` with a single active layer.
+    /// Panics if `layer` is greater than or equal to 8.
+    #[must_use]
+    pub const fn new(layer: u8) -> Self {
+        assert!(layer < 8, "Layer must be less than 8");
+        Self(1 << layer)
+    }
+
+    /// Returns the layer that this `InputConsumerPriority` is set to consume.
+    #[must_use]
+    pub const fn get_layer(&self) -> u8 {
+        self.0.trailing_zeros() as u8
+    }
+}
+
+impl Into<InputConsumerPriority> for u8 {
+    fn into(self) -> InputConsumerPriority {
+        InputConsumerPriority::new(self)
+    }
+}
+
 /// Resource that manages the activation status and the number of distinct levels of UI elements
 /// that listen for user input within the game's UI system.
 #[derive(Resource, Debug)]
@@ -9,11 +42,6 @@ pub struct ActiveInputConsumerLayers {
     /// Array counting the current number of users for each layer.
     layer_user_count: [usize; 8],
 }
-
-/// Component representing the input layer that an entity is set to consume.
-/// The [`u8`] value represents the priority of the input layer, where a higher value means higher priority.
-#[derive(Component, Debug, Default, Clone, Copy)]
-pub struct InputConsumerPriority(u8);
 
 impl ActiveInputConsumerLayers {
     /// Creates new `ActiveInputConsumerLayers` with no active layers.
@@ -64,28 +92,6 @@ impl ActiveInputConsumerLayers {
     /// Deactivates all layers.
     pub fn clear(&mut self) {
         *self = Self::new();
-    }
-}
-
-impl InputConsumerPriority {
-    /// Creates a new `InputConsumerPriority` with a single active layer.
-    /// Panics if `layer` is greater than or equal to 8.
-    #[must_use]
-    pub const fn new(layer: u8) -> Self {
-        assert!(layer < 8, "Layer must be less than 8");
-        Self(1 << layer)
-    }
-
-    /// Returns the layer that this `InputConsumerPriority` is set to consume.
-    #[must_use]
-    pub const fn get_layer(&self) -> u8 {
-        self.0.trailing_zeros() as u8
-    }
-}
-
-impl Into<InputConsumerPriority> for u8 {
-    fn into(self) -> InputConsumerPriority {
-        InputConsumerPriority::new(self)
     }
 }
 

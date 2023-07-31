@@ -10,7 +10,7 @@ pub const PLAYER_DEFAULT_TEAM: TeamNumber = 1;
 pub const AI_DEFAULT_TEAM: TeamNumber = 9;
 
 /// Marker holding the character's (or anything's) allegiance.
-#[derive(Component, Clone, Debug, Eq, PartialEq, Reflect, FromReflect)]
+#[derive(Component, Clone, Debug, Default, Eq, PartialEq, Reflect, FromReflect)]
 pub struct Team(pub TeamNumber);
 
 impl Team {
@@ -18,10 +18,29 @@ impl Team {
     pub fn color(&self) -> Color {
         team_color(self.0)
     }
+
+    /// Get the color associated with the team.
+    pub fn safe_color(&self) -> Option<Color> {
+        safe_team_color(self.0)
+    }
+}
+
+impl Into<Team> for TeamNumber {
+    fn into(self) -> Team {
+        Team(self)
+    }
+}
+
+impl std::ops::Deref for Team {
+    type Target = TeamNumber;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 /// Get the color associated with the team.
-pub fn try_team_color(team: TeamNumber) -> Option<Color> {
+pub fn safe_team_color(team: TeamNumber) -> Option<Color> {
     match team {
         1 => Some(Color::CYAN),
         2 => Some(Color::CRIMSON),
@@ -37,5 +56,5 @@ pub fn try_team_color(team: TeamNumber) -> Option<Color> {
 }
 
 pub fn team_color(team: TeamNumber) -> Color {
-    try_team_color(team).expect("The team number is out of bounds!")
+    safe_team_color(team).expect("The team number is out of bounds!")
 }

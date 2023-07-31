@@ -1,7 +1,7 @@
 use crate::network::PlayerCount;
 use crate::ui::color_interaction::ColorInteractionMap;
 use crate::ui::focus::{Focus, KeyToButtonBinding};
-use crate::ui::input_consumption::InputConsumerPriority;
+use crate::ui::input_consumption::PAUSE_INPUT_LAYER;
 use crate::ui::lobby::PeerWaitingText;
 use crate::ui::menu_builder::{
     DEFAULT_FONT_SIZE, DEFAULT_OUTLINE_THICKNESS, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_INPUT_MARGIN,
@@ -93,9 +93,6 @@ pub(crate) enum MenuButtonAction {
     #[cfg(not(target_arch = "wasm32"))]
     Quit,
 }
-
-pub const GAME_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(0);
-pub const PAUSE_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(1);
 
 build_menu_plugin!(
     (setup_main_menu, Main),
