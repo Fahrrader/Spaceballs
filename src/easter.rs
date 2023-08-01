@@ -29,7 +29,7 @@ fn play_easter_greeting(
     if !should_play.0 {
         return;
     }
-    let greeting = asset_server.load("sounds/greeting.ogg");
+    let greeting = asset_server.load("sounds/greeting_french.ogg");
     audio.play_with_settings(greeting, PlaybackSettings::default().with_volume(0.75));
 }
 
