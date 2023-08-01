@@ -1,7 +1,7 @@
 use crate::network::{PlayerHandle, PlayerRegistry};
 use crate::ui::fonts;
 use crate::ui::input_consumption::{ActiveInputConsumerLayers, PLAYER_SCORE_VIEW_LAYER};
-use crate::GameState;
+use crate::{GameState, MenuState};
 use bevy::prelude::*;
 
 #[derive(Component)]
@@ -68,8 +68,8 @@ fn util_setup_individual_score_display(
     // Ping would be nice
 }
 
-fn should_toggle_score_display(keyboard: &Res<Input<KeyCode>>) -> bool {
-    keyboard.just_pressed(KeyCode::Tab)
+fn should_show_score_display(keyboard: &Res<Input<KeyCode>>) -> bool {
+    keyboard.pressed(KeyCode::Tab)
 }
 
 fn setup_score_display(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -81,12 +81,13 @@ fn setup_score_display(mut commands: Commands, asset_server: Res<AssetServer>) {
                     position_type: PositionType::Absolute,
                     position: UiRect {
                         right: Val::Percent(2.5),
-                        // assuming chat's end is at 2.5 + 20 percent
-                        top: Val::Percent(23.4),
+                        // assuming chat's end is at 2.5 + 20 percent, and pause menu is at 190 px (23.75%)
+                        top: Val::Percent(23.75),
                         ..default()
                     },
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Start,
+                    align_self: AlignSelf::Center,
                     justify_content: JustifyContent::Start,
                     padding: UiRect::all(Val::Px(5.)),
                     ..default()
@@ -234,23 +235,24 @@ fn handle_showing_score_display(
     keyboard: Res<Input<KeyCode>>,
     input_consumers: Res<ActiveInputConsumerLayers>,
     mut total_score_display_query: Query<&mut Visibility, With<TotalScoreDisplay>>,
+    pause_state: Res<State<MenuState>>,
 ) {
-    if !should_toggle_score_display(&keyboard)
-        || input_consumers.is_input_blocked_for_layer(&PLAYER_SCORE_VIEW_LAYER)
-    {
+    if input_consumers.is_input_blocked_for_layer(&PLAYER_SCORE_VIEW_LAYER) {
         return;
     }
 
+    let should_show = should_show_score_display(&keyboard) || pause_state.0 == MenuState::Pause;
+
     for mut visibility in total_score_display_query.iter_mut() {
-        *visibility = match *visibility {
-            Visibility::Hidden => Visibility::Visible,
-            _ => Visibility::Hidden,
+        match (*visibility, should_show) {
+            (Visibility::Hidden, true) => *visibility = Visibility::Visible,
+            (Visibility::Visible, false) => *visibility = Visibility::Hidden,
+            _ => {}
         };
     }
 }
 
 pub struct PlayerScorePlugin;
-
 impl Plugin for PlayerScorePlugin {
     fn build(&self, app: &mut App) {
         app.add_system(setup_score_display.in_schedule(OnEnter(GameState::InGame)))
