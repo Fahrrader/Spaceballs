@@ -15,6 +15,7 @@ struct PlayerScoreStat;
 
 const STAT_FONT_SIZE: f32 = 17.;
 
+const PLAYER_SCORE_NAME_IDX: usize = 0;
 const PLAYER_SCORE_KILLS_IDX: usize = 1;
 const PLAYER_SCORE_DEATHS_IDX: usize = 2;
 
@@ -160,6 +161,15 @@ fn populate_score_display(
                     ));
 
                     // update the sacred texts; the books
+                    let mut name_text = player_score_stats_query
+                        .get_mut(children[PLAYER_SCORE_NAME_IDX])
+                        .expect(&*format!(
+                            "Failed to fetch child display for player {}'s name",
+                            player_display.0
+                        ));
+                    name_text.sections[0].value = player_data.name.to_string();
+
+                    // update the sacred texts; the books
                     let mut kills_text = player_score_stats_query
                         .get_mut(children[PLAYER_SCORE_KILLS_IDX])
                         .expect(&*format!(
@@ -208,7 +218,6 @@ fn populate_score_display(
                                         ),
                                         align_items: AlignItems::Start,
                                         justify_content: JustifyContent::Center,
-                                        // size, and besides
                                         ..default()
                                     },
                                     ..default()
