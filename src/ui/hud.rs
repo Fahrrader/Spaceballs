@@ -208,7 +208,7 @@ fn setup_player_guns_hud(mut commands: Commands) {
                 align_items: AlignItems::End,
                 position_type: PositionType::Absolute,
                 position: UiRect {
-                    right: Val::Percent(2.5),
+                    right: Val::Percent(3.),
                     bottom: Val::Percent(2.5),
                     ..default()
                 },

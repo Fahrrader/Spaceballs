@@ -3,8 +3,8 @@ use crate::network::session::{LocalPlayer, LocalPlayerHandle, MAINTAINED_FPS};
 use crate::network::{PlayerHandle, PlayerRegistry};
 use crate::physics::{Chunks, ChunksAnchor};
 use crate::{
-    Color, EntropyGenerator, GunBundle, GunPreset, RectangularObstacleBundle, ReflectResource,
-    TimerMode, AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM,
+    Color, EntropyGenerator, GunBundle, GunPreset, PlayerCount, RectangularObstacleBundle,
+    ReflectResource, TimerMode, AI_DEFAULT_TEAM, PLAYER_DEFAULT_TEAM,
 };
 use bevy::math::{Quat, Vec3};
 use bevy::prelude::{
@@ -97,7 +97,10 @@ impl SpawnPointBundle {
             sprite_bundle: SpriteBundle {
                 transform,
                 sprite: Sprite {
+                    #[cfg(feature = "diagnostic")]
                     color: Color::PINK * 3.,
+                    #[cfg(not(feature = "diagnostic"))]
+                    color: Color::NONE,
                     custom_size: Some(Vec2::new(10., 30.)),
                     ..default()
                 },
@@ -122,15 +125,13 @@ pub fn summon_scene(
     commands: Commands,
     scene: Option<Res<SceneSelector>>,
     random_state: ResMut<EntropyGenerator>,
-    local_player_handle: Res<LocalPlayerHandle>,
+    player_count: Res<PlayerCount>,
 ) {
     match scene {
         None => setup_main(commands),
         Some(scene) => match scene.into_inner() {
             SceneSelector::Main => setup_main(commands),
-            SceneSelector::Experimental => {
-                setup_experimental(commands, random_state, local_player_handle)
-            }
+            SceneSelector::Experimental => setup_experimental(commands, random_state, player_count),
         },
     }
 }
@@ -151,7 +152,7 @@ pub fn despawn_everything(
 pub fn setup_experimental(
     mut commands: Commands,
     mut random_state: ResMut<EntropyGenerator>,
-    local_player_handle: Res<LocalPlayerHandle>,
+    player_count: Res<PlayerCount>,
 ) {
     setup_base_arena(&mut commands);
 
@@ -172,32 +173,20 @@ pub fn setup_experimental(
         random_state.fork(),
     ));
 
-    // Player character
-    let player_0_entity = PlayerCharacterBundle::new(
-        Transform::from_translation(Vec3::new(-150.0, 0.0, 0.0)),
-        PLAYER_DEFAULT_TEAM,
-        0,
-    )
-    .spawn_with_equipment(
-        &mut commands,
-        random_state.fork(),
-        vec![GunPreset::Scattershot],
-    )[0];
+    // Non-existent player character 2, whose death will cause a crash *shrug*
+    if player_count.0 <= 1 {
+        PlayerCharacterBundle::new(
+            Transform::from_translation(Vec3::new(-50.0, 150.0, 0.0)),
+            PLAYER_DEFAULT_TEAM + 1,
+            1,
+        )
+        .spawn_with_equipment(
+            &mut commands,
+            random_state.fork(),
+            vec![GunPreset::Imprecise],
+        )[0];
+    }
 
-    // todo:mp player generation on drop-in
-    // Player character 2
-    let player_1_entity = PlayerCharacterBundle::new(
-        Transform::from_translation(Vec3::new(-50.0, 150.0, 0.0)),
-        PLAYER_DEFAULT_TEAM + 1,
-        1,
-    )
-    .spawn_with_equipment(
-        &mut commands,
-        random_state.fork(),
-        vec![GunPreset::Imprecise],
-    )[0];
-
-    // todo respawning? conjoin with drop-in
     // AI character
     AICharacterBundle::new(
         Transform::from_translation(Vec3::new(150.0, 0.0, 0.0))
@@ -216,13 +205,10 @@ pub fn setup_experimental(
         2.0,
     ));
 
-    // Some minute trash - this system is going to get overhauled with repeated player spawn soon anyway.
-    commands
-        .entity(match local_player_handle.0 {
-            0 => player_0_entity,
-            _ => player_1_entity,
-        })
-        .insert(LocalPlayer);
+    // Some spawn points, for your pleasure <3
+    commands.spawn(SpawnPointBundle::new_at(-50.0, 150.0));
+
+    commands.spawn(SpawnPointBundle::new_at(-150.0, 0.0));
 }
 
 /// Set up a lighter, stable scene. Considered default.
@@ -379,8 +365,8 @@ pub fn handle_respawn_point_occupation(
     mut random_state: ResMut<EntropyGenerator>,
     mut spawn_queue: ResMut<SpawnQueue>,
 ) {
-    // inefficient! but spawn queue is rarely > 0, not critical
     new_player_events.iter().for_each(|event| {
+        // inefficient! but spawn queue is rarely > 0, so not critical
         if !spawn_queue.0.iter().any(|&(h, _)| h == event.player_handle) {
             spawn_queue.0.push_back((event.player_handle, true));
         }
@@ -408,7 +394,7 @@ pub fn handle_respawn_point_occupation(
             if player_to_spawn.1 {
                 spawn_point.skip_timeout();
             }
-            sprite.color = Color::CYAN * 3.;
+            sprite.color = Color::GOLD * 3.;
         } else {
             return;
         }
@@ -433,6 +419,8 @@ pub fn handle_player_respawning(
             continue;
         }
 
+        // todo handle the experimental case where the player is not registered, but whose husk is present
+        // just don't respawn then? then, if a player ends up joining, either react to an event, or ... well, it's not the case yet.
         let player_handle = spawn_point
             .occupant_handle
             .expect("Spawn beacon is occupied, but occupant handle is `None`? Preposterous!");
@@ -453,7 +441,14 @@ pub fn handle_player_respawning(
         }
 
         spawn_point.free();
-        sprite.color = Color::TOMATO * 2.
+        #[cfg(feature = "diagnostic")]
+        {
+            sprite.color = Color::TOMATO * 2.;
+        }
+        #[cfg(not(feature = "diagnostic"))]
+        {
+            sprite.color = Color::NONE;
+        }
     }
 }
 

@@ -3,7 +3,7 @@ use crate::network::{PlayerHandle, PlayerRegistry};
 use crate::ui::chat::ChatMessage;
 use crate::PlayerDied;
 use bevy::prelude::{
-    Commands, Component, DespawnRecursiveExt, Entity, EventReader, EventWriter, Query, ResMut,
+    warn, Commands, Component, DespawnRecursiveExt, Entity, EventReader, EventWriter, Query, ResMut,
 };
 use bevy::reflect::{FromReflect, Reflect};
 
@@ -61,6 +61,7 @@ pub fn handle_death(
     for (life, entity, maybe_player, dying) in query_lives.iter_mut() {
         if life.is_dead() {
             commands.entity(entity).despawn_recursive();
+            // todo handle respawning AI also somehow
             if let Some(player) = maybe_player {
                 dead_teller.send(PlayerDied {
                     player_handle: player.handle,
@@ -79,21 +80,32 @@ pub fn handle_reporting_death(
     mut players: ResMut<PlayerRegistry>,
 ) {
     for event in dead_reader.iter() {
-        players.get_mut(event.player_handle).unwrap().deaths += 1;
-
-        let message = if let Some(killer) = event.killed_by {
-            players.get_mut(killer).unwrap().kills += 1;
-
-            ChatMessage {
-                message: "{0} killed {1}!".to_string(),
-                player_handles: vec![killer, event.player_handle],
-            }
+        if let Some(mut player_data) = players.get_mut(event.player_handle) {
+            player_data.deaths += 1;
         } else {
-            ChatMessage {
+            warn!(
+                "Tried to kill non-existent player {}, as it was not found in player registry",
+                event.player_handle
+            );
+            continue;
+        }
+
+        let message = event
+            .killed_by
+            .and_then(|killer| {
+                players.get_mut(killer).map(|killer_data| {
+                    killer_data.kills += 1;
+                    ChatMessage {
+                        message: "{0} killed {1}!".to_string(),
+                        player_handles: vec![killer, event.player_handle],
+                    }
+                })
+            })
+            .unwrap_or(ChatMessage {
                 message: "{0} died!".to_string(),
                 player_handles: vec![event.player_handle],
-            }
-        };
+            });
+
         postman.send(message);
     }
 }
