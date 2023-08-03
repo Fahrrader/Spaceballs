@@ -1,4 +1,5 @@
 use crate::network::players::MatchTime;
+use crate::network::session::LocalPlayerHandle;
 use crate::network::{PlayerHandle, PlayerRegistry};
 use crate::ui::fonts;
 use crate::ui::input_consumption::{ActiveInputConsumerLayers, PLAYER_SCORE_VIEW_LAYER};
@@ -6,7 +7,7 @@ use crate::{GameState, MenuState};
 use bevy::prelude::*;
 
 #[derive(Component)]
-struct TotalScoreDisplay;
+pub struct TotalScoreDisplay;
 
 #[derive(Component)]
 struct PlayerScoreDisplay(PlayerHandle);
@@ -19,6 +20,9 @@ struct MatchTimeDisplayPanel;
 
 #[derive(Component)]
 struct MatchTimeDisplay;
+
+#[derive(Component)]
+pub struct VictoryText;
 
 const STAT_FONT_SIZE: f32 = 17.;
 
@@ -117,7 +121,7 @@ fn setup_score_display(
                     padding: UiRect::all(Val::Px(5.)),
                     ..default()
                 },
-                background_color: Color::DARK_GRAY.with_a(0.4).into(),
+                background_color: Color::DARK_GRAY.with_a(0.2).into(),
                 visibility: Visibility::Hidden,
                 ..default()
             },
@@ -292,7 +296,8 @@ fn handle_showing_score_display(
         return;
     }
 
-    let should_show = should_show_score_display(&keyboard) || pause_state.0 == MenuState::Pause;
+    let should_show = should_show_score_display(&keyboard)
+        || matches!(pause_state.0, MenuState::Pause | MenuState::MatchEnd);
 
     for mut visibility in total_score_display_query.iter_mut() {
         match (*visibility, should_show) {
@@ -339,6 +344,46 @@ fn handle_match_time_display(
     }
 }
 
+fn handle_victory_text(
+    players: Res<PlayerRegistry>,
+    you: Res<LocalPlayerHandle>,
+    mut victory_text_query: Query<&mut Text, With<VictoryText>>,
+    mut parsed_victory: Local<bool>,
+) {
+    if *parsed_victory && players.is_changed() {
+        *parsed_victory = false;
+    }
+
+    if victory_text_query.is_empty() || *parsed_victory {
+        return;
+    }
+
+    *parsed_victory = true;
+
+    let mut victor_idx = 0usize;
+    let mut victor_kd = 0f32;
+    for (i, player) in players.iter().enumerate() {
+        let player_kd = player.kills as f32 / (player.deaths + 1) as f32;
+        if victor_kd > player_kd {
+            victor_kd = player_kd;
+            victor_idx = i;
+        }
+    }
+
+    let victor_strings = if you.0 == victor_idx {
+        ("You".to_string(), "\nare victorious!")
+    } else {
+        (players[victor_idx].name.clone(), "\nis victorious!")
+    };
+    let victor_color = players[victor_idx].team.color();
+
+    for mut victory_text in victory_text_query.iter_mut() {
+        victory_text.sections[0].value = victor_strings.0.clone();
+        victory_text.sections[0].style.color = victor_color;
+        victory_text.sections[1].value = victor_strings.1.to_string();
+    }
+}
+
 pub struct PlayerScorePlugin;
 impl Plugin for PlayerScorePlugin {
     fn build(&self, app: &mut App) {
@@ -346,6 +391,7 @@ impl Plugin for PlayerScorePlugin {
             // despawn_node::<TotalScoreDisplay> -- handled by despawn_everything
             .add_system(populate_score_display.run_if(in_state(GameState::InGame)))
             .add_system(handle_showing_score_display.run_if(in_state(GameState::InGame)))
-            .add_system(handle_match_time_display.run_if(in_state(GameState::InGame)));
+            .add_system(handle_match_time_display.run_if(in_state(GameState::InGame)))
+            .add_system(handle_victory_text.run_if(in_state(GameState::InGame)));
     }
 }

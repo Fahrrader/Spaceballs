@@ -83,7 +83,7 @@ pub struct MatchTime(pub Timer);
 
 impl Default for MatchTime {
     fn default() -> Self {
-        Self(Timer::new(Duration::from_secs(3 * 60), TimerMode::Once))
+        Self(Timer::new(Duration::from_secs(1 * 60), TimerMode::Once))
     }
 }
 
@@ -127,7 +127,7 @@ pub fn send_new_players_joined(
 }
 
 fn reset_match_time_in_multiplayer(mut commands: Commands, player_count: Res<PlayerCount>) {
-    if player_count.0 > 1 {
+    if player_count.0 > 0 {
         commands.init_resource::<MatchTime>();
     }
 }
@@ -146,7 +146,7 @@ pub fn handle_match_time(
     match_time.0.tick(Duration::from_secs_f32(1. / 60.));
 
     if match_time.0.finished() {
-        menu_state.set(MenuState::Pause);
+        menu_state.set(MenuState::MatchEnd);
         commands.remove_resource::<MatchTime>();
     }
 }

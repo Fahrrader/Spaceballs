@@ -62,7 +62,9 @@ make_menu_building_environment! {
     align_items: MaybeDefault<AlignItems>,
     align_self: MaybeDefault<AlignSelf>,
     justify_content: MaybeDefault<JustifyContent>,
+    position: MaybeDefault<UiRect>,
     margin: MaybeDefault<UiRect>,
+    padding: MaybeDefault<UiRect>,
     text_font_size: f32,
     button_font_size: f32,
     button_width: Val,
@@ -102,7 +104,9 @@ impl<'a> MenuBuildingEnvironment<'a> {
             align_items: MaybeDefault::Default,
             align_self: MaybeDefault::Default,
             justify_content: MaybeDefault::Default,
+            position: MaybeDefault::Default,
             margin: MaybeDefault::Default,
+            padding: MaybeDefault::Default,
             text_font_size,
             button_font_size,
             button_width,
@@ -381,7 +385,8 @@ macro_rules! build_layout {
             align_items: msv.align_items.get_or_default(),
             align_self: msv.align_self.get_or_default(),
             justify_content: msv.justify_content.get_or(JustifyContent::Center),
-            padding: UiRect::all(Val::Percent(2.5)),
+            position: msv.position.get_or_default(),
+            padding: msv.margin.get_or(UiRect::all(Val::Percent(2.5))),
             margin: msv.margin.get_or_default(),
             ..default()
         };
@@ -447,7 +452,9 @@ macro_rules! build_layout {
             align_self: msv.align_self.get_or_default(),
             justify_content: msv.justify_content.get_or(JustifyContent::Center),
             flex_direction: $flex_direction,
+            position: msv.position.get_or_default(),
             margin: msv.margin.get_or_default(),
+            padding: msv.padding.get_or_default(),
             ..default()
         };
         $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
@@ -459,7 +466,9 @@ macro_rules! build_layout {
             align_items: msv.align_items.get_or_default(),
             align_self: msv.align_self.get_or_default(),
             justify_content: msv.justify_content.get_or_default(),
+            position: msv.position.get_or_default(),
             margin: msv.margin.get_or_default(),
+            padding: msv.padding.get_or_default(),
             ..default()
         };
         $crate::build_layout!($parent, $menu_shared_vars, style, ($($extra_component,)*), $($body)*);
@@ -495,7 +504,9 @@ macro_rules! build_text {
                     align_items: bundle_msv.align_items.get_or_default(),
                     align_self: bundle_msv.align_self.get_or_default(),
                     justify_content: bundle_msv.justify_content.get_or_default(),
+                    position: bundle_msv.position.get_or_default(),
                     margin: bundle_msv.margin.get_or(UiRect::all(Val::Percent(2.5))),
+                    padding: bundle_msv.padding.get_or_default(),
                     ..default()
                 }),
             $($extra_components,)*
@@ -540,7 +551,9 @@ macro_rules! build_text_input {
                     align_items: bundle_msv.align_items.get_or_default(),
                     align_self: bundle_msv.align_self.get_or_default(),
                     justify_content: bundle_msv.justify_content.get_or_default(),
+                    position: bundle_msv.position.get_or_default(),
                     margin: bundle_msv.margin.get_or(UiRect::all(Val::Percent(2.5))),
+                    padding: bundle_msv.padding.get_or_default(),
                     ..default()
                 },
                 background_color: bundle_msv.node_color.into(),
@@ -634,6 +647,7 @@ macro_rules! build_buttons {
         let button_style = Style {
             size: Size::new(msv.button_width, msv.button_height),
             margin: msv.button_margin,
+            padding: msv.padding.get_or_default(),
             justify_content: msv.justify_content.get_or(JustifyContent::Center),
             align_items: msv.align_items.get_or(AlignItems::Center),
             ..default()

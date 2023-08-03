@@ -7,6 +7,7 @@ pub struct InputConsumerPriority(u8);
 
 pub const GAME_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(0);
 pub const PAUSE_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(1);
+pub const MATCH_END_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(2);
 pub const CHAT_OPEN_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(5);
 pub const CHAT_INPUT_LAYER: InputConsumerPriority = InputConsumerPriority::new(6);
 pub const PLAYER_SCORE_VIEW_LAYER: InputConsumerPriority = InputConsumerPriority::new(7);

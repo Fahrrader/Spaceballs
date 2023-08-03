@@ -1,11 +1,13 @@
 use crate::network::PlayerCount;
 use crate::ui::color_interaction::ColorInteractionMap;
 use crate::ui::focus::{Focus, KeyToButtonBinding};
-use crate::ui::input_consumption::PAUSE_INPUT_LAYER;
+use crate::ui::input_consumption::{MATCH_END_INPUT_LAYER, PAUSE_INPUT_LAYER};
 use crate::ui::lobby::PeerWaitingText;
 use crate::ui::menu_builder::{
+    DEFAULT_BUTTON_COLOR, DEFAULT_BUTTON_HOVERED_COLOR, DEFAULT_BUTTON_PRESSED_COLOR,
     DEFAULT_FONT_SIZE, DEFAULT_OUTLINE_THICKNESS, DEFAULT_TEXT_COLOR, DEFAULT_TEXT_INPUT_MARGIN,
 };
+use crate::ui::score::{TotalScoreDisplay, VictoryText};
 use crate::ui::text_input::TextInput;
 use crate::ui::user_settings::{transfer_setting_from_text_input, UserInputForm, UserSettings};
 use crate::ui::{colors, despawn_node, fonts};
@@ -44,6 +46,7 @@ generate_menu_states!(
     // Tutorial,
     Settings,
     Pause,
+    MatchEnd,
     MatchmakingLobby,
 );
 
@@ -86,6 +89,7 @@ pub(crate) enum MenuButtonAction {
     SelectScene(SceneSelector),
     StartGame,
     Resume,
+    Rematch,
     Controls,
     Settings,
     BackToMenu,
@@ -156,7 +160,7 @@ build_menu_plugin!(
     button_margin = UiRect::all(Val::Px(2.)),
     outline_width = Val::Px(0.),
     Left {
-        once node_color = Color::WHITE.with_a(0.01),
+        once node_color = Color::DARK_GRAY.with_a(0.2),
         once layout_height = Val::Px(420.).into(),
         once layout_width = Val::Px(400.).into(),
         once justify_content = JustifyContent::Center.into(),
@@ -184,6 +188,216 @@ build_menu_plugin!(
         },
     },
 );
+
+fn setup_match_end_menu(
+    mut commands: Commands,
+    asset_server: ResMut<AssetServer>,
+    mut total_score_display_query: Query<
+        (&mut Style, &mut BackgroundColor),
+        With<TotalScoreDisplay>,
+    >,
+) {
+    // aligning with the top block
+    const MATCH_END_SCREEN_TOP: f32 = 21.875;
+    const MATCH_END_SCREEN_RIGHT: f32 = (100. - MATCH_END_SCREEN_WIDTH) / 2.;
+    const MATCH_END_SCREEN_HEIGHT: f32 = 70.0;
+    const MATCH_END_SCREEN_WIDTH: f32 = 47.5;
+    const VICTOR_NAMEPLATE_HEIGHT: f32 = 20.0;
+    // which is 50% with [`MATCH_END_SCREEN_HEIGHT`] == 70.0
+    const SCORE_PANEL_HEIGHT: f32 = 35.0 / MATCH_END_SCREEN_HEIGHT * 100.0;
+    const BUTTON_PANEL_HEIGHT: f32 = 30.0;
+
+    if let Ok((mut score_display, mut score_display_color)) =
+        total_score_display_query.get_single_mut()
+    {
+        score_display.size.width = Val::Percent(MATCH_END_SCREEN_WIDTH);
+        score_display.position.right = Val::Percent(MATCH_END_SCREEN_RIGHT);
+        score_display.position.top = Val::Percent(
+            MATCH_END_SCREEN_TOP + MATCH_END_SCREEN_HEIGHT / 100. * VICTOR_NAMEPLATE_HEIGHT,
+        );
+        *score_display_color = Color::NONE.into();
+    }
+
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    size: Size::new(
+                        Val::Percent(MATCH_END_SCREEN_WIDTH),
+                        Val::Percent(MATCH_END_SCREEN_HEIGHT),
+                    ),
+                    position_type: PositionType::Absolute,
+                    position: UiRect {
+                        right: Val::Percent(MATCH_END_SCREEN_RIGHT),
+                        top: Val::Percent(MATCH_END_SCREEN_TOP),
+                        ..default()
+                    },
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    align_self: AlignSelf::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                // complementary to [`DEFAULT_TEXT_COLOR`]
+                background_color: Color::rgb(0.212, 0., 0.102).with_a(0.5).into(),
+                ..default()
+            },
+            MATCH_END_INPUT_LAYER,
+        ))
+        .with_children(|parent| {
+            let victor_name_style = TextStyle {
+                font: fonts::load(&asset_server, fonts::SPACERUNNER),
+                font_size: 45.,
+                color: DEFAULT_TEXT_COLOR,
+            };
+            let victor_verb_style = TextStyle {
+                font: fonts::load(&asset_server, fonts::SPACERUNNER),
+                font_size: 38.,
+                color: DEFAULT_TEXT_COLOR,
+            };
+
+            // winner's name space
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        size: Size::new(Val::Percent(100.0), Val::Percent(VICTOR_NAMEPLATE_HEIGHT)),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent.spawn((
+                        TextBundle {
+                            text: Text::from_sections([
+                                TextSection {
+                                    value: "You".to_string(),
+                                    style: victor_name_style.clone(),
+                                },
+                                TextSection {
+                                    value: "\nwin!".to_string(),
+                                    style: victor_verb_style,
+                                },
+                            ])
+                            .with_alignment(TextAlignment::Center),
+                            ..default()
+                        },
+                        VictoryText,
+                    ));
+                });
+
+            // empty column that is space to house score display
+            parent.spawn(NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Percent(100.0), Val::Percent(SCORE_PANEL_HEIGHT)),
+                    ..default()
+                },
+                ..default()
+            });
+
+            // button column
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        size: Size::new(Val::Percent(100.0), Val::Percent(BUTTON_PANEL_HEIGHT)),
+                        flex_direction: FlexDirection::ColumnReverse,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    let button_bundle = ButtonBundle {
+                        style: Style {
+                            size: Size::new(Val::Percent(100.0), Val::Px(50.0)),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        background_color: Color::NONE.into(),
+                        ..default()
+                    };
+                    let button_text_style = TextStyle {
+                        font_size: 30.,
+                        color: DEFAULT_BUTTON_COLOR,
+                        font: fonts::load(&asset_server, fonts::ULTRAGONIC),
+                    };
+                    let color_interaction_map = ColorInteractionMap::from([
+                        (Interaction::None, Some(DEFAULT_BUTTON_COLOR)),
+                        (Interaction::Hovered, Some(DEFAULT_BUTTON_HOVERED_COLOR)),
+                        (Interaction::Clicked, Some(DEFAULT_BUTTON_PRESSED_COLOR)),
+                    ]);
+                    let empty_color_interaction_map = ColorInteractionMap::from([]);
+
+                    parent
+                        .spawn((
+                            button_bundle.clone(),
+                            Focus::<Interaction>::None,
+                            empty_color_interaction_map.clone(),
+                            MenuButtonAction::Quit,
+                        ))
+                        .with_children(|button| {
+                            button.spawn((
+                                TextBundle {
+                                    text: Text::from_section("Quit", button_text_style.clone()),
+                                    ..default()
+                                },
+                                color_interaction_map.clone(),
+                            ));
+                        });
+
+                    parent
+                        .spawn((
+                            button_bundle.clone(),
+                            Focus::<Interaction>::None,
+                            empty_color_interaction_map.clone(),
+                            MenuButtonAction::QuitToTitle,
+                            KeyToButtonBinding(KeyCode::Escape),
+                        ))
+                        .with_children(|button| {
+                            button.spawn((
+                                TextBundle {
+                                    text: Text::from_section(
+                                        "Quit to Main Menu",
+                                        button_text_style.clone(),
+                                    ),
+                                    ..default()
+                                },
+                                color_interaction_map.clone(),
+                            ));
+                        });
+
+                    parent
+                        .spawn((
+                            button_bundle,
+                            Focus::<Interaction>::None,
+                            empty_color_interaction_map,
+                            MenuButtonAction::Rematch,
+                        ))
+                        .with_children(|button| {
+                            button.spawn((
+                                TextBundle {
+                                    text: Text::from_section("Rematch", button_text_style),
+                                    ..default()
+                                },
+                                color_interaction_map,
+                            ));
+                        });
+                });
+        });
+}
+
+impl Plugin for SingleMenuPlugin<menu_state::MatchEnd> {
+    fn build(&self, app: &mut App) {
+        app.add_system(setup_match_end_menu.in_schedule(OnEnter(MenuState::MatchEnd)))
+            .add_system(
+                despawn_node::<OnMenu<menu_state::MatchEnd>>
+                    .in_schedule(OnExit(MenuState::MatchEnd)),
+            );
+    }
+}
 
 build_menu_plugin!(
     (setup_singleplayer_menu, SinglePlayer),
@@ -284,7 +498,6 @@ build_menu_plugin!(
         Column {
             Buttons [
                 (MenuButtonAction::JoinGame, "Continue"),
-                // (MenuButtonAction::HostGame, "Host Game"),
                 (MenuButtonAction::BackToMenu, "Back") + (
                     KeyToButtonBinding(KeyCode::Escape)
                 ),
@@ -386,6 +599,7 @@ impl PluginGroup for MenuSetupPlugins {
         PluginGroupBuilder::start::<Self>()
             .add(SingleMenuPlugin::<Main>::default())
             .add(SingleMenuPlugin::<Pause>::default())
+            .add(SingleMenuPlugin::<MatchEnd>::default())
             .add(SingleMenuPlugin::<MatchmakingLobby>::default())
             .add(SingleMenuPlugin::<SinglePlayer>::default())
             .add(SingleMenuPlugin::<MultiPlayer>::default())
@@ -500,6 +714,7 @@ pub(crate) fn handle_menu_actions(
                     }
                 }
                 MenuButtonAction::Resume => pause_events.send(GamePauseEvent::Unpause),
+                MenuButtonAction::Rematch => pause_events.send(GamePauseEvent::Unpause), // todo
                 MenuButtonAction::Controls => menu_state.set(MenuState::Controls),
                 MenuButtonAction::Settings => menu_state.set(MenuState::Settings),
                 MenuButtonAction::BackToMenu => {
