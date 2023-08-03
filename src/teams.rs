@@ -10,7 +10,7 @@ pub const PLAYER_DEFAULT_TEAM: TeamNumber = 1;
 pub const AI_DEFAULT_TEAM: TeamNumber = 9;
 
 /// Marker holding the character's (or anything's) allegiance.
-#[derive(Component, Clone, Debug, Default, Eq, PartialEq, Reflect, FromReflect)]
+#[derive(Component, Clone, Copy, Debug, Default, Eq, PartialEq, Reflect, FromReflect)]
 pub struct Team(pub TeamNumber);
 
 impl Team {

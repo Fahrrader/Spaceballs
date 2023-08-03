@@ -174,7 +174,7 @@ pub fn setup_experimental(
     ));
 
     // Non-existent player character 2, whose death will cause a crash *shrug*
-    if player_count.0 <= 1 {
+    if player_count.0 == 1 {
         PlayerCharacterBundle::new(
             Transform::from_translation(Vec3::new(-50.0, 150.0, 0.0)),
             PLAYER_DEFAULT_TEAM + 1,

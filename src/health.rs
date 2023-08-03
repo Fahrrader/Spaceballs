@@ -80,9 +80,8 @@ pub fn handle_reporting_death(
     mut players: ResMut<PlayerRegistry>,
 ) {
     for event in dead_reader.iter() {
-        if let Some(mut player_data) = players.get_mut(event.player_handle) {
-            player_data.deaths += 1;
-        } else {
+        let player_data = players.get_mut(event.player_handle);
+        if player_data.is_none() {
             warn!(
                 "Tried to kill non-existent player {}, as it was not found in player registry",
                 event.player_handle
@@ -90,11 +89,17 @@ pub fn handle_reporting_death(
             continue;
         }
 
+        let mut player_data = player_data.unwrap();
+        player_data.deaths += 1;
+        let player_team = player_data.team;
+
         let message = event
             .killed_by
             .and_then(|killer| {
                 players.get_mut(killer).map(|killer_data| {
-                    killer_data.kills += 1;
+                    if killer_data.team != player_team {
+                        killer_data.kills += 1;
+                    }
                     ChatMessage {
                         message: "{0} killed {1}!".to_string(),
                         player_handles: vec![killer, event.player_handle],
