@@ -1,5 +1,5 @@
 use crate::network::peers::{PeerHandles, PeerNames};
-use crate::network::PlayerHandle;
+use crate::network::{PlayerHandle, MAINTAINED_FPS_F64};
 use crate::teams::{Team, TeamNumber, PLAYER_DEFAULT_TEAM};
 use crate::{GameState, MenuState, PlayerCount};
 use bevy::prelude::*;
@@ -127,7 +127,7 @@ pub fn send_new_players_joined(
 }
 
 fn reset_match_time_in_multiplayer(mut commands: Commands, player_count: Res<PlayerCount>) {
-    if player_count.0 > 0 {
+    if player_count.0 > 1 {
         commands.init_resource::<MatchTime>();
     }
 }
@@ -143,7 +143,9 @@ pub fn handle_match_time(
 
     let mut match_time = match_time.unwrap();
     // GGRS fixed ticks
-    match_time.0.tick(Duration::from_secs_f32(1. / 60.));
+    match_time
+        .0
+        .tick(Duration::from_secs_f64(1. / MAINTAINED_FPS_F64));
 
     if match_time.0.finished() {
         menu_state.set(MenuState::MatchEnd);

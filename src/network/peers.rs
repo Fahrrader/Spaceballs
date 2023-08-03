@@ -141,6 +141,7 @@ impl Plugin for OnlinePeerPlugin {
             .add_system(
                 handle_reporting_peer_disconnecting.run_if(not(in_state(GameState::MainMenu))),
             )
-            .add_system(reset_peer_names.in_schedule(OnEnter(GameState::MainMenu)));
+            .add_system(reset_peer_names.in_schedule(OnEnter(GameState::MainMenu)))
+            .add_system(reset_peer_names.in_schedule(OnExit(GameState::InGame)));
     }
 }

@@ -11,7 +11,7 @@ use crate::ui::score::{TotalScoreDisplay, VictoryText};
 use crate::ui::text_input::TextInput;
 use crate::ui::user_settings::{transfer_setting_from_text_input, UserInputForm, UserSettings};
 use crate::ui::{colors, despawn_node, fonts};
-use crate::{build_menu_plugin, GamePauseEvent, GameState, SceneSelector};
+use crate::{build_menu_plugin, GamePauseEvent, GameState, LimboState, SceneSelector};
 #[cfg(not(target_arch = "wasm32"))]
 use bevy::app::AppExit;
 use bevy::app::PluginGroupBuilder;
@@ -319,7 +319,7 @@ fn setup_match_end_menu(
                         background_color: Color::NONE.into(),
                         ..default()
                     };
-                    let button_text_style = TextStyle {
+                    let mut button_text_style = TextStyle {
                         font_size: 30.,
                         color: DEFAULT_BUTTON_COLOR,
                         font: fonts::load(&asset_server, fonts::ULTRAGONIC),
@@ -331,6 +331,7 @@ fn setup_match_end_menu(
                     ]);
                     let empty_color_interaction_map = ColorInteractionMap::from([]);
 
+                    #[cfg(not(target_arch = "wasm32"))]
                     parent
                         .spawn((
                             button_bundle.clone(),
@@ -377,6 +378,7 @@ fn setup_match_end_menu(
                             MenuButtonAction::Rematch,
                         ))
                         .with_children(|button| {
+                            button_text_style.color = colors::NEON_PINK;
                             button.spawn((
                                 TextBundle {
                                     text: Text::from_section("Rematch", button_text_style),
@@ -615,6 +617,11 @@ fn set_main_menu_state(mut menu_state: ResMut<NextState<MenuState>>) {
     menu_state.set(MenuState::Main);
 }
 
+/// System to initialize the default Main Menu state.
+fn reset_pause_on_game_exit(mut pause: EventWriter<GamePauseEvent>) {
+    pause.send(GamePauseEvent::Unpause);
+}
+
 /// System to read and apply game pause events to set the new menu state.
 fn pause_menu(
     mut pause_events: EventReader<GamePauseEvent>,
@@ -670,6 +677,7 @@ pub(crate) fn handle_menu_actions(
     #[cfg(not(target_arch = "wasm32"))] mut app_exit_events: EventWriter<AppExit>,
     mut menu_state: ResMut<NextState<MenuState>>,
     mut game_state: ResMut<NextState<GameState>>,
+    mut limbo_state: ResMut<NextState<LimboState>>,
     current_game_state: Res<State<GameState>>,
 ) {
     for (interaction, menu_button_action, entity) in &interaction_query {
@@ -714,7 +722,10 @@ pub(crate) fn handle_menu_actions(
                     }
                 }
                 MenuButtonAction::Resume => pause_events.send(GamePauseEvent::Unpause),
-                MenuButtonAction::Rematch => pause_events.send(GamePauseEvent::Unpause), // todo
+                MenuButtonAction::Rematch => {
+                    game_state.set(GameState::MainMenu);
+                    limbo_state.set(LimboState::Limbo);
+                }
                 MenuButtonAction::Controls => menu_state.set(MenuState::Controls),
                 MenuButtonAction::Settings => menu_state.set(MenuState::Settings),
                 MenuButtonAction::BackToMenu => {
@@ -724,11 +735,7 @@ pub(crate) fn handle_menu_actions(
                         menu_state.set(MenuState::Main)
                     }
                 }
-                MenuButtonAction::QuitToTitle => {
-                    pause_events.send(GamePauseEvent::Unpause);
-                    game_state.set(GameState::MainMenu);
-                    menu_state.set(MenuState::Main);
-                }
+                MenuButtonAction::QuitToTitle => game_state.set(GameState::MainMenu),
             }
         }
     }
@@ -744,6 +751,7 @@ impl Plugin for MenuPlugin {
             // Plugins responsible for spawning and despawning the menus
             .add_plugins(MenuSetupPlugins)
             .add_system(set_main_menu_state.in_schedule(OnEnter(GameState::MainMenu)))
+            .add_system(reset_pause_on_game_exit.in_schedule(OnExit(GameState::InGame)))
             .add_system(
                 pause_menu
                     .run_if(in_state(GameState::InGame).and_then(in_state(MenuState::Disabled))),
@@ -758,10 +766,10 @@ impl Plugin for MenuPlugin {
                     .run_if(not(in_state(MenuState::Disabled)))
                     .in_base_set(CoreSet::Update),
             )
-            .add_system(transfer_setting_from_text_input.in_schedule(OnExit(MenuState::Settings)))
-            .add_system(
+            .add_systems((
+                transfer_setting_from_text_input.in_schedule(OnExit(MenuState::Settings)),
                 transfer_setting_from_text_input.in_schedule(OnExit(MenuState::MultiPlayer)),
-            );
+            ));
         // Systems to handle the display settings screen
         /*.add_systems(
             OnEnter(MenuState::SettingsDisplay),

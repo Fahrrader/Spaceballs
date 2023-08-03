@@ -8,7 +8,7 @@ pub mod socket;
 use bevy::app::PluginGroupBuilder;
 pub use bevy_ggrs::{GGRSPlugin, GGRSSchedule};
 pub use controls::GGRSInput;
-pub use ggrs_config::{GGRSConfig, PeerId, PlayerHandle};
+pub use ggrs_config::{GGRSConfig, PeerId, PlayerHandle, MAINTAINED_FPS, MAINTAINED_FPS_F64};
 pub use players::{PlayerDied, PlayerJoined, PlayerRegistry};
 pub use session::PlayerCount;
 

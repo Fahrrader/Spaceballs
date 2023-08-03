@@ -12,8 +12,7 @@ use bevy::prelude::{
     in_state, not, App, Commands, Component, EventWriter, IntoSystemAppConfig, IntoSystemConfig,
     NextState, OnExit, Plugin, Res, ResMut, Resource,
 };
-use bevy_ggrs::ggrs;
-use bevy_ggrs::ggrs::{DesyncDetection, PlayerType};
+use bevy_ggrs::ggrs::PlayerType;
 #[cfg(feature = "diagnostic")]
 use bevy_ggrs::GGRSSchedule;
 use bevy_ggrs::Session;
@@ -25,13 +24,18 @@ use bevy_ggrs::Session;
 // https://johanhelsing.studio/cargospace
 
 // pub const ROOM_NAME: &str = "spaceballs";
-pub const MAINTAINED_FPS: usize = 60;
-pub const MAX_PREDICTION_FRAMES: usize = 5;
-pub const INPUT_DELAY: usize = 2;
 
 /// Expected - and maximum - player count for the game session.
 #[derive(Resource)]
 pub struct PlayerCount(pub usize);
+
+impl std::ops::Deref for PlayerCount {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// Resource containing a player handle from the GGRS session as having [`PlayerType::Local`].
 #[derive(Resource)]
@@ -97,16 +101,7 @@ pub fn build_session(
     }
 
     // create a GGRS P2P session
-    let mut session_builder = ggrs::SessionBuilder::<GGRSConfig>::new()
-        .with_num_players(player_count.0)
-        .with_fps(MAINTAINED_FPS)
-        .expect("Invalid FPS")
-        .with_max_prediction_window(MAX_PREDICTION_FRAMES)
-        // just in case *shrug*
-        .with_desync_detection_mode(DesyncDetection::On {
-            interval: MAINTAINED_FPS as u32,
-        })
-        .with_input_delay(INPUT_DELAY);
+    let mut session_builder = GGRSConfig::new_builder().with_num_players(player_count.0);
 
     let mut peer_handles = PeerHandles::default();
     let mut player_registry = PlayerRegistry::default();

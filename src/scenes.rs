@@ -1,6 +1,6 @@
 use crate::characters::{AICharacterBundle, BuildCharacter, PlayerCharacterBundle};
-use crate::network::session::{LocalPlayer, LocalPlayerHandle, MAINTAINED_FPS};
-use crate::network::{PlayerHandle, PlayerRegistry};
+use crate::network::session::{LocalPlayer, LocalPlayerHandle};
+use crate::network::{PlayerHandle, PlayerRegistry, MAINTAINED_FPS_F64};
 use crate::physics::{Chunks, ChunksAnchor};
 use crate::{
     Color, EntropyGenerator, GunBundle, GunPreset, PlayerCount, RectangularObstacleBundle,
@@ -414,7 +414,7 @@ pub fn handle_player_respawning(
 ) {
     for (mut spawn_point, transform, mut sprite) in spawn_point_query.iter_mut() {
         if spawn_point.is_free()
-            || !spawn_point.tick(Duration::from_secs_f64(1. / MAINTAINED_FPS as f64))
+            || !spawn_point.tick(Duration::from_secs_f64(1. / MAINTAINED_FPS_F64))
         {
             continue;
         }

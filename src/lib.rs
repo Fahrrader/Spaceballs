@@ -69,6 +69,15 @@ pub enum GameState {
     InGame,
 }
 
+/// Optional transitional stage, where things that should be loaded, shouldn't.
+#[derive(States, Clone, Default, Eq, PartialEq, Debug, Hash)]
+pub enum LimboState {
+    #[default]
+    None,
+    /// Rematch transition -- GGRS has to have the time to clean up everything, so we must get stuck in limbo.
+    Limbo,
+}
+
 /// Event to control the trigger the pause / in-game menu state of the game.
 /// Use `Pause` and `Unpause` for explicit control, and `Toggle` to switch between the states.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -99,6 +108,21 @@ pub fn standard_setup(mut commands: Commands) {
             ..default()
         },
     ));
+}
+
+pub fn handle_waiting_for_rematch_in_limbo(
+    mut game_state: ResMut<NextState<GameState>>,
+    mut limbo_state: ResMut<NextState<LimboState>>,
+    mut frames_passed: Local<usize>,
+) {
+    const FRAMES_TO_WAIT: usize = 4;
+    *frames_passed += 1;
+    if *frames_passed > FRAMES_TO_WAIT {
+        *frames_passed = 0;
+    } else if *frames_passed == FRAMES_TO_WAIT {
+        game_state.set(GameState::Matchmaking);
+        limbo_state.set(LimboState::None);
+    }
 }
 
 /// State of chaos!

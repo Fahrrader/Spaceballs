@@ -230,7 +230,7 @@ macro_rules! build_menu_plugin {
         impl Plugin for SingleMenuPlugin<menu_state::$menu> {
             fn build(&self, app: &mut App) {
                 app
-                    .add_system($system_name.in_schedule(OnEnter(MenuState::$menu)))
+                    .add_system($system_name.in_schedule(OnEnter(MenuState::$menu)).run_if(not(in_state(LimboState::Limbo))))
                     .add_system(despawn_node::<OnMenu<menu_state::$menu>>.in_schedule(OnExit(MenuState::$menu)))
                 ;
             }

@@ -45,6 +45,7 @@ fn main() {
         // probably displace to plugin
         .init_resource::<SpawnQueue>()
         .add_state::<GameState>()
+        .add_state::<LimboState>()
         .add_event::<GamePauseEvent>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(create_window(800., 800.)),
@@ -71,7 +72,7 @@ fn main() {
         )
         .add_system(summon_scene.in_schedule(OnEnter(GameState::InGame)))
         // maybe just despawn literally everything, but make `standard_setup` apply
-        .add_system(despawn_everything.in_schedule(OnEnter(GameState::MainMenu)))
+        .add_system(despawn_everything.in_schedule(OnExit(GameState::InGame)))
         .add_system(handle_gamepad_connections)
         // todo:mp action routine gets abnormally long if in rollback together with ai input, might be interesting to look into
         .add_system(
@@ -115,6 +116,7 @@ fn main() {
         )
         .add_system(handle_respawn_point_occupation.in_schedule(OnEnter(GameState::InGame)))
         .add_system(reset_spawn_queue.in_schedule(OnExit(GameState::InGame)))
+        .add_system(handle_waiting_for_rematch_in_limbo.run_if(in_state(LimboState::Limbo)))
         .add_system(handle_pause_input.run_if(in_state(GameState::InGame)))
         // might duplicate if not in GGRS
         .add_system(handle_reporting_death.run_if(in_state(GameState::InGame)))
