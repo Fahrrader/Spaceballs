@@ -1,9 +1,10 @@
 use crate::network::peers::{PeerHandles, PeerNames};
 use crate::network::PlayerHandle;
 use crate::teams::{Team, TeamNumber, PLAYER_DEFAULT_TEAM};
-use crate::GameState;
+use crate::{GameState, MenuState, PlayerCount};
 use bevy::prelude::*;
 use std::slice::Iter;
+use std::time::Duration;
 
 #[derive(Default, Debug)]
 pub struct PlayerData {
@@ -77,6 +78,15 @@ impl<'a> IntoIterator for &'a PlayerRegistry {
     }
 }
 
+#[derive(Resource, Debug)]
+pub struct MatchTime(pub Timer);
+
+impl Default for MatchTime {
+    fn default() -> Self {
+        Self(Timer::new(Duration::from_secs(3 * 60), TimerMode::Once))
+    }
+}
+
 pub fn update_player_names(
     peer_names: Res<PeerNames>,
     peer_handles: Res<PeerHandles>,
@@ -116,12 +126,38 @@ pub fn send_new_players_joined(
     }
 }
 
+fn reset_match_time_in_multiplayer(mut commands: Commands, player_count: Res<PlayerCount>) {
+    if player_count.0 > 1 {
+        commands.init_resource::<MatchTime>();
+    }
+}
+
+pub fn handle_match_time(
+    mut commands: Commands,
+    match_time: Option<ResMut<MatchTime>>,
+    mut menu_state: ResMut<NextState<MenuState>>,
+) {
+    if match_time.is_none() {
+        return;
+    }
+
+    let mut match_time = match_time.unwrap();
+    // GGRS fixed ticks
+    match_time.0.tick(Duration::from_secs_f32(1. / 60.));
+
+    if match_time.0.finished() {
+        menu_state.set(MenuState::Pause);
+        commands.remove_resource::<MatchTime>();
+    }
+}
+
 pub(crate) struct OnlinePlayerPlugin;
 impl Plugin for OnlinePlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerRegistry>()
             .add_event::<PlayerJoined>()
             .add_event::<PlayerDied>()
-            .add_system(update_player_names.run_if(in_state(GameState::InGame)));
+            .add_system(update_player_names.run_if(in_state(GameState::InGame)))
+            .add_system(reset_match_time_in_multiplayer.in_schedule(OnEnter(GameState::InGame)));
     }
 }

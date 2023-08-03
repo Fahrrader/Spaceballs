@@ -107,6 +107,12 @@ fn main() {
                 .after(InputHandlingSet::InputReading)
                 .in_schedule(GGRSSchedule),
         )
+        .add_systems(
+            (
+                handle_match_time, /*.run_if(not(in_state(MenuState::MatchEnd)))*/
+            )
+                .in_schedule(GGRSSchedule),
+        )
         .add_system(handle_respawn_point_occupation.in_schedule(OnEnter(GameState::InGame)))
         .add_system(reset_spawn_queue.in_schedule(OnExit(GameState::InGame)))
         .add_system(handle_pause_input.run_if(in_state(GameState::InGame)))

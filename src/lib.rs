@@ -25,7 +25,7 @@ pub use controls::{
 pub use easter::EasterAnnouncementPlugin;
 pub use guns::{systems::*, Equipped, Gun, GunBundle, GunPreset, LastUnequippedAt};
 pub use health::{handle_death, handle_reporting_death, Dying, Health};
-pub use network::players::send_new_players_joined;
+pub use network::players::{handle_match_time, send_new_players_joined};
 pub use network::{
     GGRSConfig, GGRSPlugin, GGRSSchedule, MultiplayerPlugins, PlayerCount, PlayerDied, PlayerJoined,
 };
