@@ -4,21 +4,37 @@ description = "High-concept, extremely fun and varied in level selection arcade 
 version = "0.1.0"
 edition = "2021"
 
+# [target.wasm32-unknown-unknown]
+# runner = "wasm-server-runner"
+
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "windows")))'.dependencies]
-bevy = {features = ["dynamic"], version = "0.7"}
+bevy = { version = "0.10", features = ["dynamic_linking"] }
 
 [dependencies]
-bevy = "0.7"
-heron = { version = "3", features = ["2d", "enhanced-determinism"] }
+bevy = "0.10"
+bevy_rapier2d = { version = "0.21.0", features = ["enhanced-determinism"] } # serde-serialize, debug-render
+bevy_ggrs = { version = "0.12", features = ["wasm-bindgen"] }
+bevy_matchbox = { version = "0.6", features = ["ggrs"] }
+bytemuck = "1.5"
+bincode = "1.3.3"
+serde = { version = "1.0", features = ["derive"] }
 rand = "0.8.5"
 getrandom = { version = "0.2", features = ["js"] }
-clap = { version = "3.2.5", features = ["derive"] }
+clipboard = "0.5.0"
+clap = { version = "4", features = ["derive"] }
 console_error_panic_hook = "0.1"
-wasm-bindgen = "*"
+futures = "0.3"
+wasm-bindgen = { version = "0.2" }
+wasm-bindgen-futures = { version = "0.4" }
+web-sys = { version = "0.3", features = ["Clipboard"] }
+
+[features]
+diagnostic = []
 
 [profile.release]
-opt-level = 's'
+opt-level = 'z'
 lto = 'thin'
+codegen-units = 1
 
 [profile.dev]
 opt-level = 3

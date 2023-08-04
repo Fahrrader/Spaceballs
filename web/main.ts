@@ -6,15 +6,16 @@ const STICK_SIZE_LANDSCAPE = 100;
 declare global {
     interface Window {
         playArea: [number, number] | null;
-        sticksPosition: [number, number];
         joysticks: [nipplejs.JoystickManager, nipplejs.JoystickManager] | null;
+        sticksPosition: [number, number];
+        pasteBufferMap: Map<number, PasteData>;
     }
 }
 
 window.playArea = null;
-window.sticksPosition = [0, 0];
 window.joysticks = null;
-
+window.sticksPosition = [0, 0];
+window.pasteBufferMap = new Map();
 
 export function run(): void {
     for (let loader of document.getElementsByClassName("loader")) {
@@ -47,10 +48,6 @@ export function getSceneFromUrl(): string {
     return getUrlParam("scene");
 }
 
-export function getSticksPosition(): [number, number] {
-    return window.sticksPosition;
-}
-
 function getUrlParam(param: string): string {
     const paramString = window.location.search.slice(1);
     const searchParams = new URLSearchParams(paramString);
@@ -58,7 +55,34 @@ function getUrlParam(param: string): string {
     return String(result);
 }
 
-function detectMob(): boolean {
+class PasteData {
+    constructor(
+        public paste: string,
+        public error: string
+    ) { }
+}
+
+export function setPasteBuffer(entity_index: number) {
+    window.navigator.clipboard.readText()
+        .then(paste => window.pasteBufferMap.set(entity_index, new PasteData(paste, "")))
+        .catch(err => window.pasteBufferMap.set(entity_index, new PasteData("", err)));
+}
+
+export function getPasteBuffer(entity_index: number) {
+    const clipboardData = window.pasteBufferMap.get(entity_index);
+
+    if (clipboardData) {
+        window.pasteBufferMap.delete(entity_index);
+        if (clipboardData.error) throw new Error(clipboardData.error);
+        return clipboardData.paste;
+    }
+}
+
+export function getSticksPosition(): [number, number] {
+    return window.sticksPosition;
+}
+
+export function detectMob(): boolean {
     const toMatch = [
         /Android/i,
         /webOS/i,
@@ -98,6 +122,7 @@ function setupControls(c: HTMLCanvasElement): void {
     
     recreateJoysticks(isLandscape(screen.orientation || window.orientation));
 
+    // todo dem brokey. displays when starting in mobile simulation, stays on change to desktop; doesn't display when entering mobile simulation.
     if(screen.orientation)
         screen.orientation.addEventListener("change", (e)=>{
             recreateJoysticks(isLandscape(e.target as ScreenOrientation));
@@ -155,6 +180,7 @@ function recreateJoysticks(isLandscape: boolean): void {
     window.joysticks = [leftStickManager, rightStickManager];
 }
 
+// dem also brokey. deal with later
 function recalculateCanvasSize(c: HTMLCanvasElement): void {
     let ratio = c.width / c.height;
 

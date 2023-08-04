@@ -1,53 +1,79 @@
-use crate::actions::CharacterActionInput;
+use crate::ai::AIActionRoutine;
+use crate::controls::CharacterActionInput;
+use crate::guns::{Equipped, Gun, GunBundle, GunPreset, LastUnequippedAt};
 use crate::health::{Health, HitPoints};
-use crate::physics::{CollisionLayer, KinematicsBundle, PopularCollisionShape};
-use crate::projectiles::{BulletBundle, BULLET_SIZE, BULLET_SPEED};
+use crate::network::PlayerHandle;
+use crate::physics::{
+    popular_collider, ActiveEvents, CollisionLayer, KinematicsBundle, OngoingCollisions, RigidBody,
+    Velocity,
+};
 use crate::teams::{team_color, Team, TeamNumber};
-use crate::Vec3;
-use bevy::core::{Time, Timer};
-use bevy::math::Vec2;
-use bevy::prelude::{Bundle, Commands, Component, Query, Res, Sprite, SpriteBundle, Transform};
+use crate::EntropyGenerator;
+use bevy::hierarchy::{BuildChildren, Children};
+use bevy::math::{Vec2, Vec3};
+use bevy::prelude::{
+    Bundle, Changed, Commands, Component, Entity, Query, Res, Sprite, SpriteBundle, Time,
+    Transform, With, Without,
+};
 use bevy::utils::default;
+use std::f32::consts::PI;
 use std::time::Duration;
 
 // todo resize all sizes and speeds as percentages of screen-range
+/// Standard size for a character body in the prime time of their life.
 pub const CHARACTER_SIZE: f32 = 50.0;
 
-pub const CHARACTER_SPEED: f32 = 200.0;
-pub const CHARACTER_RAD_SPEED: f32 = 5.0;
+/// Standard linear speed per second at full capacity in floating point units.
+pub const CHARACTER_SPEED: f32 = CHARACTER_SIZE * 4.0;
+/// Standard rotational speed at full capacity per second in radians.
+pub const CHARACTER_RAD_SPEED: f32 = PI;
 
+/// The velocity of a gun when thrown. It is only a part of the calculation, the current character velocity is also taken into account.
+const GUN_THROW_SPEED: f32 = CHARACTER_SPEED * 2.0;
+/// Throw away the gun, it spins. It's a good trick.
+const GUN_THROW_SPIN_SPEED: f32 = 4.0 * PI;
+
+/// Standard maximum health for a player character.
 pub const CHARACTER_MAX_HEALTH: HitPoints = 100.0;
-pub const CHARACTER_FIRE_COOLDOWN: Duration = Duration::from_millis(25);
 
-pub const PLAYER_DEFAULT_TEAM: TeamNumber = 0;
+/// Common trait for all character bodies/bundles when they're not referring to BaseCharacterBundle.
+pub trait BuildCharacter {
+    /// Make a new character bundle yet to be spawned, with the transform of the initial placement, the team and the online player handle assigned.
+    fn new(transform: Transform, team: TeamNumber, player_handle: usize) -> Self;
+    /// Spawn a character bundle and attach equipment to it, returning spawned entities, character first.
+    fn spawn_with_equipment(
+        self,
+        commands: &mut Commands,
+        random_state: EntropyGenerator,
+        equipment: Vec<GunPreset>,
+    ) -> Vec<Entity>;
+}
 
+/// The Character base all other Character bundles should use and add to.
 #[derive(Bundle)]
 pub struct BaseCharacterBundle {
-    character: Character,
-    health: Health,
-    team: Team,
-    action_input: CharacterActionInput,
+    pub action_input: CharacterActionInput,
+    pub health: Health,
+    pub team: Team,
     #[bundle]
-    kinematics: KinematicsBundle,
+    pub kinematics: KinematicsBundle,
+    pub active_physics_events: ActiveEvents,
     #[bundle]
-    sprite_bundle: SpriteBundle,
+    pub sprite_bundle: SpriteBundle,
 }
 
 impl BaseCharacterBundle {
-    pub fn new(team: TeamNumber, transform: Transform) -> Self {
+    fn new(transform: Transform, team: TeamNumber) -> Self {
         Self {
-            character: Character { ..default() },
+            action_input: CharacterActionInput::default(),
             health: Health::new(CHARACTER_MAX_HEALTH),
             team: Team(team),
-            action_input: CharacterActionInput::default(),
             kinematics: KinematicsBundle::new(
-                PopularCollisionShape::get(
-                    PopularCollisionShape::Cell(CHARACTER_SIZE),
-                    transform.scale,
-                ),
-                CollisionLayer::Character,
+                popular_collider::square(CHARACTER_SIZE),
+                &[CollisionLayer::Character],
                 CollisionLayer::all(),
             ),
+            active_physics_events: ActiveEvents::COLLISION_EVENTS,
             sprite_bundle: SpriteBundle {
                 sprite: Sprite {
                     color: team_color(team),
@@ -59,88 +85,296 @@ impl BaseCharacterBundle {
             },
         }
     }
+
+    /// Create and insert some guns into the hands of a character.
+    pub fn spawn_equipment(
+        commands: &mut Commands,
+        character_id: Entity,
+        team: TeamNumber,
+        mut random_state: EntropyGenerator,
+        equipment: Vec<GunPreset>,
+    ) -> Vec<Entity> {
+        let mut result = Vec::with_capacity(equipment.len());
+
+        for gun_preset in equipment {
+            let gun_id = commands
+                .spawn(GunBundle::new(gun_preset, None, random_state.fork()).with_paint_job(team))
+                .id();
+
+            equip_gear(commands, character_id, gun_id, gun_preset, None);
+            result.push(gun_id);
+        }
+        result
+    }
+
+    fn spawn_with_equipment<CharacterBundle: BuildCharacter + Bundle>(
+        bundle: CharacterBundle,
+        team: TeamNumber,
+        commands: &mut Commands,
+        random_state: EntropyGenerator,
+        equipment: Vec<GunPreset>,
+    ) -> Vec<Entity> {
+        let char_id = commands.spawn(bundle).id();
+        let mut spawned_entities = vec![char_id];
+        spawned_entities.append(&mut BaseCharacterBundle::spawn_equipment(
+            commands,
+            char_id,
+            team,
+            random_state,
+            equipment,
+        ));
+        spawned_entities
+    }
 }
 
+/// Bundle for a Player Character, controlled over internet.
 #[derive(Bundle)]
-pub struct ControlledPlayerCharacterBundle {
+pub struct PlayerCharacterBundle {
     #[bundle]
-    character_bundle: BaseCharacterBundle,
-    player_controlled_marker: PlayerControlled,
+    pub character_bundle: BaseCharacterBundle,
+    pub player_marker: PlayerControlled,
 }
 
-impl ControlledPlayerCharacterBundle {
-    pub fn new(team: TeamNumber, transform: Transform) -> Self {
+/// Marker designating an entity controlled by a player.
+#[derive(Component, Debug)]
+pub struct PlayerControlled {
+    pub handle: PlayerHandle,
+}
+
+impl BuildCharacter for PlayerCharacterBundle {
+    fn new(transform: Transform, team: TeamNumber, player_handle: usize) -> Self {
         Self {
-            character_bundle: BaseCharacterBundle::new(team, transform),
-            player_controlled_marker: PlayerControlled,
+            character_bundle: BaseCharacterBundle::new(transform, team),
+            player_marker: PlayerControlled {
+                handle: player_handle,
+            },
         }
     }
+
+    fn spawn_with_equipment(
+        self,
+        commands: &mut Commands,
+        random_state: EntropyGenerator,
+        equipment: Vec<GunPreset>,
+    ) -> Vec<Entity> {
+        let team = self.character_bundle.team.0;
+        BaseCharacterBundle::spawn_with_equipment(self, team, commands, random_state, equipment)
+    }
 }
 
-#[derive(Component)]
-pub struct Character {
-    pub fire_cooldown: Timer,
+/// Bundle for an artificially-intelligent character.
+#[derive(Bundle)]
+pub struct AICharacterBundle {
+    #[bundle]
+    pub character_bundle: BaseCharacterBundle,
+    pub player_marker: AIControlled,
+    pub ai_controller: AIActionRoutine,
 }
 
-#[derive(Component)]
-pub struct PlayerControlled;
+/// Marker designating an entity controlled by a player.
+#[derive(Component, Debug)]
+pub struct AIControlled;
+// pub peer_handle: usize,
 
-impl Default for Character {
-    fn default() -> Self {
+impl BuildCharacter for AICharacterBundle {
+    fn new(transform: Transform, team: TeamNumber, _player_handle: usize) -> Self {
         Self {
-            fire_cooldown: Timer::new(CHARACTER_FIRE_COOLDOWN, false),
+            character_bundle: BaseCharacterBundle::new(transform, team),
+            player_marker: AIControlled,
+            ai_controller: AIActionRoutine::default(),
         }
     }
-}
 
-impl Character {
-    pub fn check_fire_cooldown(&self) -> bool {
-        self.fire_cooldown.finished()
-    }
-
-    fn tick_fire_cooldown(&mut self, time_delta: Duration) -> bool {
-        self.fire_cooldown.tick(time_delta).finished()
-    }
-
-    fn reset_fire_cooldown(&mut self) {
-        self.fire_cooldown.reset();
+    fn spawn_with_equipment(
+        self,
+        commands: &mut Commands,
+        random_state: EntropyGenerator,
+        equipment: Vec<GunPreset>,
+    ) -> Vec<Entity> {
+        let team = self.character_bundle.team.0;
+        BaseCharacterBundle::spawn_with_equipment(self, team, commands, random_state, equipment)
     }
 }
 
+/// Attach some equippable gear to a character and allow it to be interacted with.
+/// Unchecked if actually equippable, or if the equipping entity is a character!
+fn equip_gear(
+    commands: &mut Commands,
+    char_entity: Entity,
+    gear_entity: Entity,
+    // only guns for now
+    gun_preset: GunPreset,
+    gear_transform: Option<&mut Transform>,
+) {
+    commands.entity(char_entity).add_child(gear_entity);
+
+    let mut gear_commands = commands.entity(gear_entity);
+    Gun::reset_to_default(&mut gear_commands, gun_preset, gear_transform);
+    gear_commands.insert(Equipped {
+        by: Some(char_entity),
+    });
+}
+
+/// Un-attach something equipped on some entity and give it physics.
+/// No safety checks are made.
+fn unequip_gear(
+    commands: &mut Commands,
+    gear_entity: Entity,
+    kinematics: KinematicsBundle,
+    time: Duration,
+) {
+    commands
+        .entity(gear_entity)
+        .insert(Equipped { by: None })
+        .insert(LastUnequippedAt(time))
+        .insert(kinematics);
+}
+
+/// Unequip gear and give it some speed according to its type.
+/// No safety checks are made.
+fn throw_away_gear(
+    commands: &mut Commands,
+    char_transform: &Transform,
+    gear_entity: Entity,
+    gun_type: GunPreset,
+    gear_transform: &mut Transform,
+    gear_given_velocity: Vec3,
+    time: Duration,
+) {
+    let kinematics = gun_type
+        .stats()
+        .get_kinematics()
+        .with_linear_velocity(gear_given_velocity)
+        .with_angular_velocity(GUN_THROW_SPIN_SPEED)
+        .with_rigidbody_type(RigidBody::Dynamic);
+
+    unequip_gear(commands, gear_entity, kinematics, time);
+
+    let gear_offset_forward = char_transform.up() * char_transform.scale.y * CHARACTER_SIZE / 2.;
+    *gear_transform = Transform::from_translation(
+        char_transform.translation
+            + gear_offset_forward
+            + char_transform.rotation * gear_transform.translation,
+    )
+    .with_rotation(char_transform.rotation);
+}
+
+/// System to convert a character's action input (human or not) to linear and angular velocities.
 pub fn calculate_character_velocity(
-    mut query: Query<(&mut heron::Velocity, &Transform, &CharacterActionInput)>,
+    // inputs: Res<PlayerInputs<GgrsConfig>>,
+    mut query: Query<(&mut Velocity, &Transform, &CharacterActionInput)>,
 ) {
     for (mut velocity, transform, action_input) in query.iter_mut() {
-        velocity.linear = transform.up() * action_input.speed() * CHARACTER_SPEED;
-        velocity.angular =
-            heron::AxisAngle::new(-Vec3::Z, action_input.angular_speed() * CHARACTER_RAD_SPEED);
+        velocity.linvel = (transform.up() * action_input.speed() * CHARACTER_SPEED).truncate();
+        velocity.angvel = action_input.angular_speed() * -CHARACTER_RAD_SPEED;
     }
 }
 
-pub fn handle_gunfire(
+/// System to pick up and equip guns off the ground according to a character's input.
+pub fn handle_gun_picking(
     mut commands: Commands,
-    time: Res<Time>,
-    mut query_characters: Query<(&mut Character, &Team, &Transform, &CharacterActionInput)>,
+    query_characters: Query<(&CharacterActionInput, Entity)>,
+    mut query_weapons: Query<
+        (&Gun, &OngoingCollisions, &mut Transform, Entity),
+        (With<RigidBody>, Without<Equipped>),
+    >,
 ) {
-    for (mut character, team, character_transform, input) in query_characters.iter_mut() {
-        if character.tick_fire_cooldown(time.delta()) && input.fire {
-            let facing_direction = character_transform.up() * character_transform.scale;
+    for (weapon, collisions, mut weapon_transform, weapon_entity) in query_weapons.iter_mut() {
+        if collisions.is_empty() {
+            continue;
+        }
 
-            let character_movement_offset = input.speed() * CHARACTER_SPEED * time.delta_seconds();
-            let size_offset = CHARACTER_SIZE / 1.4 + BULLET_SIZE;
-            let bullet_spawn_offset = facing_direction * (size_offset + character_movement_offset);
-
-            for _ in 0..1 {
-                commands.spawn_bundle(BulletBundle::new(
-                    team.0,
-                    character_transform
-                        .with_translation(character_transform.translation + bullet_spawn_offset)
-                        .with_scale(Vec3::ONE),
-                    facing_direction * BULLET_SPEED,
-                ));
+        for (char_input, char_entity) in query_characters.iter() {
+            if !char_input.interact_1 || !collisions.contains(&char_entity) {
+                continue;
             }
 
-            character.reset_fire_cooldown();
+            equip_gear(
+                &mut commands,
+                char_entity,
+                weapon_entity,
+                weapon.preset,
+                Some(&mut weapon_transform),
+            );
+        }
+    }
+}
+
+/// System to, according to either to a character's input or its untimely demise, unequip guns and throw them to the ground with some gusto.
+/// That perfect gun is gone, and the heat never bothered it anyway.
+pub fn handle_letting_gear_go(
+    mut commands: Commands,
+    mut query_characters: Query<
+        (
+            &CharacterActionInput,
+            &Velocity,
+            &Transform,
+            &Children,
+            &Health,
+            Entity,
+        ),
+        Without<Equipped>,
+    >,
+    time: Res<Time>,
+    // todo maybe events? or some other sophisticated way with physics
+    mut query_gear: Query<(&Gun, &mut Transform), With<Equipped>>,
+) {
+    for (action_input, velocity, transform, children, health, entity) in query_characters.iter_mut()
+    {
+        // Only proceed with the throwing away if either the drop-gear button is pressed, or if the guy's wasted.
+        // todo uncool, let the guy actually die first - do the same thing on dead_men_walking.
+        // Also, force him to move slower here as he's transferring some momentum
+        if !(action_input.interact_2 || health.is_dead()) || children.is_empty() {
+            continue;
+        }
+
+        let mut equipped_gears = Vec::<Entity>::new();
+        for child in children.iter() {
+            let child = *child;
+            if let Ok((gun, mut gun_transform)) = query_gear.get_mut(child) {
+                equipped_gears.push(child);
+                let gun_velocity = velocity.linvel.extend(0.) + transform.up() * GUN_THROW_SPEED;
+                throw_away_gear(
+                    &mut commands,
+                    transform,
+                    child,
+                    gun.preset,
+                    &mut gun_transform,
+                    gun_velocity,
+                    time.elapsed(),
+                );
+            }
+        }
+
+        commands.entity(entity).remove_children(&equipped_gears);
+    }
+}
+
+/// System to distribute guns around a character's face whenever a new one is added or an old one removed.
+pub fn handle_inventory_layout_change(
+    query_characters: Query<
+        (&Transform, &Children),
+        (With<CharacterActionInput>, Changed<Children>, Without<Gun>),
+    >,
+    mut query_gear: Query<(&Gun, &mut Transform, &Equipped)>,
+) {
+    for (char_transform, children) in query_characters.iter() {
+        let step_size = (CHARACTER_SIZE / (children.len() as f32 + 1.0)) * char_transform.scale.x;
+        let far_left_x = -CHARACTER_SIZE * char_transform.scale.x / 2.0;
+        for (i, child) in children.iter().enumerate() {
+            if let Ok((gun, mut gun_transform, gun_equipped)) = query_gear.get_mut(*child) {
+                if gun_equipped.by.is_none() {
+                    continue;
+                }
+
+                let original_transform = gun
+                    .preset
+                    .stats()
+                    .get_transform_with_scale(char_transform.scale);
+
+                gun_transform.translation.x =
+                    original_transform.translation.x - far_left_x - step_size * (i + 1) as f32;
+            }
         }
     }
 }
