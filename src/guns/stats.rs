@@ -81,6 +81,9 @@ pub enum ProjectileSpawnSpace {
 pub struct GunPersistentStats {
     /// Name of the gun type.
     pub name: &'static str,
+    /// ID of the gun type. Used primarily by AI, should start from 1.
+    // todo think about reworking
+    pub id: usize,
 
     /// Width (x-axis) of the gun's sprite.
     pub gun_width: f32,

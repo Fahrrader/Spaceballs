@@ -23,7 +23,7 @@ fn main() {
         .register_rollback_component::<ActiveEvents>()
         .register_rollback_component::<SpawnPoint>()
         .register_rollback_component::<CharacterActionInput>()
-        .register_rollback_component::<AIActionRoutine>()
+        //.register_rollback_component::<AIActionRoutine>()
         .register_rollback_component::<Gun>()
         .register_rollback_component::<Equipped>()
         .register_rollback_component::<LastUnequippedAt>()
@@ -47,15 +47,6 @@ fn main() {
         .add_state::<GameState>()
         .add_state::<LimboState>()
         .add_event::<GamePauseEvent>()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(create_window(800., 800.)),
-            ..default()
-        }))
-        .add_plugins(MultiplayerPlugins)
-        .add_plugins(UIPlugins)
-        .add_plugin(RapierPhysicsPlugin::<()>::default())
-        .add_plugin(SpaceballsPhysicsPlugin)
-        .add_plugin(EasterAnnouncementPlugin)
         .configure_sets(
             // ggrs couldn't give two flying shits about this one
             (
@@ -64,6 +55,16 @@ fn main() {
             )
                 .chain(),
         )
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(create_window(800., 800.)),
+            ..default()
+        }))
+        .add_plugins(MultiplayerPlugins)
+        .add_plugins(UIPlugins)
+        .add_plugin(RapierPhysicsPlugin::<()>::default())
+        .add_plugin(SpaceballsPhysicsPlugin)
+        .add_plugin(AIPlugin)
+        .add_plugin(EasterAnnouncementPlugin)
         .add_startup_system(standard_setup)
         .add_system(
             reset_entropy
@@ -75,12 +76,6 @@ fn main() {
         .add_system(despawn_everything.in_schedule(OnEnter(GameState::MainMenu)))
         .add_system(despawn_everything.in_schedule(OnExit(GameState::InGame)))
         .add_system(handle_gamepad_connections)
-        // todo:mp action routine gets abnormally long if in rollback together with ai input, might be interesting to look into
-        .add_system(
-            handle_ai_input
-                .run_if(in_state(GameState::InGame))
-                .in_set(InputHandlingSet::InputReading),
-        )
         .add_system(
             handle_online_player_input
                 .run_if(in_state(GameState::InGame))

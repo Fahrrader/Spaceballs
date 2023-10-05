@@ -108,6 +108,7 @@ impl GunPreset {
 /// Regular, default gun. Shoots straight. Trusty and simple.
 pub const REGULAR: GunPersistentStats = GunPersistentStats {
     name: "Regular",
+    id: 1,
     gun_width: REGULAR_GUN_WIDTH,
     gun_length: REGULAR_GUN_LENGTH,
     gun_neutral_color: GunColour::new(Color::DARK_GRAY),
@@ -134,6 +135,7 @@ pub const REGULAR: GunPersistentStats = GunPersistentStats {
 /// An experimental "upgrade" over a regular gun. Faster, inaccurate, doesn't hit as hard.
 pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
     name: "Irregular",
+    id: 2,
     gun_neutral_color: GunColour::new(colors::DARK_CHESTNUT),
     projectile_spread_angle: PI / 12.,
     projectile_damage: BULLET_DAMAGE * 1.3,
@@ -146,6 +148,7 @@ pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
 /// Shotgun. Individual pellets don't hit as hard and spread apart with time, but devastating at close range.
 pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
     name: "Scattergun",
+    id: 3,
     gun_neutral_color: GunColour::new(colors::BRASS),
     projectile_color: GunColour::new(Color::rgb(0.8 * 4., 0.5 * 4., 0.2 * 4.)),
     projectile_spread_angle: PI / 6.,
@@ -161,6 +164,7 @@ pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
 /// Discombobulate foes surrounding you with this. Spreads many projectiles in a circle.
 pub const TYPHOON: GunPersistentStats = GunPersistentStats {
     name: "Typhoon",
+    id: 4,
     gun_neutral_color: GunColour::new(colors::CORAL),
     projectile_color: GunColour::new(Color::rgb(0.8 * 4., 0.2 * 4., 0.8 * 4.)),
     projectile_spread_angle: 2. * PI,
@@ -177,6 +181,7 @@ pub const TYPHOON: GunPersistentStats = GunPersistentStats {
 /// Fast and furious. Penetrates foes, walls, and lusty Argonian maids like butter.
 pub const RAILGUN: GunPersistentStats = GunPersistentStats {
     name: "Railgun",
+    id: 5,
     gun_neutral_color: GunColour::new(Color::SILVER),
     projectile_color: GunColour::new(Color::rgb(0.2 * 4., 0.5 * 4., 0.8 * 4.)),
     // Impact damage is minimal. See [`railgun::PENETRATION_DAMAGE_PER_CHUNK`] for penetration damage.
@@ -197,6 +202,7 @@ pub const RAILGUN: GunPersistentStats = GunPersistentStats {
 /// Make a light show! Reflects off walls, your equivalent of a magic missile.
 pub const LASER_GUN: GunPersistentStats = GunPersistentStats {
     name: "Deadly Laser",
+    id: 6,
     gun_neutral_color: GunColour::new(Color::AQUAMARINE),
     projectile_color: GunColour::new(Color::rgb(0.2 * 5., 0.8 * 5., 0.2 * 5.)),
     projectile_damage: BULLET_DAMAGE * 0.075,

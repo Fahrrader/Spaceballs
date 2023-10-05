@@ -1,4 +1,4 @@
-use crate::ai::AIActionRoutine;
+use crate::ai::AIAgent;
 use crate::controls::CharacterActionInput;
 use crate::guns::{Equipped, Gun, GunBundle, GunPreset, LastUnequippedAt};
 use crate::health::{Health, HitPoints};
@@ -167,21 +167,16 @@ impl BuildCharacter for PlayerCharacterBundle {
 pub struct AICharacterBundle {
     #[bundle]
     pub character_bundle: BaseCharacterBundle,
-    pub player_marker: AIControlled,
-    pub ai_controller: AIActionRoutine,
+    pub ai_agent: AIAgent,
+    /*pub player_marker: AIControlled,
+    pub ai_controller: AIActionRoutine,*/
 }
-
-/// Marker designating an entity controlled by a player.
-#[derive(Component, Debug)]
-pub struct AIControlled;
-// pub peer_handle: usize,
 
 impl BuildCharacter for AICharacterBundle {
     fn new(transform: Transform, team: TeamNumber, _player_handle: usize) -> Self {
         Self {
             character_bundle: BaseCharacterBundle::new(transform, team),
-            player_marker: AIControlled,
-            ai_controller: AIActionRoutine::default(),
+            ai_agent: AIAgent::default(),
         }
     }
 

@@ -13,7 +13,7 @@ mod scenes;
 mod teams;
 mod ui;
 
-pub use ai::{handle_ai_input, AIActionRoutine};
+pub use ai::AIPlugin;
 pub use characters::{
     calculate_character_velocity, handle_gun_picking, handle_inventory_layout_change,
     handle_letting_gear_go, PlayerCharacterBundle,
@@ -126,7 +126,7 @@ pub fn handle_waiting_for_rematch_in_limbo(
 }
 
 /// State of chaos!
-#[derive(Resource, Clone, Debug, PartialEq, Eq, Reflect, FromReflect)]
+#[derive(Resource, Clone, Debug, PartialEq, Eq, DerefMut, Reflect, FromReflect)]
 #[reflect_value(Debug, Resource, FromReflect)]
 pub struct EntropyGenerator(pub StdRng);
 
