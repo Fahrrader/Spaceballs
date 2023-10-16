@@ -1,3 +1,5 @@
+use crate::network::PlayerHandle;
+use crate::ui::colors;
 use bevy::prelude::{Component, FromReflect, Reflect};
 use bevy::render::color::Color;
 
@@ -14,6 +16,10 @@ pub const AI_DEFAULT_TEAM: TeamNumber = 9;
 pub struct Team(pub TeamNumber);
 
 impl Team {
+    pub fn from_player_handle(player_handle: PlayerHandle) -> Self {
+        Self(PLAYER_DEFAULT_TEAM + player_handle as TeamNumber)
+    }
+
     /// Get the color associated with the team.
     pub fn color(&self) -> Color {
         team_color(self.0)
@@ -49,7 +55,7 @@ pub fn safe_team_color(team: TeamNumber) -> Option<Color> {
         5 => Some(Color::PURPLE),
         6 => Some(Color::SEA_GREEN),
         7 => Some(Color::ORANGE_RED),
-        8 => Some(Color::INDIGO),
+        8 => Some(colors::ORCHID),
         9 => Some(Color::SILVER),
         _ => None,
     }

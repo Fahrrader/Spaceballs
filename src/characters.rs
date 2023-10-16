@@ -132,22 +132,24 @@ impl BaseCharacterBundle {
 pub struct PlayerCharacterBundle {
     #[bundle]
     pub character_bundle: BaseCharacterBundle,
+    pub controller: ControllerHandle,
     pub player_marker: PlayerControlled,
 }
 
 /// Marker designating an entity controlled by a player.
 #[derive(Component, Debug)]
-pub struct PlayerControlled {
-    pub handle: PlayerHandle,
-}
+pub struct PlayerControlled;
+
+/// Marker designating an entity controlled by a player.
+#[derive(Component, Debug)]
+pub struct ControllerHandle(pub PlayerHandle);
 
 impl BuildCharacter for PlayerCharacterBundle {
     fn new(transform: Transform, team: TeamNumber, player_handle: usize) -> Self {
         Self {
             character_bundle: BaseCharacterBundle::new(transform, team),
-            player_marker: PlayerControlled {
-                handle: player_handle,
-            },
+            controller: ControllerHandle(player_handle),
+            player_marker: PlayerControlled,
         }
     }
 
@@ -168,15 +170,15 @@ pub struct AICharacterBundle {
     #[bundle]
     pub character_bundle: BaseCharacterBundle,
     pub ai_agent: AIAgent,
-    /*pub player_marker: AIControlled,
-    pub ai_controller: AIActionRoutine,*/
+    pub controller: ControllerHandle,
 }
 
 impl BuildCharacter for AICharacterBundle {
-    fn new(transform: Transform, team: TeamNumber, _player_handle: usize) -> Self {
+    fn new(transform: Transform, team: TeamNumber, player_handle: usize) -> Self {
         Self {
             character_bundle: BaseCharacterBundle::new(transform, team),
             ai_agent: AIAgent::default(),
+            controller: ControllerHandle(player_handle),
         }
     }
 

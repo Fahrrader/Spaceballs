@@ -380,7 +380,7 @@ fn handle_input_field_placeholder(
 ) {
     for (mut text, input) in text_query.iter_mut() {
         let placeholder_idx = text.sections.len() - 2;
-        if let Some(mut placeholder_section) = text.sections.get_mut(placeholder_idx) {
+        if let Some(placeholder_section) = text.sections.get_mut(placeholder_idx) {
             if input.text.is_empty() {
                 placeholder_section.value = input.placeholder.clone();
             } else {

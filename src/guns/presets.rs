@@ -142,6 +142,7 @@ pub const IMPRECISE: GunPersistentStats = GunPersistentStats {
     projectile_speed: BULLET_SPEED * 2.,
     reload_time: Duration::from_millis(500),
     shots_before_reload: 15,
+    friendly_fire: true,
     ..REGULAR
 };
 
@@ -158,6 +159,7 @@ pub const SCATTERSHOT: GunPersistentStats = GunPersistentStats {
     recoil: 6.0,
     reload_time: Duration::from_millis(1200),
     shots_before_reload: 6,
+    friendly_fire: true,
     ..REGULAR
 };
 

@@ -95,6 +95,7 @@ impl Projectile {
             commands.entity(body.0).insert(Dying {
                 by_shooter: projectile.1,
             });
+            bevy::log::error!("Damaged an idiot, he's dying");
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::characters::PlayerControlled;
+use crate::characters::{ControllerHandle, PlayerControlled};
 use crate::network::{GGRSConfig, GGRSInput};
 use crate::ui::input_consumption::{
     ActiveInputConsumerLayers, GAME_INPUT_LAYER, PAUSE_INPUT_LAYER,
@@ -13,7 +13,7 @@ use bevy::input::{
     Axis, Input,
 };
 use bevy::prelude::{
-    Commands, Component, EventReader, EventWriter, In, KeyCode, Local, Query, Res, Resource,
+    Commands, Component, EventReader, EventWriter, In, KeyCode, Local, Query, Res, Resource, With,
 };
 use bevy::reflect::{FromReflect, Reflect};
 use bevy_ggrs::{ggrs, PlayerInputs};
@@ -68,21 +68,21 @@ impl CharacterActionInput {
 /// System to record the players' online inputs (local and received) to the input struct used by the actuator systems.
 pub fn handle_online_player_input(
     inputs: Res<PlayerInputs<GGRSConfig>>,
-    mut query: Query<(&mut CharacterActionInput, &PlayerControlled)>,
+    mut query: Query<(&mut CharacterActionInput, &ControllerHandle), With<PlayerControlled>>,
     mut index_oob_timeout: Local<Vec<usize>>,
 ) {
-    for (mut player_inputs, player) in query.iter_mut() {
-        match inputs.get(player.handle) {
+    for (mut player_inputs, controller) in query.iter_mut() {
+        match inputs.get(controller.0) {
             Some(&(input, _)) => *player_inputs = input.into(),
             None => {
                 // Report that the index is not in bounds (i.e. player generation fucked up)
-                if !index_oob_timeout.contains(&player.handle) {
+                if !index_oob_timeout.contains(&controller.0) {
                     bevy::log::error!(
                         "Player handle {} out of bounds when reading online inputs! Expected player count and the length of the received player inputs: {}.",
-                        player.handle,
+                        controller.0,
                         inputs.len(),
                     );
-                    index_oob_timeout.push(player.handle);
+                    index_oob_timeout.push(controller.0);
                 }
             }
         };

@@ -1,4 +1,4 @@
-use crate::characters::PlayerControlled;
+use crate::characters::ControllerHandle;
 use crate::network::{PlayerHandle, PlayerRegistry};
 use crate::ui::chat::ChatMessage;
 use crate::PlayerDied;
@@ -11,7 +11,7 @@ use bevy::reflect::{FromReflect, Reflect};
 pub type HitPoints = f32;
 
 /// Holder component of an entity's hit points.
-#[derive(Component, Debug, Default, PartialEq, Reflect, FromReflect)]
+#[derive(Component, Debug, Default, Copy, Clone, PartialEq, Reflect, FromReflect)]
 pub struct Health {
     hp: HitPoints,
     // armor? max?
@@ -39,6 +39,14 @@ impl Health {
     }
 }
 
+impl std::ops::Deref for Health {
+    type Target = HitPoints;
+
+    fn deref(&self) -> &Self::Target {
+        &self.hp
+    }
+}
+
 impl From<f32> for Health {
     fn from(hp: HitPoints) -> Self {
         Self { hp }
@@ -55,7 +63,7 @@ pub struct Dying {
 /// System to sift through events of taking damage and apply it to entities' health.
 pub fn handle_death(
     mut commands: Commands,
-    mut query_lives: Query<(&Health, Entity, Option<&PlayerControlled>, &Dying)>,
+    mut query_lives: Query<(&Health, Entity, Option<&ControllerHandle>, &Dying)>,
     mut dead_teller: EventWriter<PlayerDied>,
 ) {
     for (life, entity, maybe_player, dying) in query_lives.iter_mut() {
@@ -64,13 +72,14 @@ pub fn handle_death(
             // todo handle respawning AI also somehow
             if let Some(player) = maybe_player {
                 dead_teller.send(PlayerDied {
-                    player_handle: player.handle,
+                    player_handle: player.0,
                     killed_by: dying.by_shooter,
                 });
             }
         } else {
             commands.entity(entity).remove::<Dying>();
         }
+        bevy::log::error!("The dying one's dead, cleaned up");
     }
 }
 
@@ -89,7 +98,7 @@ pub fn handle_reporting_death(
             continue;
         }
 
-        let mut player_data = player_data.unwrap();
+        let player_data = player_data.unwrap();
         player_data.deaths += 1;
         let player_team = player_data.team;
 

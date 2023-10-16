@@ -92,9 +92,9 @@ fn main() {
                 handle_gun_cleanup,
                 handle_inventory_layout_change,
                 handle_gun_arriving_at_rest,
+                handle_death,
                 handle_bullet_collision_events,
                 handle_railgun_penetration_damage,
-                handle_death,
                 send_new_players_joined,
                 handle_respawn_point_occupation,
                 handle_player_respawning,
@@ -110,7 +110,9 @@ fn main() {
             )
                 .in_schedule(GGRSSchedule),
         )
+        // hello
         .add_system(handle_respawn_point_occupation.in_schedule(OnEnter(GameState::InGame)))
+        //.add_system(handle_respawn_point_occupation.run_if(in_state(GameState::InGame)))
         .add_system(reset_spawn_queue.in_schedule(OnExit(GameState::InGame)))
         .add_system(handle_waiting_for_rematch_in_limbo.run_if(in_state(LimboState::Limbo)))
         .add_system(handle_pause_input.run_if(in_state(GameState::InGame)))

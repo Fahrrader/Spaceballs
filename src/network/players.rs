@@ -1,6 +1,6 @@
 use crate::network::peers::{PeerHandles, PeerNames};
 use crate::network::{PlayerHandle, MAINTAINED_FPS_F64};
-use crate::teams::{Team, TeamNumber, PLAYER_DEFAULT_TEAM};
+use crate::teams::{Team, TeamNumber};
 use crate::{GameState, MenuState, PlayerCount};
 use bevy::prelude::*;
 use std::slice::Iter;
@@ -15,11 +15,14 @@ pub struct PlayerData {
 }
 
 impl PlayerData {
-    pub fn from_player_handle(player_handle: PlayerHandle) -> Self {
-        Self {
-            team: Team(PLAYER_DEFAULT_TEAM + player_handle as TeamNumber),
-            ..default()
-        }
+    pub fn with_team(mut self, team: TeamNumber) -> Self {
+        self.team = Team(team);
+        self
+    }
+
+    pub fn with_team_from_handle(mut self, player_handle: PlayerHandle) -> Self {
+        self.team = Team::from_player_handle(player_handle);
+        self
     }
 
     pub fn with_name(mut self, name: String) -> Self {

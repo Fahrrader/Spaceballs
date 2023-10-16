@@ -365,16 +365,25 @@ pub fn handle_respawn_point_occupation(
     mut random_state: ResMut<EntropyGenerator>,
     mut spawn_queue: ResMut<SpawnQueue>,
 ) {
+    let mut queue_player_for_respawn_if_not_queued =
+        |player_handle: PlayerHandle, respawn_immediately: bool| {
+            // inefficient! but spawn queue is rarely > 0, so not critical
+            if !spawn_queue.0.iter().any(|&(h, _)| h == player_handle)
+                && !spawn_point_query
+                    .iter()
+                    .any(|(point, _)| point.occupant_handle == Some(player_handle))
+            {
+                spawn_queue
+                    .0
+                    .push_back((player_handle, respawn_immediately));
+            }
+        };
+
     new_player_events.iter().for_each(|event| {
-        // inefficient! but spawn queue is rarely > 0, so not critical
-        if !spawn_queue.0.iter().any(|&(h, _)| h == event.player_handle) {
-            spawn_queue.0.push_back((event.player_handle, true));
-        }
+        queue_player_for_respawn_if_not_queued(event.player_handle, true);
     });
     dead_player_events.iter().for_each(|event| {
-        if !spawn_queue.0.iter().any(|&(h, _)| h == event.player_handle) {
-            spawn_queue.0.push_back((event.player_handle, false));
-        }
+        queue_player_for_respawn_if_not_queued(event.player_handle, false);
     });
 
     if spawn_queue.0.is_empty() {
@@ -424,7 +433,7 @@ pub fn handle_player_respawning(
         let player_handle = spawn_point
             .occupant_handle
             .expect("Spawn beacon is occupied, but occupant handle is `None`? Preposterous!");
-        let player_entity = PlayerCharacterBundle::new(
+        let player_entity = AICharacterBundle::new(
             *transform,
             *player_registry.get(player_handle).expect("Spawn beacon is occupied, but occupant handle is not registered as a player? Preposterous!").team,
             player_handle,

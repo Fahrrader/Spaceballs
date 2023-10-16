@@ -115,12 +115,16 @@ pub fn build_session(
         // maybe implement ability to choose own color or join a specific team later, for now tis will do.
         match player {
             PlayerType::Remote(peer_id) => {
-                player_registry.0.push(PlayerData::from_player_handle(i));
+                player_registry
+                    .0
+                    .push(PlayerData::default().with_team_from_handle(i));
                 peer_handles.map.insert(peer_id, i);
             }
             PlayerType::Local => {
                 player_registry.0.push(
-                    PlayerData::from_player_handle(i).with_name(settings.player_name.clone()),
+                    PlayerData::default()
+                        .with_team_from_handle(i)
+                        .with_name(settings.player_name.clone()),
                 );
                 commands.insert_resource(LocalPlayerHandle(i));
             }

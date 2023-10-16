@@ -351,7 +351,7 @@ pub struct LastUnequippedAt(pub Duration);
 pub mod systems {
     pub use super::additives::systems::*;
     use super::*;
-    use crate::characters::PlayerControlled;
+    use crate::characters::ControllerHandle;
 
     /// System to spawn projectiles out of guns and keep track of their firing cooldowns, magazine sizes, and character recoil.
     pub fn handle_gunfire(
@@ -362,7 +362,7 @@ pub mod systems {
             &CharacterActionInput,
             &Team,
             &mut Transform,
-            Option<&PlayerControlled>,
+            Option<&ControllerHandle>,
         )>,
     ) {
         for (mut gun, gun_transform, equipped) in query_weapons.iter_mut() {
@@ -381,7 +381,7 @@ pub mod systems {
                             input.reload,
                             team,
                             transform,
-                            maybe_player.map(|player| player.handle),
+                            maybe_player.map(|player| player.0),
                         )
                     })
                     .unwrap();

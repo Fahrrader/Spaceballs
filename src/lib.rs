@@ -55,6 +55,7 @@ use bevy::core_pipeline::bloom::{BloomPrefilterSettings, BloomSettings};
 use bevy::reflect::ReflectFromReflect;
 use bevy::window::{PrimaryWindow, WindowRef, WindowResized};
 use clap::Parser;
+use rand::RngCore;
 
 /// Client's current state of the game.
 #[derive(States, Clone, Default, Eq, PartialEq, Debug, Hash)]
@@ -152,8 +153,9 @@ impl EntropyGenerator {
 }
 
 impl Default for EntropyGenerator {
+    // initiate with random seed as to not bias the AI?
     fn default() -> Self {
-        Self::new(42)
+        Self::new(rand::thread_rng().next_u64())
     }
 }
 
